@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S1.1 การวัดและความไม่แน่นอน · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S1.1 การวัดและความไม่แน่นอน · บท 1 เรื่อง 5, 8
+   สูตร: ความไม่แน่นอนของเครื่องมือ = ขีดเล็กสุด/2 · ค่าเฉลี่ย = Σx/n · ความคลาดเคลื่อน = (มากสุด − น้อยสุด)/2
+   บวกลบ: บวกความคลาดเคลื่อนเข้าด้วยกัน · คูณหาร: บวกเปอร์เซ็นต์ความคลาดเคลื่อน · แบบนิ่ง สุ่มค่าวัดซ้ำด้วย rng(seed) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  var seedLocal = 7;
+  function roundTo(v, res) { return Math.round(v / res) * res; }
+  function readings(p, rngf) {
+    var arr = [];
+    for (var i = 0; i < p.n; i++) arr.push(roundTo(p.L + (rngf() - 0.5) * 2 * p.spread, p.res));
+    if (p.outlier) arr[p.n - 1] = roundTo(arr[p.n - 1] + 1.2, p.res);
+    return arr;
+  }
+  function stats(arr, drop) {
+    var used = arr.slice(), dropped = null;
+    if (drop && used.length >= 3) {
+      var sorted = used.slice().sort(function (a, b) { return a - b; }), med = sorted[Math.floor(sorted.length / 2)];
+      var far = 0, idx = -1; used.forEach(function (x, i) { var d = Math.abs(x - med); if (d > far) { far = d; idx = i; } });
+      var rest = used.filter(function (_, i) { return i !== idx; }), mx = Math.max.apply(null, rest), mn = Math.min.apply(null, rest);
+      if (far > 2 * Math.max(mx - mn, 0.01)) { dropped = used[idx]; used.splice(idx, 1); }
+    }
+    var sum = used.reduce(function (a, b) { return a + b; }, 0), mean = sum / used.length;
+    var max = Math.max.apply(null, used), min = Math.min.apply(null, used), err = (max - min) / 2;
+    return { used: used, dropped: dropped, mean: mean, max: max, min: min, err: err, pct: mean ? err / mean * 100 : 0 };
+  }
+  function init(p, ctx) { var arr = readings(p, PhysLab.rng(seedLocal)); return { arr: arr, st: stats(arr, p.drop), single: roundTo(p.L, p.res), unc: p.res / 2 }; }
+  var RES = [{ label: 'ขีดละ 1 cm', value: 1 }, { label: 'ขีดละ 1 mm', value: 0.1 }, { label: 'เวอร์เนียร์ 0.01 cm', value: 0.01 }];
+
+  PhysLab.createSim({
+    id: 'S1.1', chapter: 1, topics: [5, 8], title: 'การวัดและความไม่แน่นอน', static: true,
+    alt: 'ไม้บรรทัดวัดความยาวแท่งโลหะ แสดงค่าอ่านพร้อมความไม่แน่นอน และแผนภาพจุดของการวัดซ้ำหลายครั้งพร้อมค่าเฉลี่ยและช่วงคลาดเคลื่อน',
+    stats: stats, readings: readings,
+    params: {
+      L: { label: 'ความยาวจริงของแท่ง', symbol: 'L', unit: 'cm', type: 'range', min: 0.5, max: 20, step: 0.01, default: 12.34 },
+      res: { label: 'เครื่องมือวัด', type: 'choice', options: RES, default: 0.1 },
+      n: { label: 'จำนวนครั้งที่วัดซ้ำ', symbol: 'n', type: 'range', min: 3, max: 10, step: 1, default: 5 },
+      spread: { label: 'ความคลาดเคลื่อนสุ่มของการวัด', unit: 'cm', type: 'range', min: 0, max: 0.5, step: 0.01, default: 0.1 },
+      outlier: { label: 'ใส่ค่าผิดปกติ 1 ค่า', type: 'toggle', default: false },
+      drop: { label: 'ตัดค่าผิดปกติทิ้งก่อนหาค่าเฉลี่ย', type: 'toggle', default: true }
+    },
+    presets: [
+      { label: 'ไม้บรรทัดหยาบ', values: { res: 1, spread: 0.3 } },
+      { label: 'ไม้บรรทัดมิลลิเมตร', values: { res: 0.1, spread: 0.1 } },
+      { label: 'เวอร์เนียร์', values: { res: 0.01, spread: 0.02 } },
+      { label: 'มีค่าหลุด', values: { outlier: true, drop: true } }
+    ],
+    world: { xMin: 0, xMax: 100, yMin: 0, yMax: 50, fit: 'stretch', pad: 0, yUp: false },
+    init: init, step: function (s) { return s; },
+    setup: function (api) { api.addButton('สุ่มค่าวัดใหม่', function () { seedLocal++; api.reset(); }); },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = D.W, H = D.H, x0 = 40, x1 = W - 40, cmPx = (x1 - x0) / 20, yR = 70;
+      D.rectPx(x0, yR, x1 - x0, 46, { fill: c.card, stroke: c.line });
+      var tick = p.res >= 1 ? 1 : 0.1, i;
+      for (i = 0; i <= 20 + 1e-9; i += tick) {
+        var px = x0 + i * cmPx, major = Math.abs(i - Math.round(i)) < 1e-9, half = Math.abs(i * 2 - Math.round(i * 2)) < 1e-9;
+        D.ctx.strokeStyle = c.text; D.ctx.lineWidth = major ? 1.5 : 1; D.ctx.beginPath(); D.ctx.moveTo(px, yR); D.ctx.lineTo(px, yR + (major ? 18 : half ? 12 : 7)); D.ctx.stroke();
+        if (major) D.textPx(String(Math.round(i)), px, yR + 32, { align: 'center', size: 11, mono: true, color: c.muted });
+      }
+      D.textPx(RES.filter(function (r) { return r.value === p.res; })[0].label + ' · หน่วย cm', x1, yR - 10, { align: 'right', size: 12, color: c.muted });
+      var rodY = yR - 34, rodW = p.L * cmPx;
+      D.rectPx(x0, rodY - 12, rodW, 22, { fill: c.primary });
+      D.ctx.strokeStyle = c.red; D.ctx.lineWidth = 1.5; D.ctx.setLineDash([4, 3]); D.ctx.beginPath(); D.ctx.moveTo(x0 + rodW, rodY - 20); D.ctx.lineTo(x0 + rodW, yR + 20); D.ctx.stroke(); D.ctx.setLineDash([]);
+      D.textPx('อ่านได้ ' + fmt(s.single, 5) + ' ± ' + fmt(s.unc, 2) + ' cm', x0 + rodW + 8, rodY, { size: 13, mono: true, color: c.red, bold: true });
+      if (p.res === 0.01) D.textPx('เวอร์เนียร์อ่านได้ละเอียดถึง 0.01 cm', x0, yR + 60, { size: 12, color: c.muted });
+      var yA = Math.min(H - 40, yR + 150), xa = 60, xb = W - 60;
+      var st = s.st, all = s.arr.slice(), lo = Math.min.apply(null, all), hi = Math.max.apply(null, all), span = Math.max(hi - lo, p.res * 4, 0.2);
+      lo -= span * 0.15; hi += span * 0.15;
+      function X(v) { return xa + (v - lo) / (hi - lo) * (xb - xa); }
+      D.textPx('การวัดซ้ำ ' + p.n + ' ครั้ง (cm)', xa, yA - 60, { size: 13, color: c.muted });
+      D.ctx.strokeStyle = c.line; D.ctx.lineWidth = 1.5; D.ctx.beginPath(); D.ctx.moveTo(xa, yA); D.ctx.lineTo(xb, yA); D.ctx.stroke();
+      var ts = PhysLab.niceStep((hi - lo) / 6);
+      for (i = Math.ceil(lo / ts) * ts; i <= hi; i += ts) { D.ctx.beginPath(); D.ctx.moveTo(X(i), yA); D.ctx.lineTo(X(i), yA + 6); D.ctx.stroke(); D.textPx(fmt(i, 4), X(i), yA + 16, { align: 'center', size: 11, mono: true, color: c.muted }); }
+      D.rectPx(X(st.min), yA - 30, X(st.max) - X(st.min), 20, { fill: c.accentSoft });
+      all.forEach(function (v, k) { var isDrop = st.dropped !== null && v === st.dropped && k === all.lastIndexOf(v); var cy = yA - 20; D.ctx.beginPath(); D.ctx.arc(X(v), cy, 7, 0, Math.PI * 2); D.ctx.fillStyle = isDrop ? c.red : c.primary; D.ctx.fill(); D.textPx(fmt(v, 4), X(v), cy - 16, { align: 'center', size: 10, mono: true, color: isDrop ? c.red : c.text }); if (isDrop) D.textPx('ตัดทิ้ง', X(v), cy + 18, { align: 'center', size: 10, color: c.red }); });
+      D.ctx.strokeStyle = c.green; D.ctx.lineWidth = 2; D.ctx.beginPath(); D.ctx.moveTo(X(st.mean), yA - 44); D.ctx.lineTo(X(st.mean), yA + 2); D.ctx.stroke();
+      D.textPx('ค่าเฉลี่ย ' + fmt(st.mean, 4) + ' ± ' + fmt(st.err, 2) + ' cm', X(st.mean), yA - 52, { align: 'center', size: 12, mono: true, color: c.green, bold: true });
+    },
+    readouts: function (s, p) {
+      var st = s.st;
+      return [
+        { label: 'ค่าอ่านครั้งเดียว', value: fmt(s.single, 5) + ' ± ' + fmt(s.unc, 2), unit: 'cm', highlight: true },
+        { label: 'ขีดเล็กสุดของเครื่องมือ', value: p.res, unit: 'cm' },
+        { label: 'ค่าเฉลี่ย', value: st.mean, unit: 'cm', sig: 4 }, { label: 'มากสุด · น้อยสุด', value: fmt(st.max, 4) + ' · ' + fmt(st.min, 4), unit: 'cm' },
+        { label: 'ความคลาดเคลื่อน', value: st.err, unit: 'cm', sig: 2, highlight: true }, { label: 'เปอร์เซ็นต์ความคลาดเคลื่อน', value: st.pct, unit: '%', sig: 2 },
+        { label: 'ใช้ค่าวัด', value: st.used.length + ' จาก ' + s.arr.length + (st.dropped !== null ? ' (ตัด ' + fmt(st.dropped, 4) + ')' : '') }
+      ];
+    },
+    formulas: function (s, p) {
+      var st = s.st;
+      return [
+        { symbolic: 'ความไม่แน่นอน = ขีดเล็กสุด / 2', substituted: '= ' + p.res + ' / 2', result: '= ' + fmt(s.unc, 2) + ' cm' },
+        { symbolic: 'ค่าเฉลี่ย = Σx / n', substituted: '= ' + fmt(st.used.reduce(function (a, b) { return a + b; }, 0), 5) + ' / ' + st.used.length, result: '= ' + fmt(st.mean, 4) + ' cm' },
+        { symbolic: 'ความคลาดเคลื่อน = (มากสุด − น้อยสุด) / 2', substituted: '= (' + fmt(st.max, 4) + ' − ' + fmt(st.min, 4) + ') / 2', result: '= ' + fmt(st.err, 2) + ' cm' },
+        { symbolic: 'นำไปบวก: (L ± Δ) + (L ± Δ)', substituted: '', result: '= ' + fmt(2 * st.mean, 4) + ' ± ' + fmt(2 * st.err, 2) + ' cm' },
+        { symbolic: 'นำไปคูณ: (L ± p%)² → บวก %', substituted: '', result: '= ' + fmt(st.mean * st.mean, 4) + ' cm² ± ' + fmt(2 * st.pct, 2) + ' %' }
+      ];
+    },
+    content: {
+      summary: '<b>ความไม่แน่นอนในการวัด</b> ค่าที่วัดได้ไม่มีทางแม่นยำสมบูรณ์ ขึ้นกับความละเอียดของเครื่องมือ ไม้บรรทัดที่มีขีดถี่กว่าจะวัดได้ละเอียดกว่า จึงต้องบอกค่าพร้อมช่วงความคลาดเคลื่อนเสมอ <b>ความคลาดเคลื่อนเชิงสถิติ</b> เมื่อวัดหลายครั้ง ให้ตัดค่าที่ผิดปกติทิ้ง หาค่าเฉลี่ย และความคลาดเคลื่อน = (ค่ามากสุด − ค่าน้อยสุด)/2 เวลาเอาค่ามาบวกลบกันให้บวกความคลาดเคลื่อนเข้าด้วยกัน ถ้าคูณหารให้บวกเปอร์เซ็นต์ความคลาดเคลื่อนเข้าด้วยกัน',
+      tryIt: ['เปลี่ยนเครื่องมือจากขีดละ 1 cm เป็นเวอร์เนียร์ ดูว่าค่าอ่านมีทศนิยมมากขึ้นและ ± เล็กลง', 'เปิด "ใส่ค่าผิดปกติ" แล้วปิด "ตัดค่าผิดปกติ" ดูว่าความคลาดเคลื่อนพุ่งขึ้นเพราะค่าเดียว', 'กดสุ่มค่าวัดใหม่หลายครั้ง สังเกตว่าค่าเฉลี่ยใกล้ความยาวจริงกว่าค่าวัดครั้งเดียว']
+    }
+  });
+})();
+</script>
+</body>
+</html>

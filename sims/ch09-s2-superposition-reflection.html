@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S9.2 การซ้อนทับและการสะท้อนในเส้นเชือก · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S9.2 การซ้อนทับและการสะท้อนในเส้นเชือก · บท 9 เรื่อง 5, 6
+   หลัก: y รวม = y₁ + y₂ · ปลายตรึงสะท้อนกลับเฟส ปลายอิสระสะท้อนเฟสเดิม · ใช้วิธีภาพสะท้อน (method of images) ที่ปลายทั้งสอง
+   รูปคลื่นคำนวณจากสูตรโดยตรง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, L = 10;
+  function pulse(u, A, w) { return A * Math.exp(-(u * u) / (w * w)); }
+  function field(p, x, t, which) {
+    var sgn = p.end === 'fixed' ? -1 : 1, total = 0;
+    var list = which === 1 ? [[p.x1, 1, p.A1]] : which === 2 ? [[p.x2, -1, p.A2]] : [[p.x1, 1, p.A1], [p.x2, -1, p.A2]];
+    list.forEach(function (q) { var c0 = q[0], d = q[1], A = q[2]; for (var k = -2; k <= 2; k++) { total += pulse(x - c0 - d * p.v * t - 2 * k * L, A, p.w) + sgn * pulse(-x - c0 - d * p.v * t - 2 * k * L, A, p.w); } });
+    return total;
+  }
+  PhysLab.createSim({
+    id: 'S9.2', chapter: 9, topics: [5, 6], title: 'การซ้อนทับและการสะท้อนในเส้นเชือก',
+    alt: 'คลื่นดลสองลูกวิ่งเข้าหากันบนเส้นเชือก ซ้อนทับแล้วแยกออก และสะท้อนที่ปลายเชือกแบบตรึงหรืออิสระ เส้นประแสดงคลื่นแต่ละลูก',
+    field: field,
+    params: {
+      A1: { label: 'แอมพลิจูดลูกซ้าย (วิ่งไปขวา)', symbol: 'A₁', unit: 'm', type: 'range', min: -0.5, max: 0.5, step: 0.05, default: 0.3 },
+      A2: { label: 'แอมพลิจูดลูกขวา (วิ่งไปซ้าย)', symbol: 'A₂', unit: 'm', type: 'range', min: -0.5, max: 0.5, step: 0.05, default: 0.3 },
+      w: { label: 'ความกว้างลูกคลื่น', unit: 'm', type: 'range', min: 0.2, max: 1.2, step: 0.05, default: 0.5 },
+      v: { label: 'อัตราเร็วคลื่น', symbol: 'v', unit: 'm/s', type: 'range', min: 0.5, max: 4, step: 0.1, default: 2 },
+      x1: { label: 'ตำแหน่งเริ่มลูกซ้าย', unit: 'm', type: 'range', min: 1, max: 4, step: 0.1, default: 2 },
+      x2: { label: 'ตำแหน่งเริ่มลูกขวา', unit: 'm', type: 'range', min: 6, max: 9, step: 0.1, default: 8 },
+      end: { label: 'ปลายเชือก', type: 'choice', options: [{ label: 'ตรึงแน่น (กลับเฟส)', value: 'fixed' }, { label: 'อิสระ (เฟสเดิม)', value: 'free' }], default: 'fixed' }
+    },
+    presets: [{ label: 'เสริมกัน (+0.3 กับ +0.3)', values: { A1: 0.3, A2: 0.3, end: 'fixed' } }, { label: 'หักล้างพอดี (+0.3 กับ −0.3)', values: { A1: 0.3, A2: -0.3, end: 'fixed' } }, { label: 'ลูกใหญ่เจอลูกเล็ก', values: { A1: 0.5, A2: -0.2 } }, { label: 'สะท้อนปลายตรึง (ลูกเดียว)', values: { A1: 0.4, A2: 0, end: 'fixed' } }, { label: 'สะท้อนปลายอิสระ (ลูกเดียว)', values: { A1: 0.4, A2: 0, end: 'free' } }],
+    toggles: [{ key: 'parts', label: 'แสดงคลื่นแต่ละลูก (เส้นประ)' }],
+    speeds: [0.25, 0.5, 1, 2],
+    world: { xMin: -0.6, xMax: L + 0.6, yMin: -1.2, yMax: 1.2 },
+    init: function () { return { ymid: 0 }; }, step: function (s, p, dt, t) { s.ymid = field(p, L / 2, t + dt, 0); return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, t = D.t, sum = [], p1 = [], p2 = [];
+      for (var i = 0; i <= 300; i++) { var x = L * i / 300; sum.push([x, field(p, x, t, 0)]); p1.push([x, field(p, x, t, 1)]); p2.push([x, field(p, x, t, 2)]); }
+      D.line(0, 0, L, 0, { color: c.line, width: 1 });
+      if (p.end === 'fixed') { D.rect(-0.15, -0.5, 0.15, 1, { fill: c.muted }); D.rect(L, -0.5, 0.15, 1, { fill: c.muted }); } else { D.line(0, -0.6, 0, 0.6, { color: c.muted, width: 2 }); D.circle(0, 0, 0.08, { fill: c.card, stroke: c.muted, width: 2 }); D.line(L, -0.6, L, 0.6, { color: c.muted, width: 2 }); D.circle(L, 0, 0.08, { fill: c.card, stroke: c.muted, width: 2 }); }
+      if (D.view.parts) { D.polyline(p1, { color: c.green, width: 1.5, dash: [4, 3] }); D.polyline(p2, { color: c.orange, width: 1.5, dash: [4, 3] }); }
+      D.polyline(sum, { color: c.primary, width: 3 });
+      D.line(L / 2, -0.9, L / 2, 0.9, { color: c.line, dash: [3, 3], width: 1 }); D.label('จุดกึ่งกลาง y = ' + fmt(s.ymid) + ' m', L / 2, -0.95, { align: 'center' });
+      D.label('ปลาย' + (p.end === 'fixed' ? 'ตรึง: สะท้อนกลับเฟส (สันกลายเป็นท้อง)' : 'อิสระ: สะท้อนเฟสเดิม'), 0, -1.05, { color: c.text });
+      D.label('y รวม = y₁ + y₂ ทุกจุด ทุกขณะ · ผ่านกันแล้วรูปร่างเดิม', 0, 1.1, { color: c.text });
+    },
+    readouts: function (s, p) { var t = 0; return [{ label: 'y ที่จุดกึ่งกลาง (รวม)', value: s.ymid, unit: 'm', highlight: true }, { label: 'ถ้าซ้อนกันพอดี y รวม', value: p.A1 + p.A2, unit: 'm' }, { label: 'ชนิด', value: p.A1 * p.A2 > 0 ? 'เสริมกัน' : p.A1 * p.A2 < 0 ? 'หักล้างกัน' : 'ลูกเดียว' }, { label: 'คลื่นสะท้อนที่ปลาย', value: p.end === 'fixed' ? 'กลับเฟส (A → −A)' : 'เฟสเดิม (A → A)' }, { label: 'เวลาที่สองลูกพบกัน', value: (p.x2 - p.x1) / (2 * p.v), unit: 's' }]; },
+    formulas: function (s, p) { return [{ symbolic: 'หลักการซ้อนทับ: y รวม = y₁ + y₂', substituted: 'ขณะซ้อนพอดี = ' + p.A1 + ' + (' + p.A2 + ')', result: '= ' + fmt(p.A1 + p.A2) + ' m' }, { symbolic: 'การสะท้อน: มุมตก = มุมสะท้อน', substituted: 'ปลาย' + (p.end === 'fixed' ? 'ตรึง' : 'อิสระ'), result: p.end === 'fixed' ? 'กลับเฟส' : 'เฟสเดิม' }]; },
+    sample: function (s) { return { y: s.ymid }; },
+    graphs: [{ title: 'y ที่จุดกึ่งกลางกับเวลา', x: 't', series: [{ key: 'y', label: 'y รวม (m)' }], window: 8 }],
+    content: {
+      summary: '<b>การแทรกสอดแบบเสริมและหักล้าง</b> คลื่นสองลูกซ้อนกันได้ สันเจอสันเสริมกันสูงขึ้น สันเจอท้องหักล้างกัน แล้วแยกออกไปเหมือนเดิม <b>การสะท้อน</b> มุมตกกระทบเท่ามุมสะท้อน ในเส้นเชือก ปลายตรึงสะท้อนกลับเฟส (สันกลายเป็นท้อง) ปลายอิสระสะท้อนเฟสเดิม',
+      tryIt: ['ตั้ง A₂ = −0.3 ดูว่าขณะซ้อนกันเชือกราบสนิทชั่วขณะ แล้วคลื่นโผล่ต่อไปเหมือนเดิม', 'เลือกสะท้อนปลายตรึง ดูว่าสันกลายเป็นท้องเมื่อสะท้อน แล้วลองสลับเป็นปลายอิสระ', 'เปิดเส้นประ ดูว่าเส้นทึบคือผลบวกของเส้นประสองเส้นเสมอ']
+    }
+  });
+})();
+</script>
+</body>
+</html>

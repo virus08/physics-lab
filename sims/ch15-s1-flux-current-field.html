@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S15.1 ฟลักซ์แม่เหล็กและสนามจากกระแส · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S15.1 ฟลักซ์แม่เหล็กและสนามจากกระแส · บท 15 เรื่อง 1, 2, 3
+   สูตร: Φ = BA cosθ · B = Φ/A · ลวดตรง B = μ₀I/2πr · ขดลวดวงกลม B = μ₀NI/2R · โซเลนอยด์ B = μ₀nI · μ₀ = 4π×10⁻⁷
+   แบบจำลองนิ่ง ใช้ × แทนสนามพุ่งเข้ากระดาษ • แทนพุ่งออก · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad, mu0 = 4 * Math.PI * 1e-7;
+  function flux(p) { return p.B * p.A * 1e-4 * Math.cos(rad(p.th)); }
+  function Bwire(p, r) { return mu0 * p.I / (2 * Math.PI * r); }
+  function Bloop(p) { return mu0 * p.N * p.I / (2 * p.R); }
+  function Bsol(p) { return mu0 * (p.N / p.len) * p.I; }
+  PhysLab.createSim({
+    id: 'S15.1', chapter: 15, topics: [1, 2, 3], title: 'ฟลักซ์แม่เหล็กและสนามจากกระแส', static: true,
+    alt: 'โหมดฟลักซ์: เส้นสนามแม่เหล็กขนานผ่านกรอบพื้นที่ที่เอียงมุม θ นับจำนวนเส้นที่ทะลุผ่าน โหมดลวดตรง: วงสนามรอบลวด โหมดขดลวดและโซเลนอยด์: เส้นสนามผ่านกลางขด',
+    flux: flux, Bwire: Bwire, Bloop: Bloop, Bsol: Bsol,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'ฟลักซ์ Φ = BA cosθ', value: 'flux' }, { label: 'ลวดตรง', value: 'wire' }, { label: 'ขดลวดวงกลม', value: 'loop' }, { label: 'โซเลนอยด์', value: 'sol' }], default: 'flux' },
+      B: { label: 'ความเข้มสนาม (โหมดฟลักซ์)', symbol: 'B', unit: 'T', type: 'range', min: 0.1, max: 2, step: 0.1, default: 0.5 },
+      A: { label: 'พื้นที่กรอบ', symbol: 'A', unit: 'cm²', type: 'range', min: 10, max: 400, step: 10, default: 200 },
+      th: { label: 'มุมระหว่างเส้นแนวฉากของพื้นที่กับ B', symbol: 'θ', unit: '°', type: 'range', min: 0, max: 90, step: 1, default: 0 },
+      I: { label: 'กระแส (โหมดลวด/ขด)', symbol: 'I', unit: 'A', type: 'range', min: 0, max: 20, step: 0.5, default: 5 },
+      r: { label: 'ระยะจากลวดตรง', symbol: 'r', unit: 'm', type: 'range', min: 0.01, max: 0.5, step: 0.01, default: 0.05 },
+      N: { label: 'จำนวนรอบ (ขด/โซเลนอยด์)', symbol: 'N', type: 'range', min: 1, max: 500, step: 1, default: 100 },
+      R: { label: 'รัศมีขดลวดวงกลม', symbol: 'R', unit: 'm', type: 'range', min: 0.02, max: 0.5, step: 0.01, default: 0.1 },
+      len: { label: 'ความยาวโซเลนอยด์', symbol: 'l', unit: 'm', type: 'range', min: 0.05, max: 1, step: 0.01, default: 0.2 },
+      dir: { label: 'ทิศกระแส', type: 'choice', options: [{ label: 'ตามรูป', value: 1 }, { label: 'กลับทิศ', value: -1 }], default: 1 }
+    },
+    presets: [{ label: 'ฟลักซ์ผ่านตรง θ = 0', values: { mode: 'flux', th: 0 } }, { label: 'ฟลักซ์เอียง 60° (เหลือครึ่ง)', values: { mode: 'flux', th: 60 } }, { label: 'ฟลักซ์ขนานสนาม θ = 90 (ศูนย์)', values: { mode: 'flux', th: 90 } }, { label: 'ลวดตรง 5 A ห่าง 5 cm', values: { mode: 'wire', I: 5, r: 0.05 } }, { label: 'ขดลวด 100 รอบ', values: { mode: 'loop', N: 100, I: 5, R: 0.1 } }, { label: 'โซเลนอยด์ 100 รอบ ยาว 20 cm', values: { mode: 'sol', N: 100, len: 0.2, I: 5 } }],
+    world: { xMin: -5, xMax: 5, yMin: -2.6, yMax: 2.6 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i, j;
+      if (p.mode === 'flux') {
+        var th = rad(p.th), half = 1.6, n = Math.round(2 + p.B * 8);
+        for (i = 0; i < n; i++) { var y = -2.2 + 4.4 * (i + 0.5) / n; D.arrow(-4.6, y, 9.2, 0, { color: c.line, width: 1.2 }); }
+        var ux = Math.sin(th), uy = Math.cos(th), p1 = [-half * ux, half * uy], p2 = [half * ux, -half * uy];
+        D.line(p1[0], p1[1], p2[0], p2[1], { color: c.primary, width: 6 });
+        D.arrow(0, 0, 1.4 * Math.cos(th), 1.4 * Math.sin(th), { color: c.orange, width: 2, label: 'เส้นแนวฉาก' });
+        if (p.th > 0) D.angle(0, 0, 50, 0, th, { label: 'θ ' + p.th + '°' });
+        var count = 0; for (i = 0; i < n; i++) { var yy = -2.2 + 4.4 * (i + 0.5) / n; if (Math.abs(yy) <= half * Math.abs(uy) + 1e-9) { count++; D.dot(Math.abs(uy) < 1e-6 ? 0 : yy / uy * ux, yy, 5, c.red, { stroke: c.card, width: 1.5 }); } }
+        D.label('กรอบพื้นที่ A = ' + p.A + ' cm² มองจากด้านข้าง · เส้นที่ทะลุผ่าน ' + count + ' จาก ' + n + ' เส้น', -4.8, 2.4, { color: c.text, bold: true, bg: c.card });
+        D.label('Φ = BA cosθ = ' + p.B + ' × ' + p.A + '×10⁻⁴ × cos' + p.th + '° = ' + fmt(flux(p)) + ' Wb', -4.8, -2.4, { color: c.primary, bold: true, bg: c.card });
+      } else if (p.mode === 'wire') {
+        D.circle(0, 0, 0.25, { fill: c.card, stroke: c.text, width: 2 }); if (p.dir > 0) D.dot(0, 0, 5, c.text, {}); else { D.line(-0.15, -0.15, 0.15, 0.15, { color: c.text, width: 2 }); D.line(-0.15, 0.15, 0.15, -0.15, { color: c.text, width: 2 }); }
+        D.label('ลวด I = ' + p.I + ' A ' + (p.dir > 0 ? '(• ออกจากกระดาษ)' : '(× เข้ากระดาษ)'), 0, -0.45, { dy: 10, align: 'center', color: c.text });
+        for (i = 1; i <= 5; i++) { var rr = i * 0.42; D.circle(0, 0, rr, { stroke: c.primary, width: PhysLab.clamp(3 / i, 0.8, 3) }); var a = Math.PI / 4, ax = rr * Math.cos(a), ay = rr * Math.sin(a), tx = -Math.sin(a) * p.dir, ty = Math.cos(a) * p.dir; D.arrow(ax - tx * 0.01, ay - ty * 0.01, tx * 0.02, ty * 0.02, { color: c.primary, width: 2 }); }
+        D.label('สนามเป็นวงรอบลวด ทิศตามกฎมือขวา (นิ้วโป้งชี้ตาม I นิ้วที่เหลือกำรอบ = ทิศ B)', -4.8, 2.4, { color: c.text, bg: c.card });
+        var rw = PhysLab.clamp(p.r / 0.5 * 2.2, 0.3, 2.2); D.dot(rw, 0, 6, c.orange, { stroke: c.card, width: 1.5 }); D.line(0, 0, rw, 0, { color: c.orange, dash: [3, 3], width: 1 }); D.label('r = ' + p.r + ' m · B = μ₀I/2πr = ' + fmt(Bwire(p, p.r)) + ' T', rw + 0.15, 0.15, { color: c.orange, bg: c.card });
+        D.label('ยิ่งห่างลวด B ยิ่งอ่อน (B ∝ 1/r)', -4.8, -2.4, { color: c.primary, bold: true, bg: c.card });
+      } else if (p.mode === 'loop') {
+        D.ctx.save(); D.ctx.beginPath(); D.ctx.ellipse(D.x(0), D.y(0), D.sx(0.5), D.sx(1.6), 0, 0, Math.PI * 2); D.ctx.strokeStyle = c.orange; D.ctx.lineWidth = 4; D.ctx.stroke(); D.ctx.restore();
+        for (i = -2; i <= 2; i++) { var yl = i * 0.6; D.arrow(-3.5, yl, 7 * p.dir, 0, { color: c.primary, width: 1.5 }); if (p.dir < 0) D.arrow(3.5, yl, -7, 0, { color: c.primary, width: 1.5 }); }
+        for (i = 0; i < 2; i++) { var yc = i === 0 ? 2.2 : -2.2; D.polyline([[-3.5 * p.dir, 0.6 * (i === 0 ? 2 : -2)], [-4.2, yc], [0, yc * 1.05], [4.2, yc], [3.5 * p.dir, 0.6 * (i === 0 ? 2 : -2)]], { color: c.line, width: 1 }); }
+        D.label('I = ' + p.I + ' A · N = ' + p.N + ' รอบ · R = ' + p.R + ' m', 0, -1.85, { dy: 12, align: 'center', color: c.orange });
+        D.label('ขดลวดวงกลม (มองจากด้านข้าง): สนามพุ่งผ่านกลางวง', -4.8, 2.4, { color: c.text, bg: c.card });
+        D.label('B กลางวง = μ₀NI/2R = ' + fmt(Bloop(p)) + ' T', -4.8, -2.4, { color: c.primary, bold: true, bg: c.card });
+      } else {
+        var turns = Math.min(24, Math.max(6, Math.round(p.N / 8))), L = 6;
+        for (i = -2; i <= 2; i++) { var ys = i * 0.3; D.arrow(-4.3, ys, 8.6 * p.dir, 0, { color: c.primary, width: 1.5 }); if (p.dir < 0) D.arrow(4.3, ys, -8.6, 0, { color: c.primary, width: 1.5 }); }
+        for (i = 0; i < turns; i++) { var xc = -L / 2 + L * (i + 0.5) / turns; D.ctx.save(); D.ctx.beginPath(); D.ctx.ellipse(D.x(xc), D.y(0), D.sx(0.12), D.sx(1.0), 0, 0, Math.PI * 2); D.ctx.strokeStyle = c.orange; D.ctx.lineWidth = 2.5; D.ctx.stroke(); D.ctx.restore(); }
+        D.polyline([[-4.3, 0.6], [-4.8, 2.0], [0, 2.3], [4.8, 2.0], [4.3, 0.6]], { color: c.line, width: 1 }); D.polyline([[-4.3, -0.6], [-4.8, -2.0], [0, -2.3], [4.8, -2.0], [4.3, -0.6]], { color: c.line, width: 1 });
+        D.label('N = ' + p.N + ' รอบ · l = ' + p.len + ' m · n = N/l = ' + fmt(p.N / p.len) + ' รอบ/m · I = ' + p.I + ' A', 0, -1.3, { dy: 12, align: 'center', color: c.orange });
+        D.label('โซเลนอยด์: สนามภายในสม่ำเสมอ คล้ายแท่งแม่เหล็ก (ปลายที่ B พุ่งออกคือขั้ว N)', -4.8, 2.5, { color: c.text, bg: c.card });
+        D.label('B ภายใน = μ₀nI = ' + fmt(Bsol(p)) + ' T', -4.8, -2.5, { color: c.primary, bold: true, bg: c.card });
+      }
+    },
+    readouts: function (s, p) { if (p.mode === 'flux') return [{ label: 'Φ = BA cosθ', value: flux(p), unit: 'Wb', highlight: true }, { label: 'Φ สูงสุด (θ = 0)', value: p.B * p.A * 1e-4, unit: 'Wb' }, { label: 'B = Φ/A (ที่ θ = 0)', value: p.B, unit: 'T' }, { label: 'cosθ', value: Math.cos(rad(p.th)) }]; if (p.mode === 'wire') return [{ label: 'B = μ₀I/2πr', value: Bwire(p, p.r), unit: 'T', highlight: true }, { label: 'B ที่ 2r', value: Bwire(p, 2 * p.r), unit: 'T' }, { label: 'μ₀', value: '4π×10⁻⁷', unit: 'T·m/A' }]; if (p.mode === 'loop') return [{ label: 'B กลางวง = μ₀NI/2R', value: Bloop(p), unit: 'T', highlight: true }, { label: 'ต่อรอบ', value: Bloop(p) / p.N, unit: 'T' }]; return [{ label: 'n = N/l', value: p.N / p.len, unit: 'รอบ/m' }, { label: 'B = μ₀nI', value: Bsol(p), unit: 'T', highlight: true }]; },
+    formulas: function (s, p) { if (p.mode === 'flux') return [{ symbolic: 'Φ = BA cosθ', substituted: '= ' + p.B + ' × ' + p.A + '×10⁻⁴ × cos' + p.th + '°', result: '= ' + fmt(flux(p)) + ' Wb' }]; if (p.mode === 'wire') return [{ symbolic: 'B = μ₀I/2πr', substituted: '= 4π×10⁻⁷ × ' + p.I + ' / (2π × ' + p.r + ')', result: '= ' + fmt(Bwire(p, p.r)) + ' T' }]; if (p.mode === 'loop') return [{ symbolic: 'B = μ₀NI/2R', substituted: '= 4π×10⁻⁷ × ' + p.N + ' × ' + p.I + ' / (2 × ' + p.R + ')', result: '= ' + fmt(Bloop(p)) + ' T' }]; return [{ symbolic: 'B = μ₀nI', substituted: '= 4π×10⁻⁷ × ' + fmt(p.N / p.len) + ' × ' + p.I, result: '= ' + fmt(Bsol(p)) + ' T' }]; },
+    content: {
+      summary: '<b>ฟลักซ์แม่เหล็ก</b> จำนวนเส้นสนามที่ทะลุผ่านพื้นที่ Φ = BA cosθ ผ่านตรง ๆ ได้เต็ม ผ่านเฉียงได้น้อยลง <b>ความเข้มสนามแม่เหล็ก</b> ฟลักซ์ต่อพื้นที่ B = Φ/A ในรูปใช้ × แทนสนามพุ่งเข้ากระดาษ และ • แทนพุ่งออกจากกระดาษ <b>สนามแม่เหล็กจากกระแส</b> ลวดตรงให้สนามเป็นวงรอบลวด ลวดวงกลมให้สนามพุ่งผ่านกลางวง โซเลนอยด์ให้สนามคล้ายแท่งแม่เหล็ก ใช้กฎมือขวาหาทิศ',
+      tryIt: ['โหมดฟลักซ์: หมุนกรอบจาก 0° ไป 90° ดูจำนวนเส้นที่ทะลุผ่านลดลงจนเป็นศูนย์', 'โหมดลวดตรง: เพิ่ม r เป็น 2 เท่า ดูว่า B ลดครึ่งหนึ่ง', 'โหมดโซเลนอยด์: เพิ่มรอบเป็น 2 เท่า หรือลดความยาวครึ่งหนึ่ง ดูว่า B เพิ่ม 2 เท่าเหมือนกัน']
+    }
+  });
+})();
+</script>
+</body>
+</html>

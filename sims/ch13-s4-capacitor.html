@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S13.4 ตัวเก็บประจุ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S13.4 ตัวเก็บประจุ · บท 13 เรื่อง 9, 10, 11, 12
+   สูตร: C = Q/ΔV · U = ½CV² = ½QV = ½Q²/C · อนุกรม 1/C รวม = Σ1/Cᵢ (Q เท่ากัน) · ขนาน C รวม = ΣCᵢ (V เท่ากัน)
+   แบบจำลองนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function calc(p) {
+    var Cs = p.mode === 'single' ? [p.C1] : [p.C1, p.C2, p.C3], Ct, each;
+    if (p.mode === 'series') { Ct = 1 / Cs.reduce(function (a, C) { return a + 1 / C; }, 0); var Q = Ct * p.V; each = Cs.map(function (C) { return { C: C, Q: Q, V: Q / C }; }); }
+    else { Ct = Cs.reduce(function (a, C) { return a + C; }, 0); each = Cs.map(function (C) { return { C: C, Q: C * p.V, V: p.V }; }); }
+    var Qt = Ct * p.V; return { Ct: Ct, Qt: Qt, U: 0.5 * Ct * 1e-6 * p.V * p.V, each: each };
+  }
+  PhysLab.createSim({
+    id: 'S13.4', chapter: 13, topics: [9, 10, 11, 12], title: 'ตัวเก็บประจุ', static: true,
+    alt: 'วงจรแบตเตอรี่กับตัวเก็บประจุ เลือกได้ว่าเป็นตัวเดียว ต่ออนุกรม หรือต่อขนาน แต่ละตัวมีค่า C ประจุ Q และแรงดัน V กำกับ พร้อมแถบพลังงานสะสม',
+    calc: calc,
+    params: {
+      mode: { label: 'การต่อ', type: 'choice', options: [{ label: 'ตัวเดียว', value: 'single' }, { label: 'อนุกรม', value: 'series' }, { label: 'ขนาน', value: 'parallel' }], default: 'single' },
+      V: { label: 'แรงดันแบตเตอรี่', symbol: 'V', unit: 'V', type: 'range', min: 1, max: 100, step: 1, default: 12 },
+      C1: { label: 'C₁', symbol: 'C₁', unit: 'µF', type: 'range', min: 1, max: 100, step: 1, default: 10 },
+      C2: { label: 'C₂ (อนุกรม/ขนาน)', symbol: 'C₂', unit: 'µF', type: 'range', min: 1, max: 100, step: 1, default: 20 },
+      C3: { label: 'C₃ (อนุกรม/ขนาน)', symbol: 'C₃', unit: 'µF', type: 'range', min: 1, max: 100, step: 1, default: 30 }
+    },
+    presets: [{ label: 'ตัวเดียว 10 µF 12 V', values: { mode: 'single', C1: 10, V: 12 } }, { label: 'อนุกรม 10 20 30 µF', values: { mode: 'series', C1: 10, C2: 20, C3: 30, V: 12 } }, { label: 'ขนาน 10 20 30 µF', values: { mode: 'parallel', C1: 10, C2: 20, C3: 30, V: 12 } }, { label: 'อนุกรมค่าเท่ากัน 30 µF ×3 (ได้ 10)', values: { mode: 'series', C1: 30, C2: 30, C3: 30 } }, { label: 'แรงดัน 2 เท่า พลังงาน 4 เท่า', values: { V: 24 } }],
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 6 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, R = calc(p), i;
+      D.line(1, 1, 1, 2.6, { color: c.text, width: 2 }); D.line(1, 3.4, 1, 5, { color: c.text, width: 2 });
+      D.line(0.7, 3.4, 1.3, 3.4, { color: c.text, width: 3 }); D.line(0.85, 3.15, 1.15, 3.15, { color: c.text, width: 3 }); D.line(0.7, 2.85, 1.3, 2.85, { color: c.text, width: 3 }); D.line(0.85, 2.6, 1.15, 2.6, { color: c.text, width: 3 });
+      D.label('+', 1.45, 3.45, { color: c.red, bold: true }); D.label('−', 1.45, 2.6, { color: c.primary, bold: true }); D.label('V = ' + p.V + ' V', 0.2, 3, { color: c.text });
+      D.line(1, 5, 9, 5, { color: c.text, width: 2 }); D.line(1, 1, 9, 1, { color: c.text, width: 2 });
+      function cap(x, y, horiz, e, name) {
+        var g = 0.14, L = 0.5;
+        if (horiz) { D.line(x - g, y - L, x - g, y + L, { color: c.red, width: 4 }); D.line(x + g, y - L, x + g, y + L, { color: c.primary, width: 4 }); D.label('+Q', x - g - 0.08, y + L, { align: 'right', color: c.red }); D.label('−Q', x + g + 0.08, y + L, { color: c.primary }); D.label(name + ' = ' + e.C + ' µF', x, y - L - 0.1, { dy: 10, align: 'center', color: c.text }); D.label('Q = ' + fmt(e.Q) + ' µC · V = ' + fmt(e.V) + ' V', x, y - L - 0.4, { dy: 10, align: 'center', color: c.muted }); }
+        else { D.line(x - L, y + g, x + L, y + g, { color: c.red, width: 4 }); D.line(x - L, y - g, x + L, y - g, { color: c.primary, width: 4 }); D.label('+Q', x + L + 0.08, y + g + 0.1, { color: c.red }); D.label('−Q', x + L + 0.08, y - g - 0.1, { color: c.primary }); D.label(name + ' = ' + e.C + ' µF', x, y + g + 0.25, { dy: -4, align: 'center', color: c.text }); D.label('Q = ' + fmt(e.Q) + ' µC', x, y - g - 0.25, { dy: 6, align: 'center', color: c.muted }); D.label('V = ' + fmt(e.V) + ' V', x, y - g - 0.55, { dy: 6, align: 'center', color: c.muted }); }
+      }
+      if (p.mode === 'single') { D.line(9, 1, 9, 5, { color: c.text, width: 2 }); D.rect(4.86, 4.4, 0.28, 1.2, { fill: c.card }); cap(5, 5, true, R.each[0], 'C'); }
+      else if (p.mode === 'series') { D.line(9, 1, 9, 5, { color: c.text, width: 2 }); [3.2, 5.2, 7.2].forEach(function (x, j) { D.rect(x - 0.14, 4.4, 0.28, 1.2, { fill: c.card }); cap(x, 5, true, R.each[j], 'C' + ['₁', '₂', '₃'][j]); }); D.label('อนุกรม: Q เท่ากันทุกตัว แรงดันแบ่งกัน V₁ + V₂ + V₃ = ' + fmt(R.each[0].V + R.each[1].V + R.each[2].V) + ' V', 1.2, 2.2, { color: c.text }); }
+      else { [4, 6.3, 8.6].forEach(function (x, j) { D.line(x, 1, x, 2.86, { color: c.text, width: 2 }); D.line(x, 3.14, x, 5, { color: c.text, width: 2 }); cap(x, 3, false, R.each[j], 'C' + ['₁', '₂', '₃'][j]); }); D.label('ขนาน: V เท่ากันทุกตัว ประจุแยกกัน Q₁ + Q₂ + Q₃ = ' + fmt(R.Qt) + ' µC', 1.2, 5.35, { color: c.text }); }
+      D.label('C รวม = ' + fmt(R.Ct) + ' µF · Q รวม = ' + fmt(R.Qt) + ' µC · U = ½CV² = ' + fmt(R.U) + ' J', 0.2, 0.72, { color: c.primary, bold: true });
+      var umax = 0.5 * 100e-6 * 100 * 100 * (p.mode === 'parallel' ? 3 : 1); D.rect(0.2, 0.15, 3.5, 0.3, { fill: c.soft }); D.rect(0.2, 0.15, 3.5 * PhysLab.clamp(Math.sqrt(R.U / umax), 0, 1), 0.3, { fill: c.orange }); D.label('พลังงานสะสม', 3.85, 0.3, { color: c.orange });
+    },
+    readouts: function (s, p) { var R = calc(p); return [{ label: 'C รวม', value: R.Ct, unit: 'µF', highlight: true }, { label: 'Q รวม = C รวม × V', value: R.Qt, unit: 'µC', highlight: true }, { label: 'U = ½CV²', value: R.U, unit: 'J' }].concat(R.each.map(function (e, i) { return { label: 'C' + ['₁', '₂', '₃'][i] + ': Q · V', value: fmt(e.Q) + ' µC · ' + fmt(e.V) + ' V' }; })); },
+    formulas: function (s, p) { var R = calc(p), Cs = R.each.map(function (e) { return e.C; }); return [p.mode === 'series' ? { symbolic: '1/C รวม = 1/C₁ + 1/C₂ + 1/C₃', substituted: '= 1/' + Cs.join(' + 1/'), result: 'C รวม = ' + fmt(R.Ct) + ' µF' } : p.mode === 'parallel' ? { symbolic: 'C รวม = C₁ + C₂ + C₃', substituted: '= ' + Cs.join(' + '), result: '= ' + fmt(R.Ct) + ' µF' } : { symbolic: 'C = Q/ΔV', substituted: 'Q = ' + p.C1 + ' µF × ' + p.V + ' V', result: '= ' + fmt(R.Qt) + ' µC' }, { symbolic: 'Q = CV', substituted: '= ' + fmt(R.Ct) + '×10⁻⁶ × ' + p.V, result: '= ' + fmt(R.Qt) + ' µC' }, { symbolic: 'U = ½CV²', substituted: '= ½ × ' + fmt(R.Ct) + '×10⁻⁶ × ' + p.V + '²', result: '= ' + fmt(R.U) + ' J' }]; },
+    content: {
+      summary: '<b>ความจุไฟฟ้า</b> ความสามารถเก็บประจุต่อโวลต์ C = Q/ΔV ทรงกลมตัวนำมี C = r/k <b>พลังงานในตัวเก็บประจุ</b> U = ½CV² = ½QV = ½Q²/C <b>ตัวเก็บประจุต่ออนุกรม</b> ความจุรวมลดลง 1/C รวม = 1/C₁ + 1/C₂ + 1/C₃ ประจุเท่ากันทุกตัว <b>ตัวเก็บประจุต่อขนาน</b> ความจุรวมเพิ่มขึ้น C รวม = C₁ + C₂ + C₃ ความต่างศักย์เท่ากันทุกตัว',
+      tryIt: ['ต่ออนุกรม ดูว่า C รวมน้อยกว่าตัวที่เล็กที่สุด และตัวเล็กได้แรงดันมากที่สุด', 'ต่อขนาน ดูว่า Q รวมเป็นผลบวกและตัวใหญ่เก็บประจุมากที่สุด', 'เพิ่ม V เป็น 2 เท่า ดูว่าพลังงานเพิ่ม 4 เท่า']
+    }
+  });
+})();
+</script>
+</body>
+</html>

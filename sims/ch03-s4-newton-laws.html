@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S3.4 กฎการเคลื่อนที่ของนิวตัน · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S3.4 กฎการเคลื่อนที่ของนิวตัน · บท 3 เรื่อง 4, 5, 11
+   สูตร: ΣF = ma · f = μkN · กล่องสองก้อนติดกัน: แรงสัมผัส P = m₂a + f₂ (คู่กิริยา-ปฏิกิริยาขนาดเท่ากันทิศตรงข้าม)
+   semi-implicit Euler dt 1/120 · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function calc(p, v) {
+    var g = 9.8, M = p.m1 + p.m2, moving = Math.abs(v) > 1e-4, fTot = 0, f1 = 0, f2 = 0, a, net;
+    var fk = p.muk * M * g;
+    if (!moving && Math.abs(p.F) <= fk) { fTot = -p.F; a = 0; }
+    else { var dir = moving ? Math.sign(v) : Math.sign(p.F); fTot = -dir * fk; a = (p.F + fTot) / M; }
+    f1 = fTot * p.m1 / M; f2 = fTot * p.m2 / M;
+    var P = p.m2 > 0 ? p.m2 * a - f2 : 0;
+    net = p.F + fTot;
+    return { a: a, f: fTot, f1: f1, f2: f2, P: P, net: net, N: M * g };
+  }
+  function init(p) { return { x: 0, v: p.v0 }; }
+  function step(s, p, dt) { var r = calc(p, s.v); var vN = s.v + r.a * dt; if (Math.abs(s.v) > 1e-4 && Math.sign(vN) !== Math.sign(s.v) && p.muk > 0) vN = 0; s.v = vN; s.x += s.v * dt; return s; }
+  PhysLab.createSim({
+    id: 'S3.4', chapter: 3, topics: [4, 5, 11], title: 'กฎการเคลื่อนที่ของนิวตัน',
+    alt: 'กล่องบนพื้นถูกผลักด้วยแรง มีลูกศรแรงลัพธ์ แรงเสียดทาน แรงแนวฉาก น้ำหนัก และกล่องก้อนที่สองที่ติดกันแสดงคู่แรงกิริยาปฏิกิริยา',
+    calc: calc,
+    params: {
+      m1: { label: 'มวลก้อนที่ 1', symbol: 'm₁', unit: 'kg', type: 'range', min: 1, max: 20, step: 0.5, default: 4 },
+      F: { label: 'แรงผลัก (ขวาเป็นบวก)', symbol: 'F', unit: 'N', type: 'range', min: -50, max: 50, step: 1, default: 20 },
+      muk: { label: 'สัมประสิทธิ์เสียดทานกับพื้น', symbol: 'μ', type: 'range', min: 0, max: 1, step: 0.05, default: 0 },
+      m2: { label: 'มวลก้อนที่ 2 (ติดกันทางขวา)', symbol: 'm₂', unit: 'kg', type: 'range', min: 0, max: 20, step: 0.5, default: 0 },
+      v0: { label: 'ความเร็วเริ่มต้น', symbol: 'v₀', unit: 'm/s', type: 'range', min: -10, max: 10, step: 0.5, default: 0 }
+    },
+    presets: [
+      { label: 'ข้อ 1: ไม่มีแรงลัพธ์ v คงที่', values: { F: 0, muk: 0, v0: 4, m2: 0 } }, { label: 'ข้อ 2: F = 20 N, m = 4 kg', values: { F: 20, muk: 0, v0: 0, m1: 4, m2: 0 } },
+      { label: 'มวล 2 เท่า เร่งครึ่งหนึ่ง', values: { F: 20, muk: 0, v0: 0, m1: 8, m2: 0 } }, { label: 'มีเสียดทาน μ = 0.3', values: { F: 20, muk: 0.3, m1: 4, m2: 0, v0: 0 } },
+      { label: 'ข้อ 3: ผลักกล่องคู่ 4 kg กับ 2 kg', values: { F: 18, muk: 0, m1: 4, m2: 2, v0: 0 } }
+    ],
+    toggles: [{ key: 'fbd', label: 'ลูกศรแรง' }, { key: 'pair', label: 'คู่แรงกิริยาปฏิกิริยา' }],
+    world: function (p, s) { var x = s ? s.x : 0; var span = 16; var lo = Math.floor((x - 4) / 4) * 4; return { xMin: Math.min(lo, -4), xMax: Math.max(lo + span, 12), yMin: -2.2, yMax: 4.6 }; },
+    init: init, step: step,
+    draw: function (ctx, s, p, D) {
+      var c = D.color, r = calc(p, s.v), w = D.world, b = 1.2, b2 = 0.8 + p.m2 * 0.04;
+      D.grid(2); D.axes({ xLabel: 'x (m)', y0: 0, x0: w.xMin }); D.ground(0);
+      D.rect(s.x, 0, b, b, { fill: c.primary }); D.label('m₁ ' + p.m1 + ' kg', s.x + b / 2, b / 2, { align: 'center', color: c.card });
+      if (p.m2 > 0) { D.rect(s.x + b, 0, b2, b2, { fill: c.orange }); D.label('m₂ ' + p.m2, s.x + b + b2 / 2, b2 / 2, { align: 'center', color: c.card }); }
+      var k = 2.2 / Math.max(Math.abs(p.F), r.N, 20), cx = s.x + b / 2, cy = b / 2;
+      if (D.view.fbd) {
+        if (Math.abs(p.F) > 0.1) D.arrow(p.F > 0 ? s.x - p.F * k : s.x + b - p.F * k, cy, p.F * k, 0, { color: c.text, label: 'F = ' + p.F + ' N', width: 3.5, dy: -12, dx: p.F > 0 ? -70 : 0 });
+        if (Math.abs(r.f) > 0.1) D.arrow(cx, 0.15, r.f * k, 0, { color: c.orange, label: 'f = ' + fmt(Math.abs(r.f)), width: 3, dy: 14 });
+        D.arrow(cx, cy, 0, -(p.m1 * 9.8) * k, { color: c.red, label: 'W₁', width: 2.5 }); D.arrow(cx, 0, 0, (p.m1 * 9.8) * k, { color: c.green, label: 'N₁', width: 2.5, dx: 6 });
+        if (Math.abs(r.net) > 0.1) D.arrow(cx, b + 0.6, r.net * k, 0, { color: c.primary, label: 'ΣF = ' + fmt(r.net) + ' N → a = ' + fmt(r.a) + ' m/s²', width: 3, dy: -12 });
+      }
+      if (p.m2 > 0 && D.view.pair && Math.abs(r.P) > 0.05) { var jx = s.x + b; D.arrow(jx, b2 + 0.9, r.P * k, 0, { color: c.green, label: 'P บน m₂ = ' + fmt(r.P), width: 3, dy: -12 }); D.arrow(jx, b2 + 1.5, -r.P * k, 0, { color: c.red, label: 'P บน m₁ = ' + fmt(r.P) + ' (ตรงข้าม)', width: 3, dy: -12 }); }
+      if (Math.abs(s.v) > 0.05) D.arrow(cx, -0.9, s.v * 0.25, 0, { color: c.muted, label: 'v ' + fmt(s.v) + ' m/s', width: 2, dy: 14 });
+      D.label(r.a === 0 ? (Math.abs(s.v) > 1e-4 ? 'ข้อ 1: แรงลัพธ์ศูนย์ ความเร็วคงที่' : 'ข้อ 1: แรงลัพธ์ศูนย์ อยู่นิ่ง') : 'ข้อ 2: ΣF = ma', w.xMax, w.yMax, { dx: -8, dy: 12, align: 'right', color: c.text });
+    },
+    readouts: function (s, p) {
+      var r = calc(p, s.v);
+      return [
+        { label: 'ΣF', value: r.net, unit: 'N', highlight: true }, { label: 'มวลรวม', value: p.m1 + p.m2, unit: 'kg' },
+        { label: 'a = ΣF/m', value: r.a, unit: 'm/s²', highlight: true }, { label: 'v', value: s.v, unit: 'm/s' },
+        { label: 'แรงเสียดทาน', value: Math.abs(r.f), unit: 'N', color: '#E07A1F' }, { label: 'แรงสัมผัส P (ข้อ 3)', value: Math.abs(r.P), unit: 'N', color: '#0E6B57' }
+      ];
+    },
+    formulas: function (s, p) {
+      var r = calc(p, s.v), fs = [{ symbolic: 'ΣF = ma', substituted: '(' + p.F + ' + ' + fmt(r.f) + ') = ' + (p.m1 + p.m2) + ' a', result: '→ a = ' + fmt(r.a) + ' m/s²' }];
+      if (p.muk > 0) fs.push({ symbolic: 'f = μN = μ(m₁ + m₂)g', substituted: '= ' + p.muk + '(' + (p.m1 + p.m2) + ')(9.8)', result: '= ' + fmt(p.muk * (p.m1 + p.m2) * 9.8) + ' N' });
+      if (p.m2 > 0) fs.push({ symbolic: 'ข้อ 3: P = m₂a (+ f₂)', substituted: '= ' + p.m2 + '(' + fmt(r.a) + ') + ' + fmt(-r.f2), result: '= ' + fmt(r.P) + ' N ทั้งสองก้อน ทิศตรงข้าม' });
+      return fs;
+    },
+    sample: function (s) { return { v: s.v, x: s.x }; },
+    graphs: [{ title: 'v-t (ความชัน = a)', x: 't', series: [{ key: 'v', label: 'v (m/s)' }], window: 6 }, { title: 'x-t', x: 't', series: [{ key: 'x', label: 'x (m)', color: '#E07A1F' }], window: 6 }],
+    content: {
+      summary: '<b>มวล</b> ปริมาณที่บอกว่าวัตถุ "ดื้อ" ต่อการเปลี่ยนการเคลื่อนที่แค่ไหน เรียกว่าความเฉื่อย <b>แรง</b> สิ่งที่ทำให้วัตถุเปลี่ยนการเคลื่อนที่ <b>กฎของนิวตัน 3 ข้อ</b> ข้อ 1 ถ้าไม่มีแรงลัพธ์ วัตถุจะนิ่งต่อหรือวิ่งด้วยความเร็วคงที่ต่อ ข้อ 2 แรงลัพธ์ทำให้เกิดความเร่ง ΣF = ma แรงมากเร่งมาก มวลมากเร่งน้อย ข้อ 3 ทุกแรงกิริยามีแรงปฏิกิริยาขนาดเท่ากัน ทิศตรงข้าม และเกิดบนวัตถุคนละก้อน',
+      tryIt: ['เลือกข้อ 1 ดูว่าไม่มีแรงลัพธ์แต่กล่องยังวิ่งต่อด้วยความเร็วเท่าเดิม', 'เพิ่มมวลเป็น 2 เท่าที่แรงเท่าเดิม ดูว่าความชันกราฟ v-t ลดครึ่ง', 'เลือกข้อ 3 แล้วดูว่าแรงที่ m₁ ผลัก m₂ กับที่ m₂ ดัน m₁ มีขนาดเท่ากัน']
+    }
+  });
+})();
+</script>
+</body>
+</html>

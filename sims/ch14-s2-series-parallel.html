@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S14.2 วงจรอนุกรมและขนาน · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S14.2 วงจรอนุกรมและขนาน · บท 14 เรื่อง 6, 7
+   สูตร: อนุกรม R รวม = ΣR, I เท่ากัน, V แบ่ง · ขนาน 1/R รวม = Σ1/R, V เท่ากัน, I แยก · เซลล์อนุกรม E รวม = nE, r รวม = nr · เซลล์ขนาน E รวม = E, r รวม = r/n
+   วงจรนิ่ง แอนิเมชันจุดกระแสแต่ละสายแปรตาม I ของสายนั้น · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function calc(p) {
+    var Rs = [p.R1, p.R2, p.R3], Rload = p.mode === 'series' ? Rs.reduce(function (a, b) { return a + b; }, 0) : 1 / Rs.reduce(function (a, b) { return a + 1 / b; }, 0);
+    var Et = p.cells === 'series' ? p.n * p.E : p.E, rt = p.cells === 'series' ? p.n * p.r : p.r / p.n, I = Et / (rt + Rload), Vt = I * Rload;
+    var each = Rs.map(function (R) { return p.mode === 'series' ? { R: R, I: I, V: I * R } : { R: R, I: Vt / R, V: Vt }; });
+    return { Rload: Rload, Et: Et, rt: rt, I: I, Vt: Vt, each: each };
+  }
+  PhysLab.createSim({
+    id: 'S14.2', chapter: 14, topics: [6, 7], title: 'วงจรอนุกรมและขนาน',
+    alt: 'วงจรมีเซลล์ไฟฟ้าทางซ้าย ตัวต้านทานสามตัวต่อแบบอนุกรมบนสายเดียวหรือแบบขนานสามสาย จุดสีส้มแสดงกระแสในแต่ละสาย มีค่า V และ I กำกับทุกตัว',
+    calc: calc,
+    params: {
+      mode: { label: 'การต่อตัวต้านทาน', type: 'choice', options: [{ label: 'อนุกรม', value: 'series' }, { label: 'ขนาน', value: 'parallel' }], default: 'series' },
+      R1: { label: 'R₁', symbol: 'R₁', unit: 'Ω', type: 'range', min: 1, max: 50, step: 1, default: 4 },
+      R2: { label: 'R₂', symbol: 'R₂', unit: 'Ω', type: 'range', min: 1, max: 50, step: 1, default: 6 },
+      R3: { label: 'R₃', symbol: 'R₃', unit: 'Ω', type: 'range', min: 1, max: 50, step: 1, default: 12 },
+      E: { label: 'แรงเคลื่อนไฟฟ้าต่อเซลล์', symbol: 'E', unit: 'V', type: 'range', min: 1, max: 12, step: 0.5, default: 6 },
+      r: { label: 'ความต้านทานภายในต่อเซลล์', symbol: 'r', unit: 'Ω', type: 'range', min: 0, max: 5, step: 0.1, default: 0.5 },
+      n: { label: 'จำนวนเซลล์', symbol: 'n', type: 'range', min: 1, max: 3, step: 1, default: 1 },
+      cells: { label: 'การต่อเซลล์', type: 'choice', options: [{ label: 'อนุกรม', value: 'series' }, { label: 'ขนาน', value: 'parallel' }], default: 'series' }
+    },
+    presets: [{ label: 'อนุกรม 4 6 12 Ω', values: { mode: 'series', R1: 4, R2: 6, R3: 12, n: 1 } }, { label: 'ขนาน 4 6 12 Ω (ได้ 2 Ω)', values: { mode: 'parallel', R1: 4, R2: 6, R3: 12, n: 1 } }, { label: 'เซลล์ 2 ก้อนอนุกรม (E 2 เท่า)', values: { n: 2, cells: 'series' } }, { label: 'เซลล์ 2 ก้อนขนาน (r ครึ่งหนึ่ง)', values: { n: 2, cells: 'parallel' } }, { label: 'ความต้านทานภายในสูง', values: { r: 3, n: 1 } }],
+    toggles: [{ key: 'flow', label: 'จุดแสดงกระแส' }],
+    speeds: [1], dt: 1 / 120,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return { ph: 0 }; }, step: function (s, p, dt) { s.ph += dt; return s; },
+    timeLabel: function () { return ''; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p), segs = [];
+      function cell(x, y) { D.line(x - 0.3, y + 0.15, x + 0.3, y + 0.15, { color: c.text, width: 3 }); D.line(x - 0.15, y - 0.15, x + 0.15, y - 0.15, { color: c.text, width: 3 }); }
+      if (p.cells === 'series') { for (var i = 0; i < p.n; i++) cell(1, 2.6 + (i - (p.n - 1) / 2) * 0.6); D.line(1, 0.7, 1, 2.6 - (p.n - 1) / 2 * 0.6 - 0.15, { color: c.text, width: 2.5 }); D.line(1, 2.6 + (p.n - 1) / 2 * 0.6 + 0.15, 1, 4.5, { color: c.text, width: 2.5 }); }
+      else { D.line(1, 0.7, 1, 1.9, { color: c.text, width: 2.5 }); D.line(1, 3.3, 1, 4.5, { color: c.text, width: 2.5 }); for (var j = 0; j < p.n; j++) { var xx = 1 + (j - (p.n - 1) / 2) * 0.7; cell(xx, 2.6); D.line(xx, 1.9, xx, 2.45, { color: c.text, width: 2 }); D.line(xx, 2.75, xx, 3.3, { color: c.text, width: 2 }); } D.line(1 - (p.n - 1) / 2 * 0.7, 1.9, 1 + (p.n - 1) / 2 * 0.7, 1.9, { color: c.text, width: 2 }); D.line(1 - (p.n - 1) / 2 * 0.7, 3.3, 1 + (p.n - 1) / 2 * 0.7, 3.3, { color: c.text, width: 2 }); }
+      D.label('E รวม = ' + fmt(C.Et) + ' V · r รวม = ' + fmt(C.rt) + ' Ω', 0.15, 0.3, { color: c.text }); D.label('+', 1.5, 3.9, { color: c.red, bold: true }); D.label('−', 1.5, 1.3, { color: c.primary, bold: true });
+      D.line(1, 4.5, 9, 4.5, { color: c.text, width: 2.5 }); D.line(1, 0.7, 9, 0.7, { color: c.text, width: 2.5 });
+      function res(x, y, horiz, e, name) { if (horiz) { D.rect(x - 0.5, y - 0.2, 1, 0.4, { fill: c.card, stroke: c.text }); D.label(name + ' = ' + e.R + ' Ω', x, y + 0.3, { dy: -4, align: 'center', color: c.text, bold: true }); D.label('V = ' + fmt(e.V) + ' V', x, y - 0.3, { dy: 10, align: 'center', color: c.muted }); D.label('I = ' + fmt(e.I) + ' A', x, y - 0.56, { dy: 10, align: 'center', color: c.muted }); } else { D.rect(x - 0.2, y - 0.5, 0.4, 1, { fill: c.card, stroke: c.text }); D.label(name + ' = ' + e.R + ' Ω', x + 0.3, y + 0.15, { color: c.text, bold: true }); D.label('V = ' + fmt(e.V) + ' V', x + 0.3, y - 0.15, { color: c.muted }); D.label('I = ' + fmt(e.I) + ' A', x + 0.3, y - 0.42, { color: c.muted }); } }
+      if (p.mode === 'series') { D.line(9, 0.7, 9, 4.5, { color: c.text, width: 2.5 }); [3, 5, 7].forEach(function (x, k) { res(x, 4.5, true, C.each[k], 'R' + ['₁', '₂', '₃'][k]); }); segs = [[1, 4.5, 9, 4.5, C.I], [9, 4.5, 9, 0.7, C.I], [9, 0.7, 1, 0.7, C.I], [1, 0.7, 1, 4.5, C.I]]; D.label('อนุกรม: I เท่ากันตลอด = ' + fmt(C.I) + ' A · V แบ่งกัน ' + C.each.map(function (e) { return fmt(e.V); }).join(' + ') + ' = ' + fmt(C.Vt) + ' V', 1.3, 2.6, { color: c.text, bg: c.card }); }
+      else { [3.5, 6, 8.5].forEach(function (x, k) { D.line(x, 0.7, x, 2.1, { color: c.text, width: 2.5 }); D.line(x, 3.1, x, 4.5, { color: c.text, width: 2.5 }); res(x, 2.6, false, C.each[k], 'R' + ['₁', '₂', '₃'][k]); segs.push([x, 4.5, x, 0.7, C.each[k].I]); }); segs.push([1, 4.5, 8.5, 4.5, C.I], [8.5, 0.7, 1, 0.7, C.I], [1, 0.7, 1, 4.5, C.I]); D.label('ขนาน: V เท่ากันทุกสาย = ' + fmt(C.Vt) + ' V · I แยก ' + C.each.map(function (e) { return fmt(e.I); }).join(' + ') + ' = ' + fmt(C.I) + ' A', 1.2, 1.4, { color: c.text, bg: c.card }); }
+      if (D.view.flow) segs.forEach(function (sg) { var L = Math.hypot(sg[2] - sg[0], sg[3] - sg[1]), n = Math.max(2, Math.round(L / 0.45)), sp = L / n, off = (s.ph * PhysLab.clamp(sg[4], 0, 6) * 0.5) % sp; for (var i = 0; i < n; i++) { var d = (i * sp + off) % L, u = d / L; D.dot(sg[0] + (sg[2] - sg[0]) * u, sg[1] + (sg[3] - sg[1]) * u, 4, c.orange, {}); } });
+      D.label('R รวม = ' + fmt(C.Rload) + ' Ω · I รวม = E รวม/(r รวม + R รวม) = ' + fmt(C.I) + ' A', 1.3, 3.5, { color: c.primary, bold: true, bg: c.card });
+    },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'R รวม', value: C.Rload, unit: 'Ω', highlight: true }, { label: 'E รวม · r รวม', value: fmt(C.Et) + ' V · ' + fmt(C.rt) + ' Ω' }, { label: 'I รวม', value: C.I, unit: 'A', highlight: true }, { label: 'V ตกคร่อม R รวม', value: C.Vt, unit: 'V' }].concat(C.each.map(function (e, i) { return { label: 'R' + ['₁', '₂', '₃'][i] + ': V · I', value: fmt(e.V) + ' V · ' + fmt(e.I) + ' A' }; })); },
+    formulas: function (s, p) { var C = calc(p); return [p.mode === 'series' ? { symbolic: 'R รวม = R₁ + R₂ + R₃', substituted: '= ' + p.R1 + ' + ' + p.R2 + ' + ' + p.R3, result: '= ' + fmt(C.Rload) + ' Ω' } : { symbolic: '1/R รวม = 1/R₁ + 1/R₂ + 1/R₃', substituted: '= 1/' + p.R1 + ' + 1/' + p.R2 + ' + 1/' + p.R3, result: 'R รวม = ' + fmt(C.Rload) + ' Ω' }, { symbolic: p.cells === 'series' ? 'E รวม = nE · r รวม = nr' : 'E รวม = E · r รวม = r/n', substituted: 'n = ' + p.n, result: fmt(C.Et) + ' V · ' + fmt(C.rt) + ' Ω' }, { symbolic: 'I = E รวม/(r รวม + R รวม)', substituted: '= ' + fmt(C.Et) + '/(' + fmt(C.rt) + ' + ' + fmt(C.Rload) + ')', result: '= ' + fmt(C.I) + ' A' }]; },
+    content: {
+      summary: '<b>วงจรอนุกรม</b> กระแสเท่ากันตลอด แรงดันแบ่งกัน ความต้านทานรวมบวกกัน R รวม = R₁ + R₂ + R₃ เซลล์ต่ออนุกรมแรงเคลื่อนบวกกัน <b>วงจรขนาน</b> แรงดันเท่ากันทุกสาย กระแสแยกกันแล้วรวมกลับเท่าเดิม 1/R รวม = 1/R₁ + 1/R₂ + 1/R₃ เซลล์เหมือนกันต่อขนานแรงเคลื่อนเท่าเดิมแต่ความต้านทานภายในลดลง',
+      tryIt: ['ต่อขนาน 4 6 12 Ω ดูว่า R รวม = 2 Ω น้อยกว่าทุกตัว', 'ต่ออนุกรม ดูว่าตัวต้านทานมากที่สุดได้แรงดันมากที่สุด', 'เพิ่มเซลล์เป็น 2 ก้อนอนุกรม ดูว่ากระแสเพิ่มเกือบ 2 เท่า แล้วเปลี่ยนเป็นขนานดูว่า r รวมลดลง']
+    }
+  });
+})();
+</script>
+</body>
+</html>

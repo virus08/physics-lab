@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S18.1 คลื่นแม่เหล็กไฟฟ้าและการเกิด · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S18.1 คลื่นแม่เหล็กไฟฟ้าและการเกิด · บท 18 เรื่อง 1, 2, 3, 4, 5
+   หลัก: E และ B ตั้งฉากกันและตั้งฉากกับทิศคลื่น เฟสตรงกัน · c = 3×10⁸ m/s · c = fλ · E/B = c · การทดลองของเฮิรตซ์
+   ภาพฉายสามมิติแบบง่าย (E แนวตั้ง B แนวลึกวาดเฉียง) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, c0 = 3e8;
+  function lam(p) { return c0 / p.f; }
+  PhysLab.createSim({
+    id: 'S18.1', chapter: 18, topics: [1, 2, 3, 4, 5], title: 'คลื่นแม่เหล็กไฟฟ้าและการเกิด',
+    alt: 'โหมดคลื่น: คลื่นสนามไฟฟ้าสีส้มสั่นแนวตั้งและคลื่นสนามแม่เหล็กสีน้ำเงินสั่นแนวลึก เคลื่อนไปทางขวาพร้อมกัน ยอดคลื่นตรงกัน โหมดเฮิรตซ์: ตัวส่งเกิดประกายไฟ คลื่นแผ่ไปถึงวงลวดตัวรับที่มีประกายไฟเช่นกัน',
+    lam: lam,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'คลื่น E และ B', value: 'wave' }, { label: 'การทดลองของเฮิรตซ์', value: 'hertz' }], default: 'wave' },
+      f: { label: 'ความถี่ (สำหรับคำนวณ λ)', symbol: 'f', unit: 'Hz', type: 'range', min: 1e5, max: 1e15, step: 1e5, default: 1e8 },
+      E0: { label: 'แอมพลิจูดสนามไฟฟ้า', symbol: 'E₀', unit: 'V/m', type: 'range', min: 1, max: 100, step: 1, default: 50 },
+      speed: { label: 'ความเร็วภาพ', unit: 'รอบ/s', type: 'range', min: 0.2, max: 2, step: 0.1, default: 0.6 }
+    },
+    presets: [{ label: 'คลื่นวิทยุ FM 100 MHz', values: { mode: 'wave', f: 1e8 } }, { label: 'ไมโครเวฟ 2.4 GHz', values: { mode: 'wave', f: 2.4e9 } }, { label: 'แสงเขียว 5.5×10¹⁴ Hz', values: { mode: 'wave', f: 5.5e14 } }, { label: 'การทดลองของเฮิรตซ์', values: { mode: 'hertz' } }],
+    toggles: [{ key: 'E', label: 'สนามไฟฟ้า E' }, { key: 'B', label: 'สนามแม่เหล็ก B' }],
+    speeds: [1], dt: 1 / 120,
+    world: { xMin: -0.6, xMax: 9.4, yMin: -2.6, yMax: 2.6 },
+    init: function () { return { ph: 0, spark: 0 }; }, step: function (s, p, dt) { s.ph += 2 * Math.PI * p.speed * dt; s.spark = (s.spark + dt) % 1.2; return s; },
+    timeLabel: function (t, s, p) { return p.mode === 'wave' ? 'λ = c/f = ' + fmt(lam(p)) + ' m' : 'ประกายไฟทุก 1.2 s'; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      if (p.mode === 'wave') {
+        var L = 8.4, k = 2 * Math.PI / 2.8, A = 1.6 * p.E0 / 100 + 0.3, ox = 0.5, oy = -0.3;
+        D.arrow(0, 0, 8.9, 0, { color: c.text, width: 1.5 }); D.label('ทิศคลื่น (c = 3×10⁸ m/s) →', 9.3, -0.75, { align: 'right', color: c.text, bg: c.card });
+        D.arrow(0, 0, 0, 2.3, { color: c.orange, width: 1.5, label: 'E', dx: 8 }); D.arrow(0, 0, -ox, oy, { color: c.primary, width: 1.5, label: 'B', dx: -14, dy: 8 });
+        var pe = [], pb = [];
+        for (i = 0; i <= 160; i++) { var x = L * i / 160, v = Math.sin(k * x - s.ph); pe.push([x, A * v]); pb.push([x - ox * v * 0.9, oy * v * 0.9]); }
+        if (D.view.B) { for (i = 0; i <= 32; i++) { var xb = L * i / 32, vb = Math.sin(k * xb - s.ph); D.line(xb, 0, xb - ox * vb * 0.9, oy * vb * 0.9, { color: c.primary, width: 1.5 }); } D.polyline(pb, { color: c.primary, width: 2.5 }); }
+        if (D.view.E) { for (i = 0; i <= 32; i++) { var xe = L * i / 32, ve = Math.sin(k * xe - s.ph); D.line(xe, 0, xe, A * ve, { color: c.orange, width: 1.5 }); } D.polyline(pe, { color: c.orange, width: 2.5 }); }
+        D.line(0, -2.1, 2.8, -2.1, { color: c.text, width: 1.5 }); D.line(0, -2.0, 0, -2.2, { color: c.text }); D.line(2.8, -2.0, 2.8, -2.2, { color: c.text }); D.label('λ = ' + fmt(lam(p)) + ' m (f = ' + fmt(p.f) + ' Hz)', 1.4, -2.1, { dy: 14, align: 'center', color: c.text });
+        D.label('E (ส้ม แนวตั้ง) และ B (น้ำเงิน แนวลึก) ตั้งฉากกัน เฟสตรงกัน ขึ้นสูงสุดพร้อมกัน · E/B = c', -0.5, 2.45, { color: c.text, bold: true, bg: c.card });
+        D.label('E₀ = ' + p.E0 + ' V/m → B₀ = E₀/c = ' + fmt(p.E0 / c0) + ' T · สนามที่เปลี่ยนแปลงเหนี่ยวนำกันไปเรื่อย ๆ จึงไม่ต้องมีตัวกลาง', -0.5, -2.45, { color: c.text, bg: c.card });
+      } else {
+        var sp = s.spark < 0.15, arr = s.spark > 0.1 && s.spark < 0.7, rec = s.spark > 0.55 && s.spark < 0.75;
+        D.rect(0.6, -0.9, 0.5, 1.8, { fill: c.muted }); D.label('ขดลวดเหนี่ยวนำ แรงดันสูง', 0.85, -1.1, { dy: 12, align: 'center', color: c.text });
+        D.line(1.1, 0.3, 2.2, 0.3, { color: c.text, width: 2 }); D.line(1.1, -0.3, 2.2, -0.3, { color: c.text, width: 2 }); D.line(2.2, 0.3, 2.2, 1.6, { color: c.text, width: 2 }); D.line(2.2, -0.3, 2.2, -1.6, { color: c.text, width: 2 }); D.dot(2.2, 0.3, 6, c.text, {}); D.dot(2.2, -0.3, 6, c.text, {}); D.rect(2.0, 1.6, 0.4, 0.4, { fill: c.text }); D.rect(2.0, -2.0, 0.4, 0.4, { fill: c.text });
+        if (sp) D.polyline([[2.2, 0.3], [2.3, 0.1], [2.1, -0.05], [2.25, -0.3]], { color: '#FFB300', width: 3 }); D.label('ตัวส่ง: ประกายไฟข้ามช่อง → ประจุสั่นด้วยความเร่ง', 2.3, 2.2, { color: c.orange });
+        if (arr) { var rr = (s.spark - 0.1) / 0.6 * 5.5; for (i = 0; i < 3; i++) { var r2 = rr - i * 0.5; if (r2 > 0.2) { ctx.save(); ctx.globalAlpha = 0.7 - i * 0.2; D.arc(2.2, 0, r2, -1.0, 1.0, { color: c.primary, width: 2 }); ctx.restore(); } } }
+        D.circle(7.6, 0, 1.0, { stroke: c.text, width: 3 }); D.rect(7.5, 0.85, 0.2, 0.3, { fill: c.card }); D.dot(7.5, 0.85, 4, c.text, {}); D.dot(7.7, 0.85, 4, c.text, {}); if (rec) D.polyline([[7.5, 0.9], [7.58, 1.05], [7.64, 0.85], [7.7, 0.95]], { color: '#FFB300', width: 3 }); D.label('ตัวรับ: วงลวดมีช่องว่าง เกิดประกายไฟตาม', 7.6, -1.25, { dy: 10, align: 'center', color: c.primary });
+        D.label('การทดลองของเฮิรตซ์ (ค.ศ. 1887) ยืนยันคำทำนายของแม็กซ์เวลล์ว่าคลื่นแม่เหล็กไฟฟ้าเดินทางได้จริงและมีสมบัติเหมือนแสง', -0.5, 2.45, { color: c.text, bold: true, bg: c.card });
+        D.label('คลื่นเกิดเมื่อประจุเคลื่อนที่ด้วยความเร่ง · เมื่ออิเล็กตรอน/นิวเคลียสเปลี่ยนระดับพลังงาน · และวัตถุที่ T > 0 K แผ่ออกมาตลอด', -0.5, -2.45, { color: c.text, bg: c.card });
+      }
+    },
+    readouts: function (s, p) { return [{ label: 'c', value: c0, unit: 'm/s' }, { label: 'λ = c/f', value: lam(p), unit: 'm', highlight: true }, { label: 'T = 1/f', value: 1 / p.f, unit: 's' }, { label: 'B₀ = E₀/c', value: p.E0 / c0, unit: 'T', highlight: true }, { label: 'ชนิด', value: p.f < 3e9 ? 'คลื่นวิทยุ' : p.f < 3e11 ? 'ไมโครเวฟ' : p.f < 4.3e14 ? 'อินฟราเรด' : p.f < 7.5e14 ? 'แสงที่มองเห็น' : 'ยูวีหรือสูงกว่า' }]; },
+    formulas: function (s, p) { return [{ symbolic: 'c = fλ → λ = c/f', substituted: '= 3×10⁸ / ' + fmt(p.f), result: '= ' + fmt(lam(p)) + ' m' }, { symbolic: 'E/B = c → B₀ = E₀/c', substituted: '= ' + p.E0 + ' / 3×10⁸', result: '= ' + fmt(p.E0 / c0) + ' T' }]; },
+    content: {
+      summary: '<b>แม็กซ์เวลล์</b> รวบรวมสมการสนามไฟฟ้าและสนามแม่เหล็ก แล้วทำนายว่าต้องมีคลื่นแม่เหล็กไฟฟ้า <b>การทดลองของเฮิรตซ์</b> สร้างประกายไฟที่ตัวส่งแล้วเกิดประกายไฟที่ตัวรับซึ่งอยู่ห่างออกไป <b>การเหนี่ยวนำระหว่างสนาม</b> สนามไฟฟ้าที่เปลี่ยนแปลงสร้างสนามแม่เหล็ก สนามแม่เหล็กที่เปลี่ยนแปลงสร้างสนามไฟฟ้า จึงเดินทางได้เองโดยไม่ต้องมีตัวกลาง <b>เฟสของคลื่น</b> E และ B ขึ้นสูงสุดพร้อมกัน ตั้งฉากกัน และตั้งฉากกับทิศคลื่น <b>การเกิดคลื่นแม่เหล็กไฟฟ้า</b> เกิดเมื่อประจุเคลื่อนที่ด้วยความเร่ง เมื่ออิเล็กตรอนหรือนิวเคลียสเปลี่ยนระดับพลังงาน และวัตถุทุกชิ้นที่อุณหภูมิสูงกว่า 0 K แผ่ออกมาตลอด',
+      tryIt: ['ปิดสนาม B แล้วดูเฉพาะ E จากนั้นสลับ ดูว่าทั้งสองขึ้นสูงสุดที่ตำแหน่งเดียวกัน', 'เปลี่ยนความถี่เป็นแสงเขียว ดูว่า λ เล็กกว่าคลื่นวิทยุหลายล้านเท่า', 'โหมดเฮิรตซ์: ดูลำดับ ประกายไฟที่ตัวส่ง → คลื่นแผ่ → ประกายไฟที่ตัวรับ']
+    }
+  });
+})();
+</script>
+</body>
+</html>

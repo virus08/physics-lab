@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S2.2 สมการความเร่งคงที่และการแทนเครื่องหมาย · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S2.2 สมการความเร่งคงที่และการแทนเครื่องหมาย · บท 2 เรื่อง 2, 4
+   สูตร 5 ตัว: v = u + at · v² = u² + 2as · s = ut + ½at² · s = vt − ½at² · s = ((u + v)/2)t
+   เครื่องหมาย: ทิศของ u เป็นบวก สิ่งที่สวนทาง u เป็นลบ · semi-implicit Euler dt 1/120 · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function at(p, t) { var v = p.u + p.a * t, s = p.u * t + 0.5 * p.a * t * t; return { v: v, s: s }; }
+  function init(p) { return { s: 0, v: p.u, done: false }; }
+  function step(st, p, dt, t) { if (t + dt > p.tEnd + 1e-9) { st.done = true; return st; } st.v += p.a * dt; st.s += st.v * dt; return st; }
+
+  PhysLab.createSim({
+    id: 'S2.2', chapter: 2, topics: [2, 4], title: 'สมการความเร่งคงที่และการแทนเครื่องหมาย',
+    alt: 'วัตถุเคลื่อนที่บนแนวตรงจากจุดเริ่ม แสดงลูกศรความเร็วต้น ความเร่ง และการกระจัด พร้อมสมการทั้งห้าที่แทนค่าแล้ว',
+    at: at,
+    params: {
+      u: { label: 'ความเร็วต้น', symbol: 'u', unit: 'm/s', type: 'range', min: -20, max: 20, step: 0.5, default: 10, hint: 'ทิศของ u ถือเป็นบวกเสมอ' },
+      a: { label: 'ความเร่ง', symbol: 'a', unit: 'm/s²', type: 'range', min: -10, max: 10, step: 0.1, default: -2, hint: 'สวนทาง u ให้ใส่ค่าลบ' },
+      tEnd: { label: 'เวลาที่ต้องการหา', symbol: 't', unit: 's', type: 'range', min: 0.5, max: 10, step: 0.1, default: 4 },
+      dir: { label: 'แนวการเคลื่อนที่', type: 'choice', options: [{ label: 'แนวนอน', value: 'h' }, { label: 'แนวดิ่ง', value: 'v' }], default: 'h' }
+    },
+    presets: [
+      { label: 'เบรก u=10 a=−2', values: { u: 10, a: -2, tEnd: 4, dir: 'h' } }, { label: 'เร่งจากหยุด', values: { u: 0, a: 3, tEnd: 5, dir: 'h' } },
+      { label: 'โยนขึ้น u=20 a=−9.8', values: { u: 20, a: -9.8, tEnd: 4, dir: 'v' } }, { label: 'ขว้างลง u=−5 a=−9.8', values: { u: -5, a: -9.8, tEnd: 2, dir: 'v' } }
+    ],
+    toggles: [{ key: 'vec', label: 'ลูกศร u, v, a' }],
+    world: function (p) { var lo = 0, hi = 0; for (var i = 0; i <= 40; i++) { var s = at(p, p.tEnd * i / 40).s; lo = Math.min(lo, s); hi = Math.max(hi, s); } var span = Math.max(hi - lo, 5), m = span * 0.2; if (p.dir === 'v') return { xMin: -span * 0.9, xMax: span * 0.9, yMin: lo - m, yMax: hi + m }; var h = span * 0.35; return { xMin: lo - m, xMax: hi + m, yMin: -h * 0.6, yMax: h * 0.4 }; },
+    init: init, step: step, done: function (s) { return s.done; },
+    draw: function (ctx, st, p, D) {
+      var c = D.color, w = D.world, vert = p.dir === 'v', r = (vert ? (w.yMax - w.yMin) : (w.xMax - w.xMin)) * 0.025;
+      D.grid(); D.axes(vert ? { yLabel: 's (m)', x0: 0, y0: 0 } : { xLabel: 's (m)', y0: 0 });
+      var px = vert ? 0 : st.s, py = vert ? st.s : 0;
+      D.line(vert ? -r * 4 : 0, vert ? 0 : -r * 4, vert ? r * 4 : 0, vert ? 0 : r * 4, { color: c.muted, width: 2 });
+      D.label('เริ่ม', 0, 0, { dx: vert ? 14 : 0, dy: vert ? 0 : 18, align: vert ? 'left' : 'center' });
+      if (Math.abs(st.s) > r) { if (vert) D.arrow(r * 5, 0, 0, st.s, { color: c.primary, label: 's = ' + fmt(st.s) + ' m', width: 2, dx: 6 }); else D.arrow(0, -r * 3, st.s, 0, { color: c.primary, label: 's = ' + fmt(st.s) + ' m', width: 2, dy: 14 }); }
+      var k = (vert ? (w.yMax - w.yMin) : (w.xMax - w.xMin)) * 0.12 / Math.max(Math.abs(p.u), Math.abs(st.v), 5);
+      if (D.view.vec) {
+        if (Math.abs(st.v) > 0.05) D.arrow(px, py, vert ? 0 : st.v * k, vert ? st.v * k : 0, { color: c.horizontal, label: 'v ' + fmt(st.v), width: 3 });
+        if (Math.abs(p.a) > 0.01) D.arrow(px + (vert ? -r * 3 : 0), py + (vert ? 0 : -r * 3), vert ? 0 : p.a * k * 2, vert ? p.a * k * 2 : 0, { color: c.vertical, label: 'a ' + fmt(p.a), width: 2.5 });
+      }
+      D.dot(px, py, 10, c.primary, { stroke: c.card, width: 2 });
+      D.label('ทิศ u (บวก) ' + (vert ? (p.u >= 0 ? 'ขึ้น' : 'ลง') : (p.u >= 0 ? 'ไปขวา' : 'ไปซ้าย')), w.xMax, w.yMax, { dy: 12, dx: -8, align: 'right', color: c.text });
+    },
+    readouts: function (st, p, t) {
+      var tt = Math.min(t, p.tEnd), e = at(p, p.tEnd);
+      return [
+        { label: 's ขณะนี้', value: st.s, unit: 'm' }, { label: 'v ขณะนี้', value: st.v, unit: 'm/s' },
+        { label: 'v ที่ t = ' + p.tEnd + ' s', value: e.v, unit: 'm/s', highlight: true }, { label: 's ที่ t = ' + p.tEnd + ' s', value: e.s, unit: 'm', highlight: true },
+        { label: 'เครื่องหมายของ v', value: e.v >= 0 ? 'บวก (ตามทิศ u)' : 'ลบ (สวนทิศ u)' }, { label: 'เครื่องหมายของ s', value: e.s >= 0 ? 'บวก (ฝั่งเดียวกับ u)' : 'ลบ (ย้อนกลับเลยจุดเริ่ม)' }
+      ];
+    },
+    formulas: function (st, p) {
+      var t = p.tEnd, e = at(p, t), u = p.u, a = p.a;
+      return [
+        { symbolic: '① v = u + at (ไม่มี s)', substituted: '= ' + u + ' + (' + a + ')(' + t + ')', result: '= ' + fmt(e.v) + ' m/s' },
+        { symbolic: '② v² = u² + 2as (ไม่มี t)', substituted: '= ' + u + '² + 2(' + a + ')(' + fmt(e.s) + ')', result: '= ' + fmt(u * u + 2 * a * e.s) + ' → v = ±' + fmt(Math.sqrt(Math.max(0, u * u + 2 * a * e.s))) },
+        { symbolic: '③ s = ut + ½at² (ไม่มี v)', substituted: '= ' + u + '(' + t + ') + ½(' + a + ')(' + t + ')²', result: '= ' + fmt(e.s) + ' m' },
+        { symbolic: '④ s = vt − ½at² (ไม่มี u)', substituted: '= ' + fmt(e.v) + '(' + t + ') − ½(' + a + ')(' + t + ')²', result: '= ' + fmt(e.v * t - 0.5 * a * t * t) + ' m' },
+        { symbolic: '⑤ s = ((u + v)/2) t (ไม่มี a)', substituted: '= ((' + u + ' + ' + fmt(e.v) + ')/2)(' + t + ')', result: '= ' + fmt((u + e.v) / 2 * t) + ' m' }
+      ];
+    },
+    sample: function (st) { return { s: st.s, v: st.v }; },
+    graphs: [{ title: 's-t', x: 't', series: [{ key: 's', label: 's (m)' }], window: 10 }, { title: 'v-t', x: 't', series: [{ key: 'v', label: 'v (m/s)', color: '#E07A1F' }], window: 10 }],
+    content: {
+      summary: '<b>สมการการเคลื่อนที่แบบความเร่งคงที่</b> สูตร 5 ตัวที่ใช้แก้โจทย์เกือบทุกข้อ v = u + at, v² = u² + 2as, s = ut + ½at², s = vt − ½at², s = ((u + v)/2)t แต่ละสูตรขาดตัวแปรไป 1 ตัว ให้เลือกสูตรที่ไม่มีตัวแปรที่โจทย์ไม่ให้และไม่ถาม <b>เทคนิคการแทนเครื่องหมาย</b> ให้ทิศของความเร็วต้น u เป็นบวก อะไรที่ชี้สวนทาง u ให้เป็นลบ แล้วแทนค่าในสูตรได้เลย ไม่ต้องแยกคิดขาขึ้นขาลง',
+      tryIt: ['เลือก "โยนขึ้น" แล้วเลื่อน t ไปที่ 4 s ดูว่า s เป็นลบ แปลว่าตกต่ำกว่าจุดโยน โดยไม่ต้องแยกคิดขาขึ้นขาลง', 'ดูว่าสูตรทั้ง 5 ให้ s และ v ตรงกันทุกสูตร ต่างกันแค่ตัวแปรที่ใช้', 'ตั้ง u = 10 a = −2 แล้วหา t ที่ v = 0 จากกราฟ v-t']
+    }
+  });
+})();
+</script>
+</body>
+</html>

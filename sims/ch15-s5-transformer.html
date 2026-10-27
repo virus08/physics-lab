@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S15.5 หม้อแปลงไฟฟ้า · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S15.5 หม้อแปลงไฟฟ้า · บท 15 เรื่อง 12
+   สูตร: V₂/V₁ = N₂/N₁ · อุดมคติ P₁ = P₂ → I₁V₁ = I₂V₂ · ประสิทธิภาพ η = P ออก/P เข้า
+   กราฟแรงดัน sine จากเวลาเอนจิน (50 Hz) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function calc(p) { var V2 = p.V1 * p.N2 / p.N1, I2 = p.P / V2, Pin = p.P / (p.eff / 100), I1 = Pin / p.V1; return { V2: V2, I2: I2, I1: I1, Pin: Pin, Pout: p.P, ratio: p.N2 / p.N1 }; }
+  PhysLab.createSim({
+    id: 'S15.5', chapter: 15, topics: [12], title: 'หม้อแปลงไฟฟ้า',
+    alt: 'แกนเหล็กรูปสี่เหลี่ยม ขดปฐมภูมิทางซ้ายต่อกับแหล่งไฟสลับ ขดทุติยภูมิทางขวาต่อกับหลอดไฟ จำนวนขดวาดตามสัดส่วน N₁ N₂ มีค่า V และ I กำกับสองฝั่ง',
+    calc: calc,
+    params: {
+      V1: { label: 'แรงดันขดปฐมภูมิ', symbol: 'V₁', unit: 'V', type: 'range', min: 5, max: 1000, step: 5, default: 220 },
+      N1: { label: 'จำนวนรอบขดปฐมภูมิ', symbol: 'N₁', type: 'range', min: 10, max: 2000, step: 10, default: 1000 },
+      N2: { label: 'จำนวนรอบขดทุติยภูมิ', symbol: 'N₂', type: 'range', min: 10, max: 2000, step: 10, default: 50 },
+      P: { label: 'กำลังที่โหลดใช้', symbol: 'P₂', unit: 'W', type: 'range', min: 1, max: 2000, step: 1, default: 60 },
+      eff: { label: 'ประสิทธิภาพ', symbol: 'η', unit: '%', type: 'range', min: 50, max: 100, step: 1, default: 100 }
+    },
+    presets: [{ label: 'หม้อแปลงลง 220 → 11 V', values: { V1: 220, N1: 1000, N2: 50, P: 60, eff: 100 } }, { label: 'หม้อแปลงขึ้น 220 → 2200 V', values: { V1: 220, N1: 100, N2: 1000 } }, { label: 'รอบเท่ากัน (แยกวงจร)', values: { N1: 500, N2: 500 } }, { label: 'ประสิทธิภาพ 80%', values: { eff: 80 } }],
+    speeds: [1], dt: 1 / 120,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return { t: 0 }; }, step: function (s, p, dt, t) { s.t = t + dt; return s; },
+    timeLabel: function () { return ''; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p), i;
+      D.rect(3.2, 0.9, 3.6, 3.6, { fill: c.muted }); D.rect(3.9, 1.6, 2.2, 2.2, { fill: c.bg }); D.label('แกนเหล็ก', 5, 4.55, { dy: -4, align: 'center', color: c.muted });
+      var n1 = Math.min(14, Math.max(2, Math.round(p.N1 / 100))), n2 = Math.min(14, Math.max(2, Math.round(p.N2 / 100)));
+      for (i = 0; i < n1; i++) { var y1 = 1.7 + 2.0 * (i + 0.5) / n1; D.ctx.save(); D.ctx.beginPath(); D.ctx.ellipse(D.x(3.55), D.y(y1), D.sx(0.55), D.sx(0.9 / n1 * 0.9), 0, 0, Math.PI * 2); D.ctx.strokeStyle = c.orange; D.ctx.lineWidth = 2.5; D.ctx.stroke(); D.ctx.restore(); }
+      for (i = 0; i < n2; i++) { var y2 = 1.7 + 2.0 * (i + 0.5) / n2; D.ctx.save(); D.ctx.beginPath(); D.ctx.ellipse(D.x(6.45), D.y(y2), D.sx(0.55), D.sx(0.9 / n2 * 0.9), 0, 0, Math.PI * 2); D.ctx.strokeStyle = c.primary; D.ctx.lineWidth = 2.5; D.ctx.stroke(); D.ctx.restore(); }
+      D.line(3.0, 3.7, 1.2, 3.7, { color: c.text, width: 2 }); D.line(3.0, 1.7, 1.2, 1.7, { color: c.text, width: 2 }); D.line(1.2, 3.7, 1.2, 3.1, { color: c.text, width: 2 }); D.line(1.2, 1.7, 1.2, 2.3, { color: c.text, width: 2 }); D.circle(1.2, 2.7, 0.4, { fill: c.card, stroke: c.text, width: 2 }); D.label('~', 1.2, 2.7, { align: 'center', color: c.text, bold: true, size: 18 });
+      D.line(7.0, 3.7, 8.8, 3.7, { color: c.text, width: 2 }); D.line(7.0, 1.7, 8.8, 1.7, { color: c.text, width: 2 }); D.line(8.8, 3.7, 8.8, 3.1, { color: c.text, width: 2 }); D.line(8.8, 1.7, 8.8, 2.3, { color: c.text, width: 2 }); var glow = PhysLab.clamp(p.P / 500, 0.15, 1); D.circle(8.8, 2.7, 0.4, { fill: 'rgba(224,122,31,' + glow + ')', stroke: c.text, width: 2 }); D.label('โหลด ' + p.P + ' W', 8.8, 2.1, { dy: 10, align: 'center', color: c.text });
+      D.label('ปฐมภูมิ N₁ = ' + p.N1, 3.55, 0.75, { dy: 10, align: 'center', color: c.orange, bold: true }); D.label('ทุติยภูมิ N₂ = ' + p.N2, 6.45, 0.75, { dy: 10, align: 'center', color: c.primary, bold: true });
+      D.label('V₁ = ' + p.V1 + ' V', 0.2, 3.95, { color: c.orange, bold: true }); D.label('I₁ = ' + fmt(C.I1) + ' A', 0.2, 1.35, { color: c.orange });
+      D.label('V₂ = ' + fmt(C.V2) + ' V', 7.4, 3.95, { color: c.primary, bold: true }); D.label('I₂ = ' + fmt(C.I2) + ' A', 7.4, 1.35, { color: c.primary });
+      D.label((C.ratio > 1 ? 'หม้อแปลงขึ้น' : C.ratio < 1 ? 'หม้อแปลงลง' : 'อัตราส่วน 1:1') + ' · V₂/V₁ = N₂/N₁ = ' + fmt(C.ratio) + ' · P เข้า ' + fmt(C.Pin) + ' W → P ออก ' + fmt(C.Pout) + ' W', 0.2, 4.95, { color: c.text, bold: true });
+      var w = 2 * Math.PI * 50, k1 = 0.5 / Math.max(p.V1, C.V2), pts1 = [], pts2 = []; for (i = 0; i <= 80; i++) { var tt = s.t + i / 80 * 0.04, xx = 0.4 + 2.2 * i / 80; pts1.push([xx, 0.45 + p.V1 * k1 * Math.sin(w * tt) * 0.8]); pts2.push([xx + 7.0, 0.45 + C.V2 * k1 * Math.sin(w * tt) * 0.8]); }
+      D.line(0.4, 0.45, 2.6, 0.45, { color: c.line, width: 1 }); D.polyline(pts1, { color: c.orange, width: 1.5 }); D.line(7.4, 0.45, 9.6, 0.45, { color: c.line, width: 1 }); D.polyline(pts2, { color: c.primary, width: 1.5 });
+    },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'V₂ = V₁N₂/N₁', value: C.V2, unit: 'V', highlight: true }, { label: 'ชนิด', value: C.ratio > 1 ? 'หม้อแปลงขึ้น' : C.ratio < 1 ? 'หม้อแปลงลง' : '1:1' }, { label: 'I₂ = P₂/V₂', value: C.I2, unit: 'A' }, { label: 'P เข้า = P ออก/η', value: C.Pin, unit: 'W' }, { label: 'I₁ = P₁/V₁', value: C.I1, unit: 'A', highlight: true }, { label: 'I₁/I₂ = N₂/N₁ (อุดมคติ)', value: C.I1 / C.I2 }]; },
+    formulas: function (s, p) { var C = calc(p); return [{ symbolic: 'V₂/V₁ = N₂/N₁', substituted: 'V₂ = ' + p.V1 + ' × ' + p.N2 + '/' + p.N1, result: '= ' + fmt(C.V2) + ' V' }, { symbolic: 'P₁ = P₂ (อุดมคติ) → I₁V₁ = I₂V₂', substituted: 'I₁ = ' + fmt(C.Pin) + '/' + p.V1 + ' · I₂ = ' + p.P + '/' + fmt(C.V2), result: fmt(C.I1) + ' A · ' + fmt(C.I2) + ' A' }]; },
+    content: {
+      summary: '<b>หม้อแปลงไฟฟ้า</b> แรงดันแปรตามจำนวนรอบ V₂/V₁ = N₂/N₁ ขดทุติยภูมิรอบมากกว่าเป็นหม้อแปลงขึ้น น้อยกว่าเป็นหม้อแปลงลง อุดมคติกำลังเข้าเท่ากำลังออก P₁ = P₂ ดังนั้นแรงดันขึ้นกระแสจะลดลงในสัดส่วนเดียวกัน หม้อแปลงทำงานได้กับไฟสลับเท่านั้นเพราะต้องมีฟลักซ์ที่เปลี่ยนแปลง',
+      tryIt: ['เพิ่ม N₂ ให้มากกว่า N₁ ดูว่ากลายเป็นหม้อแปลงขึ้นและกระแส I₂ ลดลง', 'คงกำลังโหลดไว้ แล้วเปลี่ยนอัตราส่วน ดูว่า I₁V₁ = I₂V₂ เสมอ', 'ลดประสิทธิภาพเป็น 80% ดูว่ากำลังเข้าต้องมากกว่ากำลังออก']
+    }
+  });
+})();
+</script>
+</body>
+</html>

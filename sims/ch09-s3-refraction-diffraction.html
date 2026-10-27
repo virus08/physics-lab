@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S9.3 การหักเหและการเลี้ยวเบน · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S9.3 การหักเหและการเลี้ยวเบน · บท 9 เรื่อง 7, 8
+   สูตร: กฎของสเนลล์ sinθ₁/sinθ₂ = v₁/v₂ = λ₁/λ₂ (f ไม่เปลี่ยน) · การเลี้ยวเบนชัดเมื่อ d ≤ λ · ขอบแถบกลาง sinθ = λ/d เมื่อ d > λ
+   หน้าคลื่นหักเหวาดจากสูตรโดยตรง · สนามคลื่นเลี้ยวเบนคำนวณด้วยหลักของฮอยเกนส์ (แหล่งจุด 17 จุดในช่อง) บนกริด 96×72 · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad, deg = PhysLab.deg;
+  var GW = 96, GH = 72, off = null, octx = null, img = null;
+  function hex(h) { h = String(h).replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+  function lam1(p) { return p.v1 / p.f; }
+  function lam2(p) { return p.v2 / p.f; }
+  function sinth2(p) { return Math.sin(rad(p.th1)) * p.v2 / p.v1; }
+  function clipLine(nx, ny, c, box) {
+    var tx = -ny, ty = nx, lo = -1e9, hi = 1e9, x0 = c * nx, y0 = c * ny;
+    function bound(p0, t, mn, mx) { if (Math.abs(t) < 1e-9) { if (p0 < mn || p0 > mx) { lo = 1; hi = 0; } return; } var a = (mn - p0) / t, b = (mx - p0) / t; if (a > b) { var q = a; a = b; b = q; } lo = Math.max(lo, a); hi = Math.min(hi, b); }
+    bound(x0, tx, box.xMin, box.xMax); bound(y0, ty, box.yMin, box.yMax);
+    if (lo >= hi) return null; return [[x0 + lo * tx, y0 + lo * ty], [x0 + hi * tx, y0 + hi * ty]];
+  }
+  function fronts(D, nx, ny, lam, v, t, box, color) {
+    var span = Math.abs(box.xMin) + Math.abs(box.xMax) + Math.abs(box.yMin) + Math.abs(box.yMax);
+    var base = ((v * t) % lam + lam) % lam;
+    for (var c = base - Math.ceil(span / lam) * lam; c <= span; c += lam) { var seg = clipLine(nx, ny, c, box); if (seg) D.line(seg[0][0], seg[0][1], seg[1][0], seg[1][1], { color: color, width: 2 }); }
+  }
+  function drawField(ctx, D, p, t, W) {
+    if (!off) { off = document.createElement('canvas'); off.width = GW; off.height = GH; octx = off.getContext('2d'); img = octx.createImageData(GW, GH); }
+    var c = D.color, bg = hex(c.card || '#ffffff'), cr = hex(c.primary), tr = hex(c.orange), data = img.data;
+    var lam = p.v1 / p.f, k = 2 * Math.PI / lam, w = 2 * Math.PI * p.f, N = 17, ys = [];
+    for (var j = 0; j < N; j++) ys.push(-p.d / 2 + p.d * (j + 0.5) / N);
+    var x0 = 0.06, xw = W.xMax - x0, yh = W.yMax - W.yMin;
+    for (var gy = 0; gy < GH; gy++) { var y = W.yMax - yh * (gy + 0.5) / GH; for (var gx = 0; gx < GW; gx++) { var x = x0 + xw * (gx + 0.5) / GW, sum = 0, norm = 0; for (j = 0; j < N; j++) { var dy = y - ys[j], r = Math.sqrt(x * x + dy * dy), a = 1 / Math.sqrt(r + 0.15); sum += a * Math.cos(k * r - w * t); norm += a; } var v = sum / norm, i = (gy * GW + gx) * 4, m = v > 0 ? v : 0, n = v < 0 ? -v * 0.75 : 0; data[i] = bg[0] + (cr[0] - bg[0]) * m + (tr[0] - bg[0]) * n; data[i + 1] = bg[1] + (cr[1] - bg[1]) * m + (tr[1] - bg[1]) * n; data[i + 2] = bg[2] + (cr[2] - bg[2]) * m + (tr[2] - bg[2]) * n; data[i + 3] = 255; } }
+    octx.putImageData(img, 0, 0);
+    ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(off, D.x(x0), D.y(W.yMax), D.x(W.xMax) - D.x(x0), D.y(W.yMin) - D.y(W.yMax)); ctx.restore();
+  }
+  PhysLab.createSim({
+    id: 'S9.3', chapter: 9, topics: [7, 8], title: 'การหักเหและการเลี้ยวเบน',
+    alt: 'โหมดหักเห: หน้าคลื่นเอียงผ่านรอยต่อน้ำลึกไปน้ำตื้น ความยาวคลื่นสั้นลงและทิศเบนเข้าหาเส้นแนวฉาก โหมดเลี้ยวเบน: คลื่นระนาบผ่านช่องแคบในกำแพงแล้วแผ่โค้งออกไปด้านหลัง',
+    lam1: lam1, lam2: lam2, sinth2: sinth2,
+    params: {
+      mode: { label: 'ปรากฏการณ์', type: 'choice', options: [{ label: 'การหักเห', value: 'refract' }, { label: 'การเลี้ยวเบน', value: 'diffract' }], default: 'refract' },
+      v1: { label: 'v₁ ตัวกลางแรก (น้ำลึก)', symbol: 'v₁', unit: 'm/s', type: 'range', min: 0.5, max: 3, step: 0.1, default: 2 },
+      v2: { label: 'v₂ ตัวกลางที่สอง (น้ำตื้น) โหมดหักเห', symbol: 'v₂', unit: 'm/s', type: 'range', min: 0.5, max: 3, step: 0.1, default: 1 },
+      th1: { label: 'มุมตกกระทบ θ₁ (โหมดหักเห)', symbol: 'θ₁', unit: '°', type: 'range', min: 0, max: 80, step: 1, default: 40 },
+      f: { label: 'ความถี่', symbol: 'f', unit: 'Hz', type: 'range', min: 0.5, max: 3, step: 0.1, default: 2 },
+      d: { label: 'ความกว้างช่อง d (โหมดเลี้ยวเบน)', symbol: 'd', unit: 'm', type: 'range', min: 0.2, max: 4, step: 0.1, default: 1 }
+    },
+    presets: [{ label: 'น้ำลึก → น้ำตื้น 40°', values: { mode: 'refract', v1: 2, v2: 1, th1: 40, f: 2 } }, { label: 'น้ำตื้น → น้ำลึก (เบนออก)', values: { mode: 'refract', v1: 1, v2: 2, th1: 20 } }, { label: 'ตกตั้งฉาก (ไม่เบน แต่ λ เปลี่ยน)', values: { mode: 'refract', th1: 0 } }, { label: 'ช่องกว้าง d = 4λ', values: { mode: 'diffract', v1: 2, f: 2, d: 4 } }, { label: 'ช่องเท่ากับ λ', values: { mode: 'diffract', v1: 2, f: 2, d: 1 } }, { label: 'ช่องแคบกว่า λ', values: { mode: 'diffract', v1: 2, f: 2, d: 0.4 } }],
+    toggles: [{ key: 'rays', label: 'รังสีและมุม' }],
+    speeds: [0.25, 0.5, 1],
+    world: function (p) { return p.mode === 'refract' ? { xMin: -4, xMax: 4, yMin: -2.8, yMax: 2.8 } : { xMin: -3, xMax: 5, yMin: -2.8, yMax: 2.8 }; },
+    init: function () { return { t: 0 }; }, step: function (s, p, dt, t) { s.t = t + dt; return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = D.world, t = s.t;
+      if (p.mode === 'refract') {
+        var l1 = lam1(p), l2 = lam2(p), s2 = sinth2(p), n1x = Math.sin(rad(p.th1)), n1y = -Math.cos(rad(p.th1));
+        D.rect(W.xMin, 0, W.xMax - W.xMin, W.yMax, { fill: c.soft }); D.rect(W.xMin, W.yMin, W.xMax - W.xMin, -W.yMin, { fill: c.accentSoft });
+        D.line(W.xMin, 0, W.xMax, 0, { color: c.muted, width: 2 });
+        fronts(D, n1x, n1y, l1, p.v1, t, { xMin: W.xMin, xMax: W.xMax, yMin: 0, yMax: W.yMax }, c.primary);
+        if (s2 <= 1) { var th2 = Math.asin(s2), n2x = Math.sin(th2), n2y = -Math.cos(th2); fronts(D, n2x, n2y, l2, p.v2, t, { xMin: W.xMin, xMax: W.xMax, yMin: W.yMin, yMax: 0 }, c.orange); if (D.view.rays) { D.arrow(0, 0, 2.2 * n2x, 2.2 * n2y, { color: c.text, width: 1.5 }); D.angle(0, 0, 44, -Math.PI / 2, -Math.PI / 2 + th2, { label: 'θ₂ ' + fmt(deg(th2)) + '°' }); } }
+        else D.label('sinθ₂ > 1: ไม่มีคลื่นหักเห (สะท้อนกลับหมด)', 0, -1.2, { align: 'center', color: c.red, bold: true });
+        if (D.view.rays) { D.line(0, -2.5, 0, 2.5, { color: c.muted, dash: [4, 3], width: 1 }); D.arrow(-2.2 * n1x, -2.2 * n1y, 2.2 * n1x, 2.2 * n1y, { color: c.text, width: 1.5 }); if (p.th1 > 0) D.angle(0, 0, 44, Math.PI / 2, Math.PI / 2 + rad(p.th1), { label: 'θ₁ ' + p.th1 + '°' }); D.label('เส้นแนวฉาก', 0.08, 1.9, { color: c.muted, bg: c.card }); }
+        D.label('ตัวกลาง 1: v₁ = ' + p.v1 + ' m/s · λ₁ = v₁/f = ' + fmt(l1) + ' m', W.xMin + 0.15, W.yMax - 0.2, { color: c.primary, bold: true, bg: c.card });
+        D.label('ตัวกลาง 2: v₂ = ' + p.v2 + ' m/s · λ₂ = v₂/f = ' + fmt(l2) + ' m · f เท่าเดิม ' + p.f + ' Hz', W.xMin + 0.15, W.yMin + 0.2, { color: c.orange, bold: true, bg: c.card });
+      } else {
+        var lam = lam1(p);
+        drawField(ctx, D, p, t, W);
+        fronts(D, 1, 0, lam, p.v1, t, { xMin: W.xMin, xMax: -0.06, yMin: W.yMin, yMax: W.yMax }, c.primary);
+        D.rect(-0.07, p.d / 2, 0.14, W.yMax - p.d / 2, { fill: c.muted }); D.rect(-0.07, W.yMin, 0.14, -W.yMin - p.d / 2, { fill: c.muted });
+        D.arrowPx(D.x(-2.6), D.y(0), 40, 0, { color: c.text, label: 'v = ' + p.v1 + ' m/s' });
+        D.line(0.25, -p.d / 2, 0.25, p.d / 2, { color: c.text, width: 1.5 }); D.label('d = ' + p.d + ' m', 0.35, 0, { color: c.text });
+        if (p.d > lam && D.view.rays) { var th = Math.asin(lam / p.d), L = 5.5; D.line(0, p.d / 2, L * Math.cos(th), p.d / 2 + L * Math.sin(th), { color: c.text, dash: [5, 4], width: 1.2 }); D.line(0, -p.d / 2, L * Math.cos(th), -p.d / 2 - L * Math.sin(th), { color: c.text, dash: [5, 4], width: 1.2 }); D.label('ขอบแถบกลาง sinθ = λ/d → θ = ' + fmt(deg(th)) + '°', 0.3, W.yMax - 0.2, { color: c.text }); }
+        D.label(p.d <= lam ? 'd ≤ λ: เลี้ยวเบนชัด คลื่นแผ่เกือบรอบช่อง' : 'd > λ: เลี้ยวเบนน้อย คลื่นส่วนใหญ่พุ่งตรง', W.xMin + 0.15, W.yMax - 0.2, { color: c.primary, bold: true, bg: c.card });
+        D.label('λ = v/f = ' + fmt(lam) + ' m · d/λ = ' + fmt(p.d / lam), W.xMin + 0.15, W.yMin + 0.2, { color: c.text, bg: c.card });
+      }
+    },
+    readouts: function (s, p) {
+      if (p.mode === 'refract') { var s2 = sinth2(p); return [{ label: 'λ₁ = v₁/f', value: lam1(p), unit: 'm' }, { label: 'λ₂ = v₂/f', value: lam2(p), unit: 'm' }, { label: 'f (ไม่เปลี่ยน)', value: p.f, unit: 'Hz' }, { label: 'sinθ₂ = sinθ₁ v₂/v₁', value: s2 }, { label: 'θ₂', value: s2 <= 1 ? deg(Math.asin(s2)) : NaN, unit: s2 <= 1 ? '°' : 'สะท้อนกลับหมด', highlight: true }, { label: 'ทิศคลื่นหักเห', value: p.v2 < p.v1 ? 'เบนเข้าหาเส้นแนวฉาก' : p.v2 > p.v1 ? 'เบนออกจากเส้นแนวฉาก' : 'ไม่เบน' }]; }
+      var lam = lam1(p); return [{ label: 'λ = v/f', value: lam, unit: 'm' }, { label: 'd', value: p.d, unit: 'm' }, { label: 'd/λ', value: p.d / lam, highlight: true }, { label: 'การเลี้ยวเบน', value: p.d <= lam ? 'ชัดมาก (d ≤ λ)' : p.d <= 2 * lam ? 'ปานกลาง' : 'น้อย (d ≫ λ)' }, { label: 'ขอบแถบกลาง θ', value: p.d > lam ? deg(Math.asin(lam / p.d)) : NaN, unit: p.d > lam ? '°' : 'ไม่มี (แผ่รอบ)' }];
+    },
+    formulas: function (s, p) { if (p.mode === 'refract') { var s2 = sinth2(p); return [{ symbolic: 'sinθ₁/sinθ₂ = v₁/v₂ = λ₁/λ₂', substituted: 'sinθ₂ = sin' + p.th1 + '° × ' + p.v2 + '/' + p.v1, result: '= ' + fmt(s2) + (s2 <= 1 ? ' → θ₂ = ' + fmt(deg(Math.asin(s2))) + '°' : ' > 1 ไม่มีคลื่นหักเห') }, { symbolic: 'λ = v/f', substituted: 'λ₁ = ' + p.v1 + '/' + p.f + ' · λ₂ = ' + p.v2 + '/' + p.f, result: '= ' + fmt(lam1(p)) + ' m · ' + fmt(lam2(p)) + ' m' }]; } var lam = lam1(p); return [{ symbolic: 'เลี้ยวเบนชัดเมื่อ d ≤ λ', substituted: 'd/λ = ' + p.d + '/' + fmt(lam), result: '= ' + fmt(p.d / lam) }, { symbolic: 'ขอบแถบกลาง: d sinθ = λ', substituted: 'sinθ = ' + fmt(lam) + '/' + p.d, result: p.d > lam ? 'θ = ' + fmt(deg(Math.asin(lam / p.d))) + '°' : 'sinθ > 1 → แผ่รอบช่อง' }]; },
+    content: {
+      summary: '<b>การหักเห</b> คลื่นเปลี่ยนตัวกลางแล้วเปลี่ยนความเร็วและทิศ เช่น น้ำลึกไปน้ำตื้น คลื่นช้าลง λ สั้นลง ตามกฎของสเนลล์ sinθ₁/sinθ₂ = v₁/v₂ = λ₁/λ₂ (ความถี่ไม่เปลี่ยน) <b>การเลี้ยวเบน</b> คลื่นอ้อมผ่านช่องหรือขอบสิ่งกีดขวางได้ ยิ่งช่องแคบกว่าหรือเท่ากับความยาวคลื่น (d ≤ λ) ยิ่งเลี้ยวเบนชัด',
+      tryIt: ['โหมดหักเห: ลด v₂ ลง ดูว่าหน้าคลื่นในน้ำตื้นชิดกันขึ้นและเบนเข้าหาเส้นแนวฉาก', 'สลับ v₁ < v₂ แล้วเพิ่มมุมจนเกิด sinθ₂ > 1', 'โหมดเลี้ยวเบน: ลดความกว้างช่องจาก 4 m จนต่ำกว่า λ ดูว่าคลื่นแผ่เป็นครึ่งวงกลม']
+    }
+  });
+})();
+</script>
+</body>
+</html>

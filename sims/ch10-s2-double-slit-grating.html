@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S10.2 สลิตคู่และเกรตติง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S10.2 สลิตคู่และเกรตติง · บท 10 เรื่อง 3, 4
+   สูตร: แถบสว่าง d sinθ = nλ · แถบมืด d sinθ = (n − ½)λ · เกรตติง d = 1/N · ความเข้มสลิตคู่ cos²(πd sinθ/λ) × ซองสลิตเดี่ยว · เกรตติงจำลอง 8 ช่อง
+   แบบจำลองนิ่ง · แสงขาวคำนวณจาก 21 ความยาวคลื่น 400–700 nm · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, deg = PhysLab.deg;
+  function wl2rgb(l) { var r, g, b; if (l < 440) { r = -(l - 440) / 60; g = 0; b = 1; } else if (l < 490) { r = 0; g = (l - 440) / 50; b = 1; } else if (l < 510) { r = 0; g = 1; b = -(l - 510) / 20; } else if (l < 580) { r = (l - 510) / 70; g = 1; b = 0; } else if (l < 645) { r = 1; g = -(l - 645) / 65; b = 0; } else { r = 1; g = 0; b = 0; } var f = l < 420 ? 0.4 + 0.6 * (l - 380) / 40 : l > 700 ? 0.4 + 0.6 * (780 - l) / 80 : 1; return [255 * r * f, 255 * g * f, 255 * b * f]; }
+  function dum(p) { return p.mode === 'double' ? p.d : 1000 / p.N; }
+  function bright(p, n, lamnm) { var s = n * lamnm * 1e-9 / (dum(p) * 1e-6); return s < 1 ? p.L * Math.tan(Math.asin(s)) * 1000 : NaN; }
+  function I(p, ymm, lamnm) { var th = Math.atan(ymm / 1000 / p.L), lam = lamnm * 1e-9, d = dum(p) * 1e-6, ph = Math.PI * d * Math.sin(th) / lam, b = Math.PI * p.a * 1e-6 * Math.sin(th) / lam, env = Math.abs(b) < 1e-9 ? 1 : Math.pow(Math.sin(b) / b, 2); if (p.mode === 'double') return env * Math.pow(Math.cos(ph), 2); var Ns = 8, sn = Math.sin(ph); return Math.abs(sn) < 1e-9 ? 1 : Math.pow(Math.sin(Ns * ph) / (Ns * sn), 2); }
+  function calc(p) { var d = dum(p), s1 = p.lam * 1e-9 / (d * 1e-6), y1 = bright(p, 1, p.lam); return { d: d, s1: s1, th1: s1 < 1 ? deg(Math.asin(s1)) : NaN, y1: y1, dy: p.lam * 1e-9 * p.L / (d * 1e-6) * 1000, nmax: Math.floor(d * 1e-6 / (p.lam * 1e-9)), Ymax: isFinite(y1) ? Math.min(Math.max(2.7 * y1, 2), 900) : 900 }; }
+  PhysLab.createSim({
+    id: 'S10.2', chapter: 10, topics: [3, 4], title: 'สลิตคู่และเกรตติง', static: true,
+    alt: 'แสงผ่านสลิตคู่หรือเกรตติงทางซ้าย บนฉากทางขวาเห็นแถบสว่างมืดสลับกันสม่ำเสมอ เกรตติงให้แถบคมชัด และเมื่อใช้แสงขาวแถบข้างแยกเป็นสเปกตรัมสี',
+    calc: calc, I: I, bright: bright,
+    params: {
+      mode: { label: 'อุปกรณ์', type: 'choice', options: [{ label: 'สลิตคู่', value: 'double' }, { label: 'เกรตติง', value: 'grating' }], default: 'double' },
+      light: { label: 'แสง', type: 'choice', options: [{ label: 'สีเดียว', value: 'mono' }, { label: 'แสงขาว', value: 'white' }], default: 'mono' },
+      lam: { label: 'ความยาวคลื่น (แสงสีเดียว)', symbol: 'λ', unit: 'nm', type: 'range', min: 400, max: 700, step: 10, default: 550 },
+      d: { label: 'ระยะห่างสลิต (สลิตคู่)', symbol: 'd', unit: 'µm', type: 'range', min: 5, max: 100, step: 1, default: 20 },
+      a: { label: 'ความกว้างแต่ละช่อง (สลิตคู่)', symbol: 'a', unit: 'µm', type: 'range', min: 1, max: 10, step: 0.5, default: 3 },
+      N: { label: 'จำนวนช่องต่อ mm (เกรตติง)', symbol: 'N', unit: '/mm', type: 'range', min: 100, max: 1000, step: 10, default: 300 },
+      L: { label: 'ระยะถึงฉาก', symbol: 'L', unit: 'm', type: 'range', min: 0.5, max: 3, step: 0.1, default: 1.5 }
+    },
+    presets: [{ label: 'สลิตคู่ d = 20 µm', values: { mode: 'double', light: 'mono', lam: 550, d: 20, L: 1.5 } }, { label: 'd ใหญ่ขึ้น แถบชิดขึ้น', values: { mode: 'double', d: 60 } }, { label: 'เกรตติง 300 /mm สีเดียว', values: { mode: 'grating', light: 'mono', N: 300 } }, { label: 'เกรตติง แสงขาว → สเปกตรัม', values: { mode: 'grating', light: 'white', N: 300 } }, { label: 'เกรตติง 600 /mm', values: { mode: 'grating', N: 600 } }],
+    toggles: [{ key: 'marks', label: 'ตำแหน่งแถบสว่าง n' }, { key: 'curve', label: 'กราฟความเข้ม' }],
+    world: { xMin: -1.08, xMax: 1.08, yMin: -1.12, yMax: 1.12 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p), Y = C.Ymax, sx0 = 0.5, sw = 0.08, N = 220, i, j, rgb = wl2rgb(p.lam), col = p.light === 'mono' ? 'rgb(' + rgb.map(Math.round).join(',') + ')' : '#e8e8e8';
+      for (i = -2; i <= 2; i++) D.arrow(-1.02, i * 0.3, 0.2, 0, { color: p.light === 'mono' ? col : c.text, width: 2 });
+      D.label(p.light === 'mono' ? 'แสง λ = ' + p.lam + ' nm' : 'แสงขาว 400–700 nm', -1.02, -0.8, { color: p.light === 'mono' ? col : c.text, bold: true });
+      if (p.mode === 'double') { D.rect(-0.78, 0.07, 0.05, 1.0, { fill: c.muted }); D.rect(-0.78, -0.04, 0.05, 0.08, { fill: c.muted }); D.rect(-0.78, -1.07, 0.05, 1.0, { fill: c.muted }); D.label('สลิตคู่ d = ' + p.d + ' µm', -0.755, 1.07, { dy: -8, align: 'center' }); }
+      else { for (j = 0; j < 14; j++) D.rect(-0.78, -1.05 + j * 0.155, 0.05, 0.11, { fill: c.muted }); D.label('เกรตติง ' + p.N + ' ช่อง/mm · d = ' + fmt(C.d) + ' µm', -0.755, 1.07, { dy: -8, align: 'center' }); }
+      D.rect(sx0, -1.05, sw, 2.1, { fill: '#0b0f16' });
+      var lams = []; if (p.light === 'mono') lams = [p.lam]; else for (var l = 400; l <= 700; l += 15) lams.push(l);
+      for (i = 0; i < N; i++) { var yw = -1.05 + 2.1 * (i + 0.5) / N, ymm = yw * Y, r = 0, g = 0, b = 0; for (j = 0; j < lams.length; j++) { var Ii = Math.pow(I(p, ymm, lams[j]), 0.6), w = wl2rgb(lams[j]); r += w[0] * Ii; g += w[1] * Ii; b += w[2] * Ii; } var k = p.light === 'mono' ? 1 : 2.2 / lams.length; D.rect(sx0, -1.05 + 2.1 * i / N, sw, 2.1 / N + 0.004, { fill: 'rgb(' + Math.min(255, Math.round(r * k)) + ',' + Math.min(255, Math.round(g * k)) + ',' + Math.min(255, Math.round(b * k)) + ')' }); }
+      D.label('ฉาก (L = ' + p.L + ' m)', sx0 + sw / 2, 1.05, { dy: -8, align: 'center' });
+      D.line(-0.755, 0, sx0, 0, { color: c.line, dash: [3, 4], width: 1 });
+      if (D.view.marks) { for (var n = 0; n <= 6; n++) { var yb = bright(p, n, p.lam); if (!isFinite(yb)) break; var yw2 = yb / Y; if (yw2 > 1.02) break; [1, -1].forEach(function (sg) { if (n === 0 && sg < 0) return; D.line(sx0 + sw, sg * yw2, sx0 + sw + 0.04, sg * yw2, { color: c.text, width: 1.5 }); D.label('n = ' + n + (n > 0 ? ' · y = ' + fmt(yb) + ' mm' : ' (กลาง)'), sx0 + sw + 0.06, sg * yw2, { color: c.text }); }); } }
+      if (D.view.curve && p.light === 'mono') { var pts = []; for (i = 0; i <= N; i++) { var yw3 = -1.05 + 2.1 * i / N; pts.push([0.66 + 0.36 * I(p, yw3 * Y, p.lam), yw3]); } D.line(0.66, -1.05, 0.66, 1.05, { color: c.line, width: 1 }); D.polyline(pts, { color: col, width: 1.5 }); D.label('I', 1.0, 0, { color: c.muted }); }
+      D.label('แถบสว่างที่ d sinθ = nλ · ระยะระหว่างแถบ ≈ λL/d = ' + fmt(C.dy) + ' mm' + (p.light === 'white' ? ' (ที่ 550 nm)' : ''), -1.02, -1.1, { color: c.text });
+    },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'd', value: C.d, unit: 'µm' }, { label: 'sinθ₁ = λ/d', value: C.s1 }, { label: 'θ₁', value: C.th1, unit: '°', highlight: true }, { label: 'y₁ = L tanθ₁', value: C.y1, unit: 'mm', highlight: true }, { label: 'ระยะระหว่างแถบ ≈ λL/d', value: C.dy, unit: 'mm' }, { label: 'อันดับสูงสุด n = d/λ', value: C.nmax }, { label: 'จำนวนแถบสว่างทั้งหมด', value: 2 * C.nmax + 1 }]; },
+    formulas: function (s, p) { var C = calc(p); return [].concat(p.mode === 'grating' ? [{ symbolic: 'd = 1/N', substituted: '= 1/' + p.N + ' mm', result: '= ' + fmt(C.d) + ' µm' }] : [], [{ symbolic: 'd sinθ₁ = λ (แถบสว่างที่ 1)', substituted: 'sinθ₁ = ' + p.lam + '×10⁻⁹ / ' + fmt(C.d) + '×10⁻⁶', result: '= ' + fmt(C.s1) + (isFinite(C.th1) ? ' → θ₁ = ' + fmt(C.th1) + '°' : ' > 1') }, { symbolic: 'y₁ = L tanθ₁', substituted: '= ' + p.L + ' × tan ' + fmt(C.th1) + '°', result: '= ' + fmt(C.y1) + ' mm' }, { symbolic: 'แถบมืด d sinθ = (n − ½)λ', substituted: 'n = 1: sinθ = ' + fmt(C.s1 / 2), result: isFinite(C.s1) && C.s1 / 2 < 1 ? 'y = ' + fmt(p.L * Math.tan(Math.asin(C.s1 / 2)) * 1000) + ' mm' : '' }]); },
+    content: {
+      summary: '<b>สลิตคู่</b> แสงผ่านสองช่อง ได้แถบสว่างมืดสลับกันสม่ำเสมอ แถบสว่างที่ d sinθ = nλ แถบมืดที่ d sinθ = (n − ½)λ <b>เกรตติง</b> แผ่นที่มีช่องนับร้อยถึงพันช่องต่อมิลลิเมตร ระยะช่อง d = 1/N แถบสว่างคมชัดและแยกสีเป็นสเปกตรัม ใช้สูตรเดียวกับสลิตคู่',
+      tryIt: ['เพิ่ม d ดูว่าแถบชิดกันขึ้น (ระยะระหว่างแถบ ∝ 1/d)', 'สลับเป็นเกรตติง ดูว่าแถบคมชัดขึ้นมากแต่ตำแหน่งใช้สูตรเดิม', 'เลือกแสงขาวกับเกรตติง ดูว่าแถบ n = 1 แยกเป็นสเปกตรัม ม่วงอยู่ใกล้กลาง แดงอยู่ไกล']
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S9.5 คลื่นนิ่งในเส้นเชือก · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S9.5 คลื่นนิ่งในเส้นเชือก · บท 9 เรื่อง 10
+   สูตร: L = nλ/2 → λₙ = 2L/n · fₙ = nv/(2L) · y = 2A sin(kx) cos(ωt) = ผลรวมคลื่นวิ่งไปและกลับ
+   รูปคลื่นคำนวณจากสูตรโดยตรง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function lam(p) { return 2 * p.L / p.n; }
+  function freq(p) { return p.n * p.v / (2 * p.L); }
+  PhysLab.createSim({
+    id: 'S9.5', chapter: 9, topics: [10], title: 'คลื่นนิ่งในเส้นเชือก',
+    alt: 'เส้นเชือกตรึงสองปลายสั่นเป็นคลื่นนิ่ง มีบัพ (N) และปฏิบัพ (A) กำกับ เส้นจางแสดงขอบเขตการสั่น และเส้นประแสดงคลื่นวิ่งไปและกลับที่รวมกัน',
+    lam: lam, freq: freq,
+    params: {
+      n: { label: 'ฮาร์มอนิกที่', symbol: 'n', type: 'range', min: 1, max: 6, step: 1, default: 2 },
+      L: { label: 'ความยาวเชือก', symbol: 'L', unit: 'm', type: 'range', min: 0.5, max: 4, step: 0.1, default: 2 },
+      v: { label: 'อัตราเร็วคลื่นในเชือก', symbol: 'v', unit: 'm/s', type: 'range', min: 1, max: 20, step: 0.5, default: 8 },
+      A: { label: 'แอมพลิจูดคลื่นวิ่งแต่ละลูก', symbol: 'A', unit: 'm', type: 'range', min: 0.05, max: 0.4, step: 0.01, default: 0.2 }
+    },
+    presets: [{ label: 'ฮาร์มอนิกที่ 1 (มูลฐาน)', values: { n: 1 } }, { label: 'ฮาร์มอนิกที่ 2', values: { n: 2 } }, { label: 'ฮาร์มอนิกที่ 3', values: { n: 3 } }, { label: 'ฮาร์มอนิกที่ 4', values: { n: 4 } }, { label: 'เชือกสั้นลง ความถี่สูงขึ้น', values: { L: 1, n: 2 } }],
+    toggles: [{ key: 'env', label: 'ขอบเขตการสั่น' }, { key: 'parts', label: 'คลื่นวิ่งไปและกลับ (เส้นประ)' }, { key: 'marks', label: 'บัพ N และปฏิบัพ A' }],
+    speeds: [0.05, 0.1, 0.25, 1], defaultSpeed: 0.1,
+    world: function (p) { return { xMin: -0.25, xMax: p.L + 0.25, yMin: -p.A * 3.4, yMax: p.A * 3.4 }; },
+    init: function () { return { t: 0 }; }, step: function (s, p, dt, t) { s.t = t + dt; return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, t = s.t, k = 2 * Math.PI / lam(p), w = 2 * Math.PI * freq(p), pts = [], up = [], dn = [], p1 = [], p2 = [];
+      for (var i = 0; i <= 200; i++) { var x = p.L * i / 200; pts.push([x, 2 * p.A * Math.sin(k * x) * Math.cos(w * t)]); up.push([x, 2 * p.A * Math.abs(Math.sin(k * x))]); dn.push([x, -2 * p.A * Math.abs(Math.sin(k * x))]); p1.push([x, p.A * Math.sin(k * x - w * t)]); p2.push([x, p.A * Math.sin(k * x + w * t)]); }
+      D.rect(-0.12, -p.A * 1.2, 0.12, p.A * 2.4, { fill: c.muted }); D.rect(p.L, -p.A * 1.2, 0.12, p.A * 2.4, { fill: c.muted });
+      D.line(0, 0, p.L, 0, { color: c.line, width: 1 });
+      if (D.view.env) { D.polyline(up, { color: c.primary, width: 1, dash: [3, 4] }); D.polyline(dn, { color: c.primary, width: 1, dash: [3, 4] }); }
+      if (D.view.parts) { D.polyline(p1, { color: c.green, width: 1.5, dash: [5, 4] }); D.polyline(p2, { color: c.orange, width: 1.5, dash: [5, 4] }); }
+      D.polyline(pts, { color: c.primary, width: 3 });
+      if (D.view.marks) { for (var j = 0; j <= p.n; j++) { var xn = j * lam(p) / 2; D.dot(xn, 0, 5, c.red, {}); D.label('N', xn, 0, { dy: 16, align: 'center', color: c.red, bold: true }); } for (j = 0; j < p.n; j++) { var xa = (j + 0.5) * lam(p) / 2; D.label('A', xa, 2 * p.A, { dy: -10, align: 'center', color: c.green, bold: true }); } }
+      var l = lam(p); D.line(0, -p.A * 2.5, l / 2, -p.A * 2.5, { color: c.text, width: 1.5 }); D.line(0, -p.A * 2.35, 0, -p.A * 2.65, { color: c.text }); D.line(l / 2, -p.A * 2.35, l / 2, -p.A * 2.65, { color: c.text }); D.label('λ/2 = ' + fmt(l / 2) + ' m', l / 4, -p.A * 2.5, { dy: 14, align: 'center', color: c.text });
+      D.label('ฮาร์มอนิกที่ ' + p.n + ': L = ' + p.n + 'λ/2 → λ = 2L/n = ' + fmt(l) + ' m · f = nv/2L = ' + fmt(freq(p)) + ' Hz', 0, p.A * 3.1, { color: c.text, bold: true });
+    },
+    readouts: function (s, p) { var l = lam(p); return [{ label: 'λ = 2L/n', value: l, unit: 'm', highlight: true }, { label: 'f = nv/2L', value: freq(p), unit: 'Hz', highlight: true }, { label: 'f₁ (มูลฐาน)', value: p.v / (2 * p.L), unit: 'Hz' }, { label: 'จำนวนลูป (loop)', value: p.n }, { label: 'บัพ · ปฏิบัพ', value: (p.n + 1) + ' · ' + p.n }, { label: 'ระยะบัพถึงบัพ = λ/2', value: l / 2, unit: 'm' }, { label: 'แอมพลิจูดสูงสุด 2A', value: 2 * p.A, unit: 'm' }]; },
+    formulas: function (s, p) { return [{ symbolic: 'L = nλ/2 → λ = 2L/n', substituted: '= 2 × ' + p.L + ' / ' + p.n, result: '= ' + fmt(lam(p)) + ' m' }, { symbolic: 'f = v/λ = nv/2L', substituted: '= ' + p.n + ' × ' + p.v + ' / (2 × ' + p.L + ')', result: '= ' + fmt(freq(p)) + ' Hz' }, { symbolic: 'y = 2A sin(kx) cos(ωt)', substituted: 'A sin(kx − ωt) + A sin(kx + ωt)', result: 'ผลรวมคลื่นวิ่งไปและกลับ' }]; },
+    sample: function (s, p) { var k = 2 * Math.PI / lam(p), w = 2 * Math.PI * freq(p); return { yA: 2 * p.A * Math.cos(w * s.t), yN: 2 * p.A * Math.sin(k * lam(p) / 2) * Math.cos(w * s.t) }; },
+    graphs: [{ title: 'การกระจัดที่ปฏิบัพ (A) และบัพ (N) กับเวลา', x: 't', series: [{ key: 'yA', label: 'ที่ปฏิบัพ', color: '#0E6B57' }, { key: 'yN', label: 'ที่บัพ', color: '#B42318' }], window: 2 }],
+    content: {
+      summary: '<b>คลื่นนิ่งในเส้นเชือก</b> เชือกตรึงสองปลายสั่นเป็นลูกคลื่นนิ่ง ความยาวเชือกเป็นจำนวนเท่าของครึ่งคลื่น L = λ/2, λ, 3λ/2, 2λ ตามฮาร์มอนิกที่ 1 2 3 4 คลื่นนิ่งเกิดจากคลื่นวิ่งไปและคลื่นสะท้อนกลับซ้อนทับกัน บัพคือจุดที่ไม่สั่นเลย ปฏิบัพคือจุดที่สั่นแรงสุด',
+      tryIt: ['เปลี่ยน n จาก 1 ถึง 6 ดูว่าจำนวนลูปเท่ากับ n และ λ = 2L/n', 'เปิดเส้นประ ดูว่าคลื่นวิ่งสองทิศรวมกันเป็นคลื่นนิ่งที่ไม่เคลื่อนที่', 'ลดความยาวเชือกครึ่งหนึ่ง ดูว่าความถี่เพิ่มเป็น 2 เท่า']
+    }
+  });
+})();
+</script>
+</body>
+</html>

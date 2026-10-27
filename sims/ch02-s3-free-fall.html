@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S2.3 การตกแบบเสรี · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S2.3 การตกแบบเสรี · บท 2 เรื่อง 3
+   สูตร: v = u − gt · y = h₀ + ut − ½gt² · เวลาขึ้น = u/g · H = h₀ + u²/2g · v กระทบพื้น = √(u² + 2gh₀)
+   สมมติฐาน: ไม่มีแรงต้านอากาศ ขึ้นเป็นบวก · semi-implicit Euler dt 1/120 หาจุดตกด้วยการประมาณเชิงเส้น · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function analytic(p) { var g = p.g, u = p.u; var tUp = u > 0 ? u / g : 0, H = p.h0 + (u > 0 ? u * u / (2 * g) : 0); var tTotal = (u + Math.sqrt(u * u + 2 * g * p.h0)) / g; return { tUp: tUp, H: H, tTotal: tTotal, vHit: -Math.sqrt(u * u + 2 * g * p.h0) }; }
+  function init(p) { return { y: p.h0, v: p.u, landed: false, tLand: null, marks: [] }; }
+  function step(s, p, dt, t) {
+    if (s.landed) return s;
+    var vN = s.v - p.g * dt, yN = s.y + vN * dt;
+    if (yN < 0) { var f = s.y / (s.y - yN); s.v = s.v - p.g * dt * f; s.y = 0; s.tLand = t + dt * f; s.landed = true; return s; }
+    if (Math.floor((t + dt) * 2) > Math.floor(t * 2)) s.marks.push({ y: yN, v: vN, t: t + dt });
+    s.y = yN; s.v = vN; return s;
+  }
+  function tNow(s, t) { return s.landed ? s.tLand : t; }
+  PhysLab.createSim({
+    id: 'S2.3', chapter: 2, topics: [3], title: 'การตกแบบเสรี',
+    alt: 'ลูกบอลถูกโยนขึ้นในแนวดิ่งจากความสูงเริ่มต้น มีลูกศรความเร็ว รอยทุกครึ่งวินาทีแสดงว่าที่ความสูงเดียวกันอัตราเร็วเท่ากัน',
+    analytic: analytic,
+    params: {
+      u: { label: 'ความเร็วต้น (ขึ้นเป็นบวก)', symbol: 'u', unit: 'm/s', type: 'range', min: -20, max: 30, step: 0.5, default: 15 },
+      h0: { label: 'ความสูงเริ่มต้น', symbol: 'h₀', unit: 'm', type: 'range', min: 0, max: 50, step: 0.5, default: 0, drag: true },
+      g: { label: 'ค่า g', symbol: 'g', unit: 'm/s²', type: 'choice', options: [{ label: 'ดวงจันทร์ 1.6', value: 1.6 }, { label: 'โลก 9.8', value: 9.8 }, { label: 'ดาวพฤหัส 24.8', value: 24.8 }], default: 9.8 }
+    },
+    presets: [
+      { label: 'โยนขึ้น 15 m/s', values: { u: 15, h0: 0, g: 9.8 } }, { label: 'ปล่อยจากตึก 20 m', values: { u: 0, h0: 20, g: 9.8 } },
+      { label: 'ขว้างลงจาก 30 m', values: { u: -5, h0: 30, g: 9.8 } }, { label: 'บนดวงจันทร์', values: { g: 1.6 } }
+    ],
+    toggles: [{ key: 'vec', label: 'ลูกศร v' }, { key: 'marks', label: 'รอยทุก 0.5 s' }],
+    speeds: [0.25, 0.5, 1, 2],
+    world: function (p) { var a = analytic(p), yMax = Math.max(a.H * 1.2, p.h0 * 1.2, 5), xr = yMax * 0.9; return { xMin: -xr * 0.5, xMax: xr * 0.5, yMin: -yMax * 0.06, yMax: yMax }; },
+    init: init, step: step, done: function (s) { return s.landed; },
+    timeLabel: function (t, s) { return 't = ' + fmt(tNow(s, t), 3) + ' s' + (s.landed ? ' · ถึงพื้น' : ''); },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, a = analytic(p), w = D.world;
+      D.grid(); D.axes({ yLabel: 'y (m)', x0: w.xMin + (w.xMax - w.xMin) * 0.08, y0: 0 }); D.ground(0);
+      if (p.h0 > 0) D.rect(-w.xMax * 0.16, 0, w.xMax * 0.16, p.h0, { fill: c.soft, stroke: c.line });
+      D.line(w.xMin, a.H, w.xMax, a.H, { color: c.muted, dash: [4, 3], width: 1 }); D.label('จุดสูงสุด H = ' + fmt(a.H) + ' m · v = 0', w.xMax, a.H, { dy: -10, align: 'right' });
+      if (D.view.marks) s.marks.forEach(function (m) { var up = m.v >= 0; D.dot(up ? -w.xMax * 0.35 : w.xMax * 0.35, m.y, 4, up ? c.green : c.orange); D.label((up ? '↑ ' : '↓ ') + fmt(Math.abs(m.v)) + ' m/s', up ? -w.xMax * 0.35 : w.xMax * 0.35, m.y, { dx: up ? -8 : 8, align: up ? 'right' : 'left', color: up ? c.green : c.orange }); });
+      var k = (w.yMax - w.yMin) * 0.25 / Math.max(Math.abs(p.u), 5);
+      if (D.view.vec && Math.abs(s.v) > 0.05) D.arrow(0, s.y, 0, s.v * k, { color: s.v >= 0 ? c.green : c.orange, label: 'v ' + fmt(s.v), width: 3, dx: 6 });
+      D.dot(0, s.y, 10, c.primary, { stroke: c.card, width: 2 });
+      D.label('ขาขึ้น ' + fmt(a.tUp) + ' s = ขาลงถึงระดับเดิม', w.xMax, w.yMax, { dy: 12, dx: -8, align: 'right' });
+    },
+    dragHandles: function (s, p, D) { return [{ param: 'h0', x: 0, y: p.h0, r: 12, map: function (wx, wy) { return Math.max(0, wy); } }]; },
+    readouts: function (s, p, t) {
+      var a = analytic(p);
+      return [
+        { label: 't', value: tNow(s, t), unit: 's' }, { label: 'ความสูง y', value: s.y, unit: 'm' }, { label: 'ความเร็ว v', value: s.v, unit: 'm/s', highlight: true },
+        { label: 'ความเร่ง', value: -p.g, unit: 'm/s² (ลงเสมอ)' }, { label: 'เวลาขึ้นถึงจุดสูงสุด', value: a.tUp, unit: 's' }, { label: 'ความสูงสูงสุด H', value: a.H, unit: 'm' },
+        { label: 'เวลาจนถึงพื้น', value: a.tTotal, unit: 's', highlight: true }, { label: 'ความเร็วกระทบพื้น', value: a.vHit, unit: 'm/s' }
+      ];
+    },
+    formulas: function (s, p, t) {
+      var a = analytic(p), tt = tNow(s, t);
+      return [
+        { symbolic: 'v = u − gt', substituted: '= ' + p.u + ' − ' + p.g + '(' + fmt(tt) + ')', result: '= ' + fmt(p.u - p.g * tt) + ' m/s' },
+        { symbolic: 'y = h₀ + ut − ½gt²', substituted: '= ' + p.h0 + ' + ' + p.u + '(' + fmt(tt) + ') − ½(' + p.g + ')(' + fmt(tt) + ')²', result: '= ' + fmt(p.h0 + p.u * tt - 0.5 * p.g * tt * tt) + ' m' },
+        { symbolic: 'เวลาขึ้น = u/g', substituted: '= ' + p.u + '/' + p.g, result: '= ' + fmt(a.tUp) + ' s' },
+        { symbolic: 'v กระทบพื้น = −√(u² + 2gh₀)', substituted: '= −√(' + p.u + '² + 2(' + p.g + ')(' + p.h0 + '))', result: '= ' + fmt(a.vHit) + ' m/s' }
+      ];
+    },
+    sample: function (s) { return { y: s.y, v: s.v }; },
+    graphs: [{ title: 'y-t', x: 't', series: [{ key: 'y', label: 'y (m)' }], window: 8 }, { title: 'v-t (ความชัน = −g)', x: 't', series: [{ key: 'v', label: 'v (m/s)', color: '#E07A1F' }], window: 8 }],
+    content: {
+      summary: '<b>การตกแบบเสรี</b> วัตถุที่ปล่อยหรือโยนในอากาศ (ไม่คิดแรงต้าน) มีความเร่งเท่ากับ g เสมอ ที่จุดสูงสุดความเร็วเป็นศูนย์ ขาขึ้นกับขาลงใช้เวลาเท่ากัน และที่ระดับความสูงเดียวกันความเร็วมีขนาดเท่ากันแต่ทิศตรงข้าม',
+      tryIt: ['กดเล่นแล้วดูรอยทุก 0.5 s ซ้ายคือขาขึ้น ขวาคือขาลง ที่ความสูงเท่ากันอัตราเร็วเท่ากัน', 'เลือก "ปล่อยจากตึก 20 m" ดูว่า u = 0 ก็ยังใช้สูตรเดิม', 'เปลี่ยนเป็นดวงจันทร์ ดูว่าลอยนานขึ้นประมาณ 6 เท่า']
+    }
+  });
+})();
+</script>
+</body>
+</html>

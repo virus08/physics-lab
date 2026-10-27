@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S19.4 โมเมนตัมของโฟตอนและสมมติฐานของเดอบรอยล์ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S19.4 โมเมนตัมของโฟตอนและสมมติฐานของเดอบรอยล์ · บท 19 เรื่อง 5, 6
+   สูตร: p = h/λ · λ = h/mv · วงโคจรของโบร์ = คลื่นนิ่ง 2πrₙ = nλ · L = mvr = nh/2π
+   แบบจำลองนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, h = 6.63e-34;
+  var PART = [{ label: 'อิเล็กตรอน 9.11×10⁻³¹ kg', value: 'e' }, { label: 'โปรตอน 1.67×10⁻²⁷ kg', value: 'p' }, { label: 'ลูกเทนนิส 0.058 kg', value: 'ball' }];
+  var MASS = { e: 9.11e-31, p: 1.67e-27, ball: 0.058 };
+  function matter(p) { var m = MASS[p.part], v = p.part === 'ball' ? p.vball : p.v * 1e6, pm = m * v; return { m: m, v: v, p: pm, lam: h / pm }; }
+  PhysLab.createSim({
+    id: 'S19.4', chapter: 19, topics: [5, 6], title: 'โมเมนตัมของโฟตอนและสมมติฐานของเดอบรอยล์', static: true,
+    alt: 'โหมดโฟตอน: ลูกคลื่นแสงพร้อมลูกศรโมเมนตัม โหมดสสาร: อนุภาควิ่งโดยมีคลื่นประกบ ความยาวคลื่นตามสูตร h/mv โหมดโบร์: วงโคจรที่มีคลื่นนิ่งพอดี n ลูกรอบวง',
+    matter: matter,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'โมเมนตัมโฟตอน p = h/λ', value: 'photon' }, { label: 'คลื่นสสาร λ = h/mv', value: 'matter' }, { label: 'วงโคจรโบร์ = คลื่นนิ่ง', value: 'bohr' }], default: 'matter' },
+      lam: { label: 'ความยาวคลื่นโฟตอน', symbol: 'λ', unit: 'nm', type: 'range', min: 10, max: 1000, step: 5, default: 500 },
+      part: { label: 'อนุภาค (โหมดสสาร)', type: 'choice', options: PART, default: 'e' },
+      v: { label: 'อัตราเร็วอนุภาคเล็ก', symbol: 'v', unit: '×10⁶ m/s', type: 'range', min: 0.1, max: 30, step: 0.1, default: 2 },
+      vball: { label: 'อัตราเร็วลูกเทนนิส', symbol: 'v', unit: 'm/s', type: 'range', min: 1, max: 60, step: 1, default: 30 },
+      n: { label: 'ชั้นวงโคจร (โหมดโบร์)', symbol: 'n', type: 'range', min: 1, max: 6, step: 1, default: 3 }
+    },
+    presets: [{ label: 'โฟตอนแสงเขียว 500 nm', values: { mode: 'photon', lam: 500 } }, { label: 'อิเล็กตรอน 2×10⁶ m/s (λ ≈ 0.36 nm)', values: { mode: 'matter', part: 'e', v: 2 } }, { label: 'โปรตอนความเร็วเท่ากัน (λ เล็กลง 1800 เท่า)', values: { mode: 'matter', part: 'p', v: 2 } }, { label: 'ลูกเทนนิส (λ เล็กจนมองไม่เห็นผลคลื่น)', values: { mode: 'matter', part: 'ball', vball: 30 } }, { label: 'วงโคจร n = 3 (3 ลูกคลื่น)', values: { mode: 'bohr', n: 3 } }],
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      if (p.mode === 'photon') {
+        var pm = h / (p.lam * 1e-9), pts = [], k = 2 * Math.PI / (0.3 + 1.2 * p.lam / 1000); for (i = 0; i <= 200; i++) { var x = 1.0 + 6.0 * i / 200; pts.push([x, 2.8 + 0.7 * Math.sin(k * (x - 1.0))]); } D.polyline(pts, { color: c.orange, width: 2.5 });
+        D.arrow(7.2, 2.8, 1.8, 0, { color: c.primary, width: 3, label: 'p = h/λ', dy: -14 });
+        D.line(1.0, 1.7, 1.0 + 2 * Math.PI / k, 1.7, { color: c.text, width: 1.5 }); D.label('λ = ' + p.lam + ' nm', 1.0 + Math.PI / k, 1.7, { dy: 14, align: 'center', color: c.text });
+        D.label('โฟตอนมีโมเมนตัม p = h/λ = 6.63×10⁻³⁴ / ' + p.lam + '×10⁻⁹ = ' + fmt(pm) + ' kg·m/s (แรงดันแสง ใบเรือสุริยะ)', 0.3, 4.95, { color: c.primary, bold: true });
+        D.label('λ ยิ่งสั้น โมเมนตัมและพลังงาน (E = pc = hc/λ) ยิ่งมาก · E = ' + fmt(pm * 3e8 / 1.6e-19) + ' eV', 0.3, 0.4, { color: c.text });
+      } else if (p.mode === 'matter') {
+        var M = matter(p), lw = PhysLab.clamp(0.15 + 2.5 * Math.log10(M.lam / 1e-13) / 6, 0.1, 2.5), kk = 2 * Math.PI / lw, env = [], env2 = [];
+        D.dot(4.5, 2.8, p.part === 'ball' ? 22 : 8, c.primary, { stroke: c.card, width: 2 }); D.arrow(4.5, 2.8, 1.2, 0, { color: c.orange, width: 2.5, label: 'v = ' + fmt(M.v) + ' m/s', dy: -14 });
+        for (i = 0; i <= 300; i++) { var xx = 1.0 + 7.0 * i / 300, g = Math.exp(-Math.pow((xx - 4.5) / 1.6, 2)); env.push([xx, 2.8 + 0.8 * g * Math.sin(kk * xx)]); env2.push([xx, 2.8 + 0.8 * g]); }
+        D.polyline(env, { color: c.primary, width: 1.5 }); D.polyline(env2, { color: c.line, width: 1, dash: [3, 3] });
+        D.label(PART.filter(function (q) { return q.value === p.part; })[0].label + ' · p = mv = ' + fmt(M.p) + ' kg·m/s', 0.3, 4.95, { color: c.text, bold: true });
+        D.label('λ = h/mv = ' + fmt(M.lam) + ' m' + (M.lam < 1e-15 ? ' (เล็กกว่านิวเคลียส: ไม่เห็นสมบัติคลื่นเลย)' : M.lam < 1e-9 ? ' (ระดับอะตอม: เลี้ยวเบนผ่านผลึกได้ → กล้องจุลทรรศน์อิเล็กตรอน)' : ''), 0.3, 4.65, { color: c.primary, bold: true });
+        D.label('คลื่นประกบอนุภาค (ภาพแทน ไม่ตามมาตราส่วน)', 0.3, 0.4, { color: c.muted });
+      } else {
+        var cx = 3.2, cy = 2.6, Rn = 0.5 + 1.5 * (p.n * p.n - 1) / 35 + 0.2, wave = [], amp = 0.18;
+        for (i = 1; i < p.n; i++) D.circle(cx, cy, 0.5 + 1.5 * (i * i - 1) / 35 + 0.2, { stroke: c.line, width: 1, dash: [3, 4] });
+        D.circle(cx, cy, Rn, { stroke: c.muted, width: 1 }); D.dot(cx, cy, 7, c.red, {});
+        for (i = 0; i <= 400; i++) { var a = 2 * Math.PI * i / 400, r = Rn + amp * Math.sin(p.n * a); wave.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } D.polyline(wave, { color: c.primary, width: 2.5 });
+        D.label('n = ' + p.n + ': เส้นรอบวง 2πrₙ = ' + p.n + 'λ พอดี (คลื่นนิ่ง ' + p.n + ' ลูก)', cx, cy - Rn - 0.15, { dy: 12, align: 'center', color: c.primary, bold: true });
+        var rn = p.n * p.n * 0.053e-9, lamn = 2 * Math.PI * rn / p.n, vn = h / (9.11e-31 * lamn);
+        D.label('rₙ = n² × 0.053 nm = ' + fmt(rn * 1e9) + ' nm', 6.3, 3.6, { color: c.text }); D.label('λ = 2πrₙ/n = ' + fmt(lamn * 1e9) + ' nm', 6.3, 3.2, { color: c.text }); D.label('v = h/mλ = ' + fmt(vn) + ' m/s', 6.3, 2.8, { color: c.text }); D.label('L = mvr = nh/2π = ' + fmt(p.n * h / (2 * Math.PI)) + ' J·s', 6.3, 2.4, { color: c.primary, bold: true });
+        D.label('ถ้าคลื่นไม่พอดีรอบวง จะหักล้างตัวเอง → อิเล็กตรอนอยู่ได้เฉพาะบางชั้น (อธิบายเงื่อนไขของโบร์)', 0.3, 0.4, { color: c.text });
+      }
+    },
+    readouts: function (s, p) { if (p.mode === 'photon') { var pm = h / (p.lam * 1e-9); return [{ label: 'p = h/λ', value: pm, unit: 'kg·m/s', highlight: true }, { label: 'E = pc', value: pm * 3e8 / 1.6e-19, unit: 'eV' }]; } if (p.mode === 'matter') { var M = matter(p); return [{ label: 'm', value: M.m, unit: 'kg' }, { label: 'p = mv', value: M.p, unit: 'kg·m/s' }, { label: 'λ = h/mv', value: M.lam, unit: 'm', highlight: true }, { label: 'λ (nm)', value: M.lam * 1e9, unit: 'nm' }]; } var rn = p.n * p.n * 0.053e-9; return [{ label: 'rₙ', value: rn * 1e9, unit: 'nm' }, { label: 'λ = 2πrₙ/n', value: 2 * Math.PI * rn / p.n * 1e9, unit: 'nm', highlight: true }, { label: 'L = nh/2π', value: p.n * h / (2 * Math.PI), unit: 'J·s', highlight: true }]; },
+    formulas: function (s, p) { if (p.mode === 'photon') return [{ symbolic: 'p = h/λ', substituted: '= 6.63×10⁻³⁴ / ' + p.lam + '×10⁻⁹', result: '= ' + fmt(h / (p.lam * 1e-9)) + ' kg·m/s' }]; if (p.mode === 'matter') { var M = matter(p); return [{ symbolic: 'λ = h/mv', substituted: '= 6.63×10⁻³⁴ / (' + fmt(M.m) + ' × ' + fmt(M.v) + ')', result: '= ' + fmt(M.lam) + ' m' }]; } return [{ symbolic: '2πrₙ = nλ', substituted: 'λ = 2π × ' + fmt(p.n * p.n * 0.053) + ' nm / ' + p.n, result: '= ' + fmt(2 * Math.PI * p.n * 0.053) + ' nm' }, { symbolic: 'L = mvr = nh/2π', substituted: '= ' + p.n + ' × 6.63×10⁻³⁴ / 2π', result: '= ' + fmt(p.n * h / (2 * Math.PI)) + ' J·s' }]; },
+    content: {
+      summary: '<b>โมเมนตัมของโฟตอน</b> แสงเป็นอนุภาคที่มีโมเมนตัม p = h/λ <b>สมมติฐานของเดอบรอยล์</b> อนุภาคทุกชนิดมีความยาวคลื่น λ = h/mv วัตถุใหญ่มี λ เล็กมากจนมองไม่เห็นสมบัติคลื่น แต่อิเล็กตรอนมี λ ระดับอะตอมจึงเลี้ยวเบนได้ วงโคจรของโบร์คือคลื่นนิ่งของอิเล็กตรอนที่พอดีรอบนิวเคลียส 2πr = nλ ซึ่งให้ L = mvr = nh/2π',
+      tryIt: ['โหมดสสาร: เปลี่ยนจากอิเล็กตรอนเป็นโปรตอนที่ความเร็วเท่ากัน ดูว่า λ เล็กลง 1800 เท่า', 'เลือกลูกเทนนิส ดูว่า λ ≈ 10⁻³⁴ m เล็กกว่าทุกสิ่ง จึงไม่เห็นสมบัติคลื่น', 'โหมดโบร์: เพิ่ม n ดูจำนวนลูกคลื่นรอบวงเท่ากับ n เสมอ']
+    }
+  });
+})();
+</script>
+</body>
+</html>

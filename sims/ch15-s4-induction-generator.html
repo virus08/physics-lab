@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S15.4 การเหนี่ยวนำ เครื่องกำเนิดไฟฟ้า และไฟฟ้ากระแสสลับ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S15.4 การเหนี่ยวนำ เครื่องกำเนิดไฟฟ้า และไฟฟ้ากระแสสลับ · บท 15 เรื่อง 9, 10, 11
+   สูตร: ε = −N ΔΦ/Δt (ฟาราเดย์ + เลนซ์) · ลวดตัดสนาม ε = lvB sinθ · เครื่องกำเนิด ε = NBAω sin(ωt) · V rms = V max/√2
+   โหมดแท่งแม่เหล็ก: ฟลักซ์จำลอง Φ(x) = Φ₀/(1 + (x/a)²) แล้วหา ε เชิงตัวเลข · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad;
+  function fluxMag(p, x) { return p.B * p.A * 1e-4 * 4 / (1 + (x / 0.6) * (x / 0.6)); }
+  function omega(p) { return p.rpm * 2 * Math.PI / 60; }
+  function emfMax(p) { return p.N * p.B * p.A * 1e-4 * omega(p); }
+  function init(p) { return { x: -2.4, dir: 1, flux: fluxMag(p, -2.4), emf: 0, phase: 0, xr: -2 }; }
+  function step(s, p, dt, t) {
+    if (p.mode === 'magnet') { s.x += s.dir * p.vm * dt; if (s.x > 2.4) { s.x = 2.4; s.dir = -1; } if (s.x < -2.4) { s.x = -2.4; s.dir = 1; } var f = fluxMag(p, s.x); s.emf = -p.N * (f - s.flux) / dt; s.flux = f; }
+    else if (p.mode === 'rod') { s.xr += p.v * 0.5 * dt; if (s.xr > 2.5) s.xr = -2.5; s.emf = p.l * p.v * p.B * Math.sin(rad(p.thr)); }
+    else { s.phase += omega(p) * dt; var e = emfMax(p) * Math.sin(s.phase); s.emf = p.out === 'dc' ? Math.abs(e) : e; }
+    return s;
+  }
+  PhysLab.createSim({
+    id: 'S15.4', chapter: 15, topics: [9, 10, 11], title: 'การเหนี่ยวนำ เครื่องกำเนิดไฟฟ้า และไฟฟ้ากระแสสลับ',
+    alt: 'โหมดแท่งแม่เหล็ก: แม่เหล็กเคลื่อนเข้าออกขดลวด เข็มมิเตอร์เบนตามอีเอ็มเอฟเหนี่ยวนำ โหมดลวดตัดสนาม: แท่งโลหะเลื่อนบนรางในสนาม โหมดเครื่องกำเนิดไฟฟ้า: ขดลวดหมุนระหว่างขั้วแม่เหล็ก กราฟแรงดันเป็น sine',
+    fluxMag: fluxMag, emfMax: emfMax,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'แท่งแม่เหล็กกับขดลวด', value: 'magnet' }, { label: 'ลวดตัดสนาม', value: 'rod' }, { label: 'เครื่องกำเนิดไฟฟ้า', value: 'gen' }], default: 'magnet' },
+      N: { label: 'จำนวนรอบขดลวด', symbol: 'N', type: 'range', min: 1, max: 500, step: 1, default: 100 },
+      B: { label: 'ความเข้มสนาม', symbol: 'B', unit: 'T', type: 'range', min: 0.05, max: 2, step: 0.05, default: 0.5 },
+      A: { label: 'พื้นที่ขดลวด', symbol: 'A', unit: 'cm²', type: 'range', min: 1, max: 200, step: 1, default: 20 },
+      vm: { label: 'อัตราเร็วแม่เหล็ก (โหมดแม่เหล็ก)', symbol: 'v', unit: 'm/s', type: 'range', min: 0.2, max: 4, step: 0.1, default: 1.5 },
+      l: { label: 'ความยาวลวด (โหมดลวดตัดสนาม)', symbol: 'l', unit: 'm', type: 'range', min: 0.05, max: 1, step: 0.05, default: 0.3 },
+      v: { label: 'อัตราเร็วลวด', symbol: 'v', unit: 'm/s', type: 'range', min: 0, max: 10, step: 0.5, default: 2 },
+      thr: { label: 'มุมระหว่าง v กับ B', symbol: 'θ', unit: '°', type: 'range', min: 0, max: 90, step: 1, default: 90 },
+      rpm: { label: 'รอบการหมุน (โหมดเครื่องกำเนิด)', symbol: 'ω', unit: 'rpm', type: 'range', min: 30, max: 3000, step: 10, default: 300 },
+      out: { label: 'ขั้วออก', type: 'choice', options: [{ label: 'วงแหวนลื่น (ไฟสลับ)', value: 'ac' }, { label: 'คอมมิวเทเตอร์ (ไฟตรง)', value: 'dc' }], default: 'ac' }
+    },
+    presets: [{ label: 'แม่เหล็กเข้าออกขด 100 รอบ', values: { mode: 'magnet', N: 100, vm: 1.5 } }, { label: 'แม่เหล็กเร็วขึ้น (ε มากขึ้น)', values: { mode: 'magnet', vm: 3.5 } }, { label: 'ลวดตัดสนาม 0.3 m 2 m/s', values: { mode: 'rod', l: 0.3, v: 2, thr: 90 } }, { label: 'เครื่องกำเนิดไฟสลับ 300 rpm', values: { mode: 'gen', out: 'ac', rpm: 300 } }, { label: 'เครื่องกำเนิดไฟตรง (คอมมิวเทเตอร์)', values: { mode: 'gen', out: 'dc' } }],
+    speeds: [0.25, 0.5, 1], dt: 1 / 120,
+    world: { xMin: -5, xMax: 5, yMin: -2.6, yMax: 2.6 },
+    init: init, step: step,
+    timeLabel: function (t, s) { return 't = ' + fmt(t, 3) + ' s · ε = ' + fmt(s.emf) + ' V'; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      function meter(x, y, val, vmax) { D.circle(x, y, 0.75, { fill: c.card, stroke: c.text, width: 2 }); var a = Math.PI / 2 - PhysLab.clamp(val / vmax, -1, 1) * 1.1; D.line(x, y, x + 0.65 * Math.cos(a), y + 0.65 * Math.sin(a), { color: c.red, width: 2.5 }); D.label('−', x - 0.5, y - 0.45, { color: c.muted }); D.label('0', x, y + 0.5, { align: 'center', color: c.muted }); D.label('+', x + 0.45, y - 0.45, { color: c.muted }); D.label('ε = ' + fmt(val) + ' V', x, y - 0.95, { align: 'center', color: c.red, bold: true }); }
+      if (p.mode === 'magnet') {
+        for (i = 0; i < 10; i++) { var xc = -0.9 + 0.2 * i; D.ctx.save(); D.ctx.beginPath(); D.ctx.ellipse(D.x(xc), D.y(0), D.sx(0.08), D.sx(0.9), 0, 0, Math.PI * 2); D.ctx.strokeStyle = c.orange; D.ctx.lineWidth = 2.5; D.ctx.stroke(); D.ctx.restore(); }
+        D.label('ขดลวด N = ' + p.N + ' รอบ', 0, 1.05, { dy: -4, align: 'center', color: c.orange });
+        D.rect(s.x - 1.1, -0.3, 1.1, 0.6, { fill: c.red }); D.rect(s.x, -0.3, 1.1, 0.6, { fill: c.primary }); D.label('S', s.x - 0.55, 0, { align: 'center', color: '#fff', bold: true }); D.label('N', s.x + 0.55, 0, { align: 'center', color: '#fff', bold: true });
+        D.arrow(s.x, 0.6, s.dir * 0.9, 0, { color: c.text, width: 2, label: 'v = ' + p.vm + ' m/s' });
+        D.line(-1.0, -0.95, -3.2, -0.95, { color: c.text, width: 1.5 }); D.line(-3.2, -0.95, -3.2, -1.9, { color: c.text, width: 1.5 }); D.line(0.9, -0.95, 3.2, -0.95, { color: c.text, width: 1.5 }); D.line(3.2, -0.95, 3.2, -1.9, { color: c.text, width: 1.5 }); D.line(-3.2, -1.9, -0.75, -1.9, { color: c.text, width: 1.5 }); D.line(0.75, -1.9, 3.2, -1.9, { color: c.text, width: 1.5 });
+        meter(0, -1.9, s.emf, Math.max(1e-6, p.N * p.B * p.A * 1e-4 * 4 * p.vm * 1.3));
+        D.label('Φ ผ่านขด = ' + fmt(s.flux) + ' Wb · ε = −N ΔΦ/Δt = ' + fmt(s.emf) + ' V', -4.8, 2.4, { color: c.text, bold: true, bg: c.card });
+        D.label('กฎของเลนซ์: กระแสเหนี่ยวนำสร้างขั้วต้านการเคลื่อนที่ของแม่เหล็ก (' + (s.emf * s.dir > 0 ? 'ผลักเมื่อเข้า' : s.emf !== 0 ? 'ดูดเมื่อออก' : '—') + ')', -4.8, -2.4, { color: c.text, bg: c.card });
+      } else if (p.mode === 'rod') {
+        for (i = -4; i <= 4; i++) for (var j = -1; j <= 1; j++) { D.line(i - 0.07, j * 0.8 - 0.07, i + 0.07, j * 0.8 + 0.07, { color: c.line, width: 1.5 }); D.line(i - 0.07, j * 0.8 + 0.07, i + 0.07, j * 0.8 - 0.07, { color: c.line, width: 1.5 }); }
+        D.line(-4.5, 1.2, 4.5, 1.2, { color: c.text, width: 3 }); D.line(-4.5, -1.2, 4.5, -1.2, { color: c.text, width: 3 }); D.line(-4.5, 1.2, -4.5, 0.4, { color: c.text, width: 2 }); D.line(-4.5, -1.2, -4.5, -0.4, { color: c.text, width: 2 }); D.rect(-4.75, -0.4, 0.5, 0.8, { fill: c.card, stroke: c.text }); D.label('R', -4.5, 0, { align: 'center', color: c.text });
+        D.line(s.xr, -1.3, s.xr, 1.3, { color: c.orange, width: 6 }); D.arrow(s.xr, 1.5, 0.9 * Math.sign(p.v || 1), 0, { color: c.text, width: 2, label: 'v = ' + p.v + ' m/s' });
+        D.label('l = ' + p.l + ' m', s.xr + 0.15, 0, { color: c.orange, bg: c.card });
+        D.label('B = ' + p.B + ' T เข้ากระดาษ (×) · ε = lvB sinθ = ' + p.l + ' × ' + p.v + ' × ' + p.B + ' × sin' + p.thr + '° = ' + fmt(s.emf) + ' V', -4.8, 2.4, { color: c.text, bold: true, bg: c.card });
+        D.label('แท่งโลหะตัดเส้นสนาม → อิเล็กตรอนในแท่งถูกแรง qvB ดันไปปลายหนึ่ง เกิดความต่างศักย์', -4.8, -2.4, { color: c.text, bg: c.card });
+      } else {
+        D.rect(-4.6, -1.6, 1.1, 3.2, { fill: c.red }); D.label('N', -4.05, 0, { align: 'center', color: '#fff', bold: true, size: 18 }); D.rect(3.5, -1.6, 1.1, 3.2, { fill: c.primary }); D.label('S', 4.05, 0, { align: 'center', color: '#fff', bold: true, size: 18 });
+        for (i = -2; i <= 2; i++) D.arrow(-3.4, i * 0.6, 6.8, 0, { color: c.line, width: 1 });
+        var w2 = 1.6, cs = Math.cos(s.phase), sn = Math.sin(s.phase), ex = w2 * cs, ey = w2 * sn * 0.5; D.polyline([[-ex, -ey - 0.9], [ex, ey - 0.9], [ex, ey + 0.9], [-ex, -ey + 0.9]], { close: true, color: c.orange, width: 4 }); D.line(0, -1.9, 0, 1.9, { color: c.muted, dash: [4, 3], width: 1 });
+        D.label(p.out === 'ac' ? 'วงแหวนลื่น → ไฟสลับ' : 'คอมมิวเทเตอร์ → ไฟตรง (กลับขั้วทุกครึ่งรอบ)', 0, -2.05, { dy: 10, align: 'center', color: c.orange });
+        D.label('ε = NBAω sin(ωt) · ε max = ' + fmt(emfMax(p)) + ' V · ω = ' + fmt(omega(p)) + ' rad/s · ' + (p.out === 'ac' ? 'V rms = ε max/√2 = ' + fmt(emfMax(p) / Math.SQRT2) + ' V' : ''), -4.8, 2.4, { color: c.text, bold: true, bg: c.card });
+        D.label('ขณะนี้ ε = ' + fmt(s.emf) + ' V · ε สูงสุดเมื่อระนาบขดขนาน B (ตัดฟลักซ์เร็วสุด)', -4.8, -2.4, { color: c.text, bg: c.card });
+      }
+    },
+    readouts: function (s, p) { if (p.mode === 'magnet') return [{ label: 'ε = −N ΔΦ/Δt', value: s.emf, unit: 'V', highlight: true }, { label: 'Φ ขณะนี้', value: s.flux, unit: 'Wb' }, { label: 'N', value: p.N }]; if (p.mode === 'rod') return [{ label: 'ε = lvB sinθ', value: s.emf, unit: 'V', highlight: true }, { label: 'l · v · B', value: p.l + ' · ' + p.v + ' · ' + p.B }]; return [{ label: 'ε max = NBAω', value: emfMax(p), unit: 'V', highlight: true }, { label: 'ε ขณะนี้', value: s.emf, unit: 'V' }, { label: 'V rms = ε max/√2', value: emfMax(p) / Math.SQRT2, unit: 'V', highlight: true }, { label: 'ความถี่ f = ω/2π', value: omega(p) / (2 * Math.PI), unit: 'Hz' }, { label: 'ชนิดไฟออก', value: p.out === 'ac' ? 'สลับ (AC)' : 'ตรง (DC กระเพื่อม)' }]; },
+    formulas: function (s, p) { if (p.mode === 'magnet') return [{ symbolic: 'ε = −N ΔΦ/Δt', substituted: 'N = ' + p.N + ' · ΔΦ/Δt จากการเคลื่อนที่', result: '= ' + fmt(s.emf) + ' V' }]; if (p.mode === 'rod') return [{ symbolic: 'ε = lvB sinθ', substituted: '= ' + p.l + ' × ' + p.v + ' × ' + p.B + ' × sin' + p.thr + '°', result: '= ' + fmt(s.emf) + ' V' }]; return [{ symbolic: 'ε max = NBAω', substituted: '= ' + p.N + ' × ' + p.B + ' × ' + p.A + '×10⁻⁴ × ' + fmt(omega(p)), result: '= ' + fmt(emfMax(p)) + ' V' }, { symbolic: 'V rms = V max/√2', substituted: '= ' + fmt(emfMax(p)) + '/1.414', result: '= ' + fmt(emfMax(p) / Math.SQRT2) + ' V' }]; },
+    sample: function (s) { return { emf: s.emf }; },
+    graphs: [{ title: 'อีเอ็มเอฟเหนี่ยวนำ ε กับเวลา', x: 't', series: [{ key: 'emf', label: 'ε (V)', color: '#B42318' }], window: 4 }],
+    content: {
+      summary: '<b>อีเอ็มเอฟเหนี่ยวนำ</b> ฟลักซ์ที่เปลี่ยนแปลงทำให้เกิดแรงเคลื่อนไฟฟ้า ε = −N ΔΦ/Δt (ฟาราเดย์) เครื่องหมายลบคือกฎของเลนซ์ กระแสเหนี่ยวนำต้านการเปลี่ยนแปลง ลวดตัดสนามได้ ε = lvB sinθ <b>เครื่องกำเนิดไฟฟ้า</b> หมุนขดลวดในสนามแม่เหล็กได้ไฟฟ้า ใช้วงแหวนลื่นได้ไฟสลับ ใช้คอมมิวเทเตอร์ได้ไฟตรง <b>ไฟฟ้ากระแสสลับ</b> กระแสและแรงดันแกว่งเป็นรูป sine ค่าที่ใช้งานจริงคือค่า rms V rms = V max/√2 (ไฟบ้าน 220 V คือค่า rms)',
+      tryIt: ['โหมดแม่เหล็ก: เพิ่มอัตราเร็วแม่เหล็ก ดูว่าเข็มเบนมากขึ้นและสลับทิศเมื่อแม่เหล็กถอยออก', 'โหมดลวดตัดสนาม: ตั้ง v = 0 ดูว่า ε = 0 ไม่ว่าสนามจะแรงแค่ไหน', 'โหมดเครื่องกำเนิด: สลับเป็นคอมมิวเทเตอร์ ดูกราฟกลายเป็นครึ่งคลื่นบวกทั้งหมด']
+    }
+  });
+})();
+</script>
+</body>
+</html>

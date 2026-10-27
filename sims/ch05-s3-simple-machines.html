@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5.3 เครื่องกลอย่างง่าย · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S5.3 เครื่องกลอย่างง่าย · บท 5 เรื่อง 8
+   สูตร: งานที่ใส่ = งานที่ได้ (อุดมคติ) F × s_in = W × s_out · M.A. = W/F · ประสิทธิภาพ = W_out/W_in × 100
+   คาน F·a = W·b · ล้อและเพลา F·R = W·r · พื้นเอียง F·L = W·h · สกรู/แม่แรง F·2πR = W·p · แบบนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  var MACH = { lever: { label: 'คาน', inName: 'แขนแรง a', outName: 'แขนน้ำหนัก b' }, wheel: { label: 'ล้อและเพลา', inName: 'รัศมีล้อ R', outName: 'รัศมีเพลา r' }, incline: { label: 'พื้นเอียง', inName: 'ความยาวพื้นเอียง L', outName: 'ความสูง h' }, screw: { label: 'สกรู / แม่แรง', inName: 'รัศมีด้ามหมุน R', outName: 'ระยะเกลียว p' } };
+  function calc(p) {
+    var dIn = p.dIn, dOut = p.dOut; if (p.machine === 'screw') dIn = 2 * Math.PI * p.dIn;
+    var ratio = dIn / dOut, Fideal = p.W / ratio, Factual = Fideal / (p.eff / 100), MA = p.W / Factual, Wout = p.W * dOut, Win = Wout / (p.eff / 100);
+    return { dIn: dIn, dOut: dOut, ratio: ratio, Fideal: Fideal, Factual: Factual, MA: MA, Wout: Wout, Win: Win };
+  }
+  PhysLab.createSim({
+    id: 'S5.3', chapter: 5, topics: [8], title: 'เครื่องกลอย่างง่าย', static: true,
+    alt: 'ภาพเครื่องกลอย่างง่ายที่เลือก ได้แก่ คาน ล้อและเพลา พื้นเอียง หรือสกรู แสดงแรงที่ใส่ น้ำหนักที่ยก และระยะทางที่แต่ละฝั่งเคลื่อน',
+    calc: calc,
+    params: {
+      machine: { label: 'ชนิดเครื่องกล', type: 'choice', options: Object.keys(MACH).map(function (k) { return { label: MACH[k].label, value: k }; }), default: 'lever' },
+      W: { label: 'น้ำหนักที่ต้องการยก', symbol: 'W', unit: 'N', type: 'range', min: 10, max: 2000, step: 10, default: 400 },
+      dIn: { label: 'ระยะฝั่งออกแรง (a, R หรือ L)', unit: 'm', type: 'range', min: 0.1, max: 5, step: 0.1, default: 2, drag: true },
+      dOut: { label: 'ระยะฝั่งน้ำหนัก (b, r, h หรือ p)', unit: 'm', type: 'range', min: 0.01, max: 2, step: 0.01, default: 0.5 },
+      eff: { label: 'ประสิทธิภาพ', unit: '%', type: 'range', min: 30, max: 100, step: 5, default: 100 }
+    },
+    presets: [{ label: 'คาน a = 2, b = 0.5', values: { machine: 'lever', dIn: 2, dOut: 0.5, W: 400, eff: 100 } }, { label: 'ล้อ R = 0.4, เพลา r = 0.1', values: { machine: 'wheel', dIn: 0.4, dOut: 0.1, W: 400, eff: 100 } }, { label: 'พื้นเอียง L = 4, h = 1', values: { machine: 'incline', dIn: 4, dOut: 1, W: 400, eff: 80 } }, { label: 'แม่แรง R = 0.3, p = 0.005', values: { machine: 'screw', dIn: 0.3, dOut: 0.005, W: 2000, eff: 40 } }],
+    world: { xMin: -0.5, xMax: 10.5, yMin: -1, yMax: 5 },
+    init: function (p) { return calc(p); }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, m = p.machine;
+      if (m === 'lever') {
+        var scale = 4.5 / Math.max(p.dIn + p.dOut, 1), xp = 2 + p.dIn * scale, a = p.dIn * scale, b = p.dOut * scale;
+        D.polyline([[xp, 1], [xp - 0.3, 0], [xp + 0.3, 0]], { color: c.muted, close: true, fill: c.soft }); D.ground(0);
+        D.rect(xp - a, 1, a + b, 0.12, { fill: c.primary });
+        D.rect(xp + b - 0.3, 1.12, 0.6, 0.6, { fill: c.orange }); D.label('W = ' + p.W + ' N', xp + b, 1.9, { align: 'center' });
+        D.arrow(xp - a, 1.0, 0, -1.2, { color: c.text, label: 'F = ' + fmt(s.Factual) + ' N', width: 3.5, dy: 10 });
+        D.label('a = ' + p.dIn + ' m', xp - a / 2, 0.6, { align: 'center' }); D.label('b = ' + p.dOut + ' m', xp + b / 2, 0.6, { align: 'center' });
+        D.label('กด F ลง s_in = ' + fmt(s.ratio) + ' เท่าของระยะที่ W ยกขึ้น', 1, 4, {});
+      } else if (m === 'wheel') {
+        var R = Math.min(2, p.dIn * 2.5 / Math.max(p.dIn, 0.1)), r = R * p.dOut / p.dIn, cx = 3.5, cy = 2.4;
+        D.circle(cx, cy, R, { fill: c.soft, stroke: c.primary, width: 2.5 }); D.circle(cx, cy, r, { fill: c.card, stroke: c.orange, width: 2.5 }); D.dot(cx, cy, 4, c.text);
+        D.line(cx - r, cy, cx - r, -0.2, { color: c.orange, width: 2 }); D.rect(cx - r - 0.3, -0.8, 0.6, 0.6, { fill: c.orange }); D.label('W = ' + p.W + ' N', cx - r - 0.5, -0.5, { align: 'right' });
+        D.line(cx + R, cy, cx + R, cy - 1.5, { color: c.primary, width: 2 }); D.arrow(cx + R, cy - 1.5, 0, -1.0, { color: c.text, label: 'F = ' + fmt(s.Factual) + ' N', width: 3.5 });
+        D.label('R = ' + p.dIn + ' m', cx + R / 2, cy + 0.2, { align: 'center' }); D.label('r = ' + p.dOut + ' m', cx, cy - r - 0.2, { align: 'center', color: c.orange });
+        D.label('ดึงเชือกที่ล้อ 1 รอบ (2πR) ยก W ขึ้น 2πr', 6.5, 4, {});
+      } else if (m === 'incline') {
+        var Lp = 6, hp = Math.min(3.5, Lp * p.dOut / p.dIn), base = Math.sqrt(Math.max(Lp * Lp - hp * hp, 0.1));
+        D.polyline([[1, 0], [1 + base, 0], [1 + base, hp]], { color: c.line, close: true, fill: c.soft, width: 2 }); D.ground(0);
+        var ang = Math.atan2(hp, base), bx = 1 + base * 0.45, by = hp * 0.45;
+        D.ctx.save(); D.ctx.translate(D.x(bx), D.y(by)); D.ctx.rotate(-ang); D.ctx.fillStyle = c.orange; D.ctx.fillRect(-D.sx(0.4), -D.sx(0.6), D.sx(0.8), D.sx(0.6)); D.ctx.restore();
+        D.arrow(bx + 0.3 * Math.cos(ang), by + 0.3 * Math.sin(ang), 1.2 * Math.cos(ang), 1.2 * Math.sin(ang), { color: c.text, label: 'F = ' + fmt(s.Factual) + ' N', width: 3.5 });
+        D.arrow(bx, by + 0.3, 0, -1.0, { color: c.red, label: 'W = ' + p.W, width: 2.5, dy: 12 });
+        D.label('L = ' + p.dIn + ' m', 1 + base / 2, hp / 2 + 0.4, { align: 'center' }); D.label('h = ' + p.dOut + ' m', 1 + base + 0.1, hp / 2, {});
+      } else {
+        var cxs = 3.5, cys = 2.2;
+        D.rect(cxs - 0.25, 0, 0.5, 2.2, { fill: c.muted }); for (var i = 0; i < 9; i++) D.line(cxs - 0.25, 0.2 + i * 0.22, cxs + 0.25, 0.3 + i * 0.22, { color: c.card, width: 1.5 });
+        D.rect(cxs - 0.9, 2.2, 1.8, 0.3, { fill: c.primary }); D.rect(cxs - 0.5, 2.5, 1.0, 0.8, { fill: c.orange }); D.label('W = ' + p.W + ' N', cxs, 3.6, { align: 'center' });
+        var Rp = Math.min(2.5, p.dIn * 5); D.line(cxs, 2.35, cxs + Rp, 2.35, { color: c.text, width: 3 }); D.arrow(cxs + Rp, 2.35, 0, -1.0, { color: c.text, label: 'F = ' + fmt(s.Factual) + ' N', width: 3.5 });
+        D.label('R = ' + p.dIn + ' m', cxs + Rp / 2, 2.35, { dy: 12, align: 'center' }); D.label('ระยะเกลียว p = ' + p.dOut + ' m ต่อรอบ', cxs + 0.5, 1.0, {});
+        D.label('หมุนด้าม 1 รอบ (2πR) น้ำหนักขึ้น p', 6.5, 4, {});
+      }
+      D.label('M.A. = W/F = ' + fmt(s.MA) + ' เท่า · ออกแรงน้อยลงแต่เคลื่อนไกลขึ้น งานไม่ลด', 1, 4.6, { color: c.text });
+    },
+    dragHandles: function (s, p) { return []; },
+    readouts: function (s, p) {
+      return [
+        { label: 'อัตราส่วนระยะ s_in/s_out', value: s.ratio, sig: 3 }, { label: 'แรงที่ต้องใช้ (อุดมคติ)', value: s.Fideal, unit: 'N' },
+        { label: 'แรงที่ต้องใช้จริง (ตามประสิทธิภาพ)', value: s.Factual, unit: 'N', highlight: true }, { label: 'การได้เปรียบเชิงกล M.A.', value: s.MA, sig: 3, highlight: true },
+        { label: 'งานที่ได้ W_out (ยก 1 ระยะ s_out)', value: s.Wout, unit: 'J' }, { label: 'งานที่ใส่ W_in', value: s.Win, unit: 'J' }
+      ];
+    },
+    formulas: function (s, p) { var M = MACH[p.machine]; return [{ symbolic: 'F × s_in = W × s_out (อุดมคติ)', substituted: 'F × ' + fmt(s.dIn) + ' = ' + p.W + ' × ' + fmt(s.dOut), result: '→ F = ' + fmt(s.Fideal) + ' N' }, { symbolic: 'ประสิทธิภาพ = W_out/W_in × 100', substituted: p.eff + ' % → F จริง = ' + fmt(s.Fideal) + ' / ' + (p.eff / 100), result: '= ' + fmt(s.Factual) + ' N' }, { symbolic: 'M.A. = F_out/F_in', substituted: '= ' + p.W + ' / ' + fmt(s.Factual), result: '= ' + fmt(s.MA) + ' (' + M.label + ')' }]; },
+    content: {
+      summary: '<b>เครื่องกล</b> อุปกรณ์ที่ช่วยผ่อนแรงแต่ไม่ผ่อนงาน หลักคือ งานที่ใส่ = งานที่ได้ (แรง × ระยะที่ออกแรง = น้ำหนัก × ระยะที่ยกได้) ใช้กับคาน ล้อและเพลา พื้นเอียง ลิ่ม สกรูหรือแม่แรง การได้เปรียบเชิงกล M.A. = F_out/F_in และประสิทธิภาพ = W_out/W_in × 100',
+      tryIt: ['เพิ่มแขนแรง a ของคาน ดูว่าแรงที่ใช้ลดลง แต่ต้องกดลงระยะไกลขึ้น และงานเท่าเดิม', 'เลือกแม่แรง ดูว่า M.A. สูงมากเพราะเกลียวละเอียด แต่ประสิทธิภาพต่ำ', 'ลดประสิทธิภาพลง ดูว่างานที่ต้องใส่มากกว่างานที่ได้']
+    }
+  });
+})();
+</script>
+</body>
+</html>

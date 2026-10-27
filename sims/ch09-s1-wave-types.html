@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S9.1 ชนิดของคลื่นและ v = fλ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S9.1 ชนิดของคลื่นและ v = fλ · บท 9 เรื่อง 1, 2, 3, 4
+   สูตร: v = fλ · f = 1/T · คลื่นตามขวาง y(x,t) = A sin(2π(x/λ − ft)) · คลื่นตามยาวแทนด้วยการเลื่อนของขดสปริงตามแนวคลื่น
+   รูปคลื่นคำนวณจากสูตรโดยตรงทุกเฟรม (ไม่อินทิเกรต) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, L = 6;
+  var MEDIA = [{ label: 'เชือก 3 m/s', value: 3 }, { label: 'เชือกตึง 6 m/s', value: 6 }, { label: 'สปริง 1.5 m/s', value: 1.5 }];
+  function lam(p) { return p.v / p.f; }
+  function y(p, x, t) { var k = 2 * Math.PI / lam(p), w = 2 * Math.PI * p.f; if (p.kind === 'pulse') { var u = x - p.v * t + 0.5; return p.A * Math.exp(-u * u / 0.08); } return x <= p.v * t ? p.A * Math.sin(k * x - w * t) : 0; }
+  PhysLab.createSim({
+    id: 'S9.1', chapter: 9, topics: [1, 2, 3, 4], title: 'ชนิดของคลื่นและ v = fλ',
+    alt: 'คลื่นตามขวางในเส้นเชือกเคลื่อนไปทางขวา มีอนุภาคสีส้มที่สั่นขึ้นลงอยู่กับที่ และคลื่นตามยาวในสปริงด้านล่างที่มีส่วนอัดและส่วนขยาย',
+    y: y, lam: lam,
+    params: {
+      v: { label: 'ตัวกลาง (กำหนด v)', type: 'choice', options: MEDIA, default: 3 },
+      f: { label: 'ความถี่แหล่งกำเนิด', symbol: 'f', unit: 'Hz', type: 'range', min: 0.5, max: 4, step: 0.1, default: 1 },
+      A: { label: 'แอมพลิจูด', symbol: 'A', unit: 'm', type: 'range', min: 0.05, max: 0.5, step: 0.01, default: 0.25 },
+      xp: { label: 'ตำแหน่งอนุภาคที่ติดตาม', symbol: 'x', unit: 'm', type: 'range', min: 0.5, max: 5.5, step: 0.1, default: 3, drag: true },
+      kind: { label: 'ชนิดการรบกวน', type: 'choice', options: [{ label: 'ต่อเนื่อง', value: 'cont' }, { label: 'คลื่นดล (ครั้งเดียว)', value: 'pulse' }], default: 'cont' }
+    },
+    presets: [{ label: 'เชือก f = 1 Hz', values: { v: 3, f: 1, kind: 'cont' } }, { label: 'f เพิ่ม 2 เท่า λ ลดครึ่ง', values: { v: 3, f: 2, kind: 'cont' } }, { label: 'เปลี่ยนตัวกลาง f เท่าเดิม', values: { v: 6, f: 1, kind: 'cont' } }, { label: 'คลื่นดล', values: { kind: 'pulse' } }],
+    toggles: [{ key: 'track', label: 'ติดตามอนุภาค' }, { key: 'long', label: 'คลื่นตามยาว' }],
+    speeds: [0.25, 0.5, 1],
+    world: { xMin: -0.3, xMax: L + 0.3, yMin: -1.9, yMax: 1.0 },
+    init: function (p) { return { yp: 0 }; }, step: function (s, p, dt, t) { s.yp = y(p, p.xp, t + dt); return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, t = D.t, la = lam(p), pts = [];
+      for (var i = 0; i <= 240; i++) { var x = L * i / 240; pts.push([x, y(p, x, t)]); }
+      D.label('คลื่นตามขวาง: อนุภาคสั่นตั้งฉากกับทิศคลื่น · v = ' + p.v + ' m/s →', 0, 0.9, { color: c.text });
+      D.line(0, 0, L, 0, { color: c.line, width: 1 }); D.polyline(pts, { color: c.primary, width: 3 });
+      if (p.kind === 'cont' && p.v * t > la) { var x1 = Math.floor((p.v * t - la) / la) * la, x2 = x1 + la; if (x2 <= L) { D.line(x1, -0.62, x2, -0.62, { color: c.text, width: 1.5 }); D.line(x1, -0.56, x1, -0.68, { color: c.text }); D.line(x2, -0.56, x2, -0.68, { color: c.text }); D.label('λ = ' + fmt(la) + ' m', (x1 + x2) / 2, -0.62, { dy: 12, align: 'center', color: c.text }); } }
+      if (D.view.track) { var yp = y(p, p.xp, t); D.line(p.xp, -0.55, p.xp, 0.55, { color: c.orange, dash: [3, 3], width: 1 }); D.dot(p.xp, yp, 8, c.orange, { stroke: c.card, width: 2 }); D.label('อนุภาคที่ x = ' + p.xp + ' m สั่นอยู่กับที่ y = ' + fmt(yp), p.xp, 0.6, { align: 'center', color: c.orange }); }
+      if (D.view.long) {
+        var yb = -1.35; D.label('คลื่นตามยาว: อนุภาคสั่นตามทิศคลื่น (ส่วนอัด = หนา ส่วนขยาย = บาง)', 0, -0.9, { color: c.text });
+        D.line(0, yb, L, yb, { color: c.line, width: 1 });
+        for (var j = 0; j <= 60; j++) { var x0 = L * j / 60, dx = y(p, x0, t) * 0.5; D.line(x0 + dx, yb - 0.25, x0 + dx, yb + 0.25, { color: c.muted, width: 2 }); }
+      }
+      D.label('v = fλ = ' + p.f + ' × ' + fmt(la) + ' = ' + fmt(p.v) + ' m/s · T = ' + fmt(1 / p.f) + ' s', 0, -1.85, { color: c.primary });
+    },
+    dragHandles: function (s, p) { return [{ param: 'xp', x: p.xp, y: 0, r: 16, map: function (wx) { return PhysLab.clamp(wx, 0.5, 5.5); } }]; },
+    readouts: function (s, p) { return [{ label: 'v (จากตัวกลาง)', value: p.v, unit: 'm/s' }, { label: 'f (จากแหล่งกำเนิด)', value: p.f, unit: 'Hz' }, { label: 'λ = v/f', value: lam(p), unit: 'm', highlight: true }, { label: 'T = 1/f', value: 1 / p.f, unit: 's', highlight: true }, { label: 'y ของอนุภาค', value: s.yp, unit: 'm', color: '#E07A1F' }, { label: 'ทิศการสั่นของอนุภาค', value: 'ขึ้นลง (ตั้งฉาก)' }]; },
+    formulas: function (s, p) { return [{ symbolic: 'λ = v / f', substituted: '= ' + p.v + ' / ' + p.f, result: '= ' + fmt(lam(p)) + ' m' }, { symbolic: 'T = 1 / f', substituted: '= 1 / ' + p.f, result: '= ' + fmt(1 / p.f) + ' s' }]; },
+    sample: function (s) { return { yp: s.yp }; },
+    graphs: [{ title: 'y-t ของอนุภาคที่ติดตาม (อ่าน T)', x: 't', series: [{ key: 'yp', label: 'y (m)', color: '#E07A1F' }], window: 4 }],
+    content: {
+      summary: '<b>แบ่งตามตัวกลาง</b> คลื่นกลต้องมีตัวกลาง คลื่นแม่เหล็กไฟฟ้าไม่ต้องมีตัวกลาง <b>แบ่งตามทิศทางการสั่น</b> คลื่นตามขวาง อนุภาคสั่นตั้งฉากกับทิศคลื่น คลื่นตามยาว อนุภาคสั่นไปตามแนวคลื่น <b>แบ่งตามช่วงเวลาที่รบกวน</b> คลื่นดลเกิดจากการรบกวนครั้งเดียว คลื่นต่อเนื่องเกิดจากการรบกวนซ้ำ ๆ <b>ความเร็วคลื่น ความถี่ คาบ</b> v = fλ ความเร็วคลื่นขึ้นกับตัวกลาง ส่วนความถี่ขึ้นกับแหล่งกำเนิด f = 1/T',
+      tryIt: ['เพิ่ม f เป็น 2 เท่า ดูว่า λ ลดเหลือครึ่ง แต่ v เท่าเดิม', 'เปลี่ยนตัวกลางเป็นเชือกตึง ดูว่า v และ λ เพิ่ม แต่ f ไม่เปลี่ยน', 'ติดตามอนุภาคแล้วดูกราฟ y-t ว่าคาบตรงกับ 1/f']
+    }
+  });
+})();
+</script>
+</body>
+</html>

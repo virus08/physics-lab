@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S7.1 โพรเจกไทล์ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S7.1 โพรเจกไทล์ · บท 7 เรื่อง 1, 2, 3
+   สูตร: ux = u cosθ, uy = u sinθ, sx = ux t, sy = uy t − ½gt², เวลาขึ้น = uy/g, Sx max = u² sin2θ/g (พื้นถึงพื้น)
+   สมมติฐาน: ไม่มีแรงต้านอากาศ · ตัวอินทิเกรต semi-implicit Euler dt = 1/120 s หาจุดตกด้วยการประมาณเชิงเส้นในก้าวสุดท้าย
+   เกณฑ์: ระยะตกและเวลารวมจากการจำลองต่างจากสูตรไม่เกิน 0.5 % · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var rad = PhysLab.rad, deg = PhysLab.deg, fmt = PhysLab.fmt;
+  function comps(p) { return { ux: p.u * Math.cos(rad(p.theta)), uy: p.u * Math.sin(rad(p.theta)) }; }
+  function analytic(p) {
+    var c = comps(p), g = p.g;
+    var tUp = c.uy > 0 ? c.uy / g : 0;
+    var H = p.h0 + (c.uy > 0 ? c.uy * c.uy / (2 * g) : 0);
+    var tTotal = (c.uy + Math.sqrt(c.uy * c.uy + 2 * g * p.h0)) / g;
+    return { ux: c.ux, uy: c.uy, tUp: tUp, H: H, tTotal: tTotal, range: c.ux * tTotal, rangeFlat: p.u * p.u * Math.sin(2 * rad(p.theta)) / g };
+  }
+  function init(p) { var c = comps(p); return { x: 0, y: p.h0, vx: c.ux, vy: c.uy, trail: [[0, p.h0]], landed: false, tLand: null }; }
+  function step(s, p, dt, t) {
+    if (s.landed) return s;
+    var vyNew = s.vy - p.g * dt, yNew = s.y + vyNew * dt;
+    if (yNew < 0) { var f = s.y / (s.y - yNew); s.x += s.vx * dt * f; s.vy = s.vy - p.g * dt * f; s.y = 0; s.tLand = t + dt * f; s.landed = true; s.trail.push([s.x, 0]); return s; }
+    s.x += s.vx * dt; s.y = yNew; s.vy = vyNew;
+    var last = s.trail[s.trail.length - 1];
+    if (Math.hypot(s.x - last[0], s.y - last[1]) > 0.08) s.trail.push([s.x, s.y]);
+    return s;
+  }
+  function tNow(s, t) { return s.landed ? s.tLand : t; }
+  var GRAVITY = [{ label: 'ดวงจันทร์ 1.6', value: 1.6 }, { label: 'ดาวอังคาร 3.7', value: 3.7 }, { label: 'โลก 9.8', value: 9.8 }, { label: 'ดาวพฤหัส 24.8', value: 24.8 }];
+
+  PhysLab.createSim({
+    id: 'S7.1', chapter: 7, topics: [1, 2, 3], title: 'โพรเจกไทล์',
+    alt: 'ลูกบอลถูกยิงจากจุดกำเนิดเป็นวิถีโค้ง มีลูกศรความเร็วและองค์ประกอบแนวนอนแนวดิ่ง จุดสูงสุดและระยะตกถูกทำเครื่องหมายไว้',
+    analytic: analytic,
+    params: {
+      u: { label: 'ความเร็วต้น', symbol: 'u', unit: 'm/s', type: 'range', min: 0, max: 50, step: 0.5, default: 20, drag: true },
+      theta: { label: 'มุมยิง', symbol: 'θ', unit: '°', type: 'range', min: 0, max: 90, step: 1, default: 45, drag: true },
+      h0: { label: 'ความสูงจุดยิง', symbol: 'h₀', unit: 'm', type: 'range', min: 0, max: 50, step: 0.5, default: 0, drag: true },
+      g: { label: 'ค่า g', symbol: 'g', unit: 'm/s²', type: 'choice', options: GRAVITY, default: 9.8 }
+    },
+    presets: [
+      { label: '45° ไกลสุด', values: { u: 20, theta: 45, h0: 0, g: 9.8 }, hint: 'มุม 45° ให้ระยะตกไกลที่สุดเมื่อยิงจากพื้น' },
+      { label: '30° กับ 60° ตกไกลเท่ากัน', values: { u: 20, theta: 30, h0: 0, g: 9.8 }, overlay: { theta: 60 }, hint: 'มุมสองมุมที่รวมกันได้ 90° ตกไกลเท่ากัน' },
+      { label: 'ยิงราบจากที่สูง 20 m', values: { u: 15, theta: 0, h0: 20, g: 9.8 } },
+      { label: 'บนดวงจันทร์', values: { g: 1.6 } }
+    ],
+    toggles: [
+      { key: 'vectors', label: 'ลูกศร v' }, { key: 'components', label: 'องค์ประกอบ vx, vy' }, { key: 'path', label: 'วิถีตามสูตร' }, { key: 'trail', label: 'รอยทาง' }
+    ],
+    speeds: [0.25, 0.5, 1, 2],
+    world: function (p, s, ghostP) {
+      var a = analytic(p), xMax = a.range, yMax = Math.max(a.H, p.h0);
+      if (ghostP) { var b = analytic(ghostP); xMax = Math.max(xMax, b.range); yMax = Math.max(yMax, b.H); }
+      xMax = Math.max(xMax * 1.12, 10); yMax = Math.max(yMax * 1.3, 5);
+      return { xMin: -xMax * 0.04, xMax: xMax, yMin: -yMax * 0.08, yMax: yMax };
+    },
+    init: init, step: step,
+    done: function (s) { return s.landed; },
+    timeLabel: function (t, s) { return 't = ' + fmt(tNow(s, t), 3) + ' s' + (s.landed ? ' · ตกถึงพื้น' : ''); },
+    draw: function (ctx, s, p, D) {
+      var a = analytic(p), v = D.view, c = D.color;
+      if (!D.ghost) { D.grid(); D.axes({ xLabel: 'x (m)', yLabel: 'y (m)' }); D.ground(0); }
+      if (p.h0 > 0) D.line(0, 0, 0, p.h0, { color: c.muted, width: 5 });
+      if (v.path) { var pts = [], n = 60; for (var i = 0; i <= n; i++) { var t = a.tTotal * i / n; pts.push([a.ux * t, p.h0 + a.uy * t - 0.5 * p.g * t * t]); } D.polyline(pts, { color: D.ghost ? c.orange : c.muted, dash: [5, 4], width: 1.5, alpha: D.ghost ? 0.7 : 1 }); }
+      if (v.trail) D.trail(s.trail, { color: D.ghost ? c.orange : c.primary });
+      if (!D.ghost) {
+        if (a.tUp > 0) { D.dot(a.ux * a.tUp, a.H, 4, c.muted); D.label('H = ' + fmt(a.H) + ' m', a.ux * a.tUp, a.H, { dx: -12, dy: -16, align: 'right' }); }
+        D.line(a.range, 0, a.range, 0, {}); D.dot(a.range, 0, 4, c.red); D.label('ระยะตก ' + fmt(a.range) + ' m', a.range, 0, { dy: 18, align: 'center', color: c.red });
+        D.angle(0, p.h0, 30, 0, rad(p.theta), { label: 'θ = ' + p.theta + '°' });
+        D.line(0, p.h0, D.world.xMax * 0.12, p.h0, { color: c.line, dash: [3, 3], width: 1 });
+      } else { D.label('θ = ' + p.theta + '°', 0, p.h0, { dy: -40, dx: 10, color: c.orange }); }
+      var k = (D.world.xMax - D.world.xMin) * 0.16 / Math.max(p.u, 1);
+      if (v.components) { if (Math.abs(s.vx) > 0.01) D.arrow(s.x, s.y, s.vx * k, 0, { color: c.horizontal, label: 'vx ' + fmt(s.vx), width: 2.5, dy: 14 }); if (Math.abs(s.vy) > 0.01) D.arrow(s.x, s.y, 0, s.vy * k, { color: c.vertical, label: 'vy ' + fmt(s.vy), width: 2.5, dx: 4 }); }
+      if (v.vectors) D.arrow(s.x, s.y, s.vx * k, s.vy * k, { color: c.text, label: 'v ' + fmt(Math.hypot(s.vx, s.vy)), width: 3, dy: -10 });
+      D.dot(s.x, s.y, 9, D.ghost ? c.orange : c.primary, { stroke: c.card, width: 2 });
+    },
+    dragHandles: function (s, p, D) {
+      var L = (D.world.xMax - D.world.xMin) * 0.14;
+      return [
+        { param: 'theta', x: L * Math.cos(rad(p.theta)), y: p.h0 + L * Math.sin(rad(p.theta)), r: 12, map: function (wx, wy) { return PhysLab.clamp(deg(Math.atan2(wy - p.h0, Math.max(wx, 1e-6))), 0, 90); } },
+        { param: 'h0', x: 0, y: p.h0, r: 10, map: function (wx, wy) { return Math.max(0, wy); } }
+      ];
+    },
+    readouts: function (s, p, tt) {
+      var a = analytic(p), t = tNow(s, tt);
+      return [
+        { label: 't', value: t, unit: 's' }, { label: 'x', value: s.x, unit: 'm' }, { label: 'y', value: s.y, unit: 'm' },
+        { label: 'vx', value: s.vx, unit: 'm/s', color: '#E07A1F' }, { label: 'vy', value: s.vy, unit: 'm/s', color: '#0E6B57' }, { label: 'v', value: Math.hypot(s.vx, s.vy), unit: 'm/s' },
+        { label: 'เวลาถึงจุดสูงสุด', value: a.tUp, unit: 's' }, { label: 'ความสูงสูงสุด H', value: a.H, unit: 'm' },
+        { label: 'ระยะตก', value: a.range, unit: 'm', highlight: true }, { label: 'เวลารวม', value: a.tTotal, unit: 's', highlight: true }
+      ];
+    },
+    formulas: function (s, p, tt) {
+      var a = analytic(p), t = tNow(s, tt);
+      var fs = [
+        { symbolic: 'ux = u cosθ', substituted: '= ' + p.u + ' cos ' + p.theta + '°', result: '= ' + fmt(a.ux) + ' m/s' },
+        { symbolic: 'uy = u sinθ', substituted: '= ' + p.u + ' sin ' + p.theta + '°', result: '= ' + fmt(a.uy) + ' m/s' },
+        { symbolic: 'sy = uy t − ½gt²', substituted: '= ' + fmt(a.uy) + '(' + fmt(t) + ') − ½(' + p.g + ')(' + fmt(t) + ')²', result: '= ' + fmt(s.y - p.h0) + ' m' },
+        { symbolic: 'เวลาขึ้น = uy / g', substituted: '= ' + fmt(a.uy) + ' / ' + p.g, result: '= ' + fmt(a.tUp) + ' s' }
+      ];
+      if (p.h0 === 0) fs.push({ symbolic: 'Sx max = u² sin2θ / g', substituted: '= ' + p.u + '² sin ' + (2 * p.theta) + '° / ' + p.g, result: '= ' + fmt(a.rangeFlat) + ' m' });
+      else fs.push({ symbolic: 'เวลารวม = (uy + √(uy² + 2gh₀)) / g', substituted: '', result: '= ' + fmt(a.tTotal) + ' s → ระยะตก = ux × เวลารวม = ' + fmt(a.range) + ' m' });
+      return fs;
+    },
+    sample: function (s) { return { y: s.y, vy: s.vy, x: s.x, vx: s.vx }; },
+    graphs: [
+      { title: 'y-t ความสูงกับเวลา', x: 't', series: [{ key: 'y', label: 'y (m)' }], window: 6 },
+      { title: 'vy-t ความเร็วแนวดิ่งกับเวลา', x: 't', series: [{ key: 'vy', label: 'vy (m/s)', color: '#0E6B57' }, { key: 'vx', label: 'vx (m/s)', color: '#E07A1F' }], window: 6 }
+    ],
+    content: {
+      summary: '<b>รูปแบบการเคลื่อนที่แบบโพรเจกไทล์</b> แยกคิดเป็น 2 แกนอิสระ แนวนอนความเร็วคงที่ แนวดิ่งตกแบบเสรี ที่จุดสูงสุดความเร็วแนวดิ่งเป็นศูนย์แต่แนวนอนยังเท่าเดิม ความเร็วรวม v = √(vx² + vy²) <b>สมการหลัก</b> แกน x ใช้ sx = ux t โดย ux = u cosθ แกน y ใช้สมการความเร่งคงที่โดย uy = u sinθ และ a = g ทั้งสองแกนใช้เวลา t ตัวเดียวกันเป็นตัวเชื่อม <b>กรณีพื้นถึงพื้น</b> เวลาขึ้น = uy/g เวลารวม = 2uy/g ระยะไกลสุด = u² sin2θ/g ไกลที่สุดที่มุม 45° และมุมสองมุมที่รวมกันได้ 90° จะตกไกลเท่ากัน',
+      tryIt: ['ตั้ง θ = 45° แล้วกดเล่น เทียบกับ 30° และ 60° ว่าระยะตกเท่ากันไหม', 'ลากลูกศรมุมยิงไปที่ 90° สังเกตว่า vx เป็นศูนย์และลูกบอลขึ้นลงแนวดิ่ง', 'กดชุดค่า "บนดวงจันทร์" ดูว่าเวลาในอากาศและระยะตกเพิ่มกี่เท่า']
+    }
+  });
+})();
+</script>
+</body>
+</html>

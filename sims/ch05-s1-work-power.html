@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5.1 งานและกำลัง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S5.1 งานและกำลัง · บท 5 เรื่อง 1, 2, 3
+   สูตร: W = Fs cosθ · งานจากกราฟ F-s = พื้นที่ใต้กราฟ · P = W/t = Fv · งานของแรงเสียดทานเป็นลบ · Ek = งานลัพธ์
+   semi-implicit Euler dt 1/120 · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad, g = 9.8, L = 12;
+  function init(p) { return { x: 0, v: 0, WF: 0, Wf: 0, done: false, F: p.F }; }
+  function forceAt(p, x) { return p.vary ? Math.max(0, p.F * (1 - x / L)) : p.F; }
+  function step(s, p, dt) {
+    if (s.done) return s;
+    var t = rad(p.theta), F = forceAt(p, s.x), N = Math.max(0, p.m * g - F * Math.sin(t)), f = p.mu * N;
+    var net = F * Math.cos(t) - (s.v > 1e-4 ? f : Math.min(f, F * Math.cos(t)));
+    if (s.v <= 1e-4 && F * Math.cos(t) <= f) net = 0;
+    var a = net / p.m, vN = s.v + a * dt; if (vN < 0) vN = 0;
+    var dx = vN * dt; s.v = vN; s.x += dx; s.WF += F * Math.cos(t) * dx; s.Wf -= (vN > 0 ? f : 0) * dx; s.F = F;
+    if (s.x >= L) { s.x = L; s.done = true; }
+    return s;
+  }
+  PhysLab.createSim({
+    id: 'S5.1', chapter: 5, topics: [1, 2, 3], title: 'งานและกำลัง',
+    alt: 'กล่องถูกดึงบนพื้นด้วยแรงเฉียง มีลูกศรแรง องค์ประกอบในแนวการเคลื่อนที่ และแรงเสียดทาน พร้อมกราฟแรงกับระยะทางที่แรเงาพื้นที่เป็นงาน',
+    forceAt: forceAt,
+    params: {
+      F: { label: 'แรงดึง', symbol: 'F', unit: 'N', type: 'range', min: 0, max: 100, step: 1, default: 40 },
+      theta: { label: 'มุมของแรงกับแนวการเคลื่อนที่', symbol: 'θ', unit: '°', type: 'range', min: 0, max: 90, step: 1, default: 30, drag: true },
+      m: { label: 'มวล', symbol: 'm', unit: 'kg', type: 'range', min: 1, max: 20, step: 0.5, default: 5 },
+      mu: { label: 'สัมประสิทธิ์เสียดทาน', symbol: 'μ', type: 'range', min: 0, max: 0.6, step: 0.05, default: 0.2 },
+      vary: { label: 'แรงลดลงตามระยะ (กราฟ F-s เอียง)', type: 'toggle', default: false }
+    },
+    presets: [{ label: 'ดันตรง θ = 0°', values: { F: 40, theta: 0, mu: 0.2, vary: false } }, { label: 'ดึงเฉียง 30°', values: { F: 40, theta: 30, mu: 0.2, vary: false } }, { label: 'หิ้วของเดิน θ = 90° (งานศูนย์)', values: { F: 49, theta: 90, mu: 0, vary: false } }, { label: 'พื้นลื่น ไม่มีเสียดทาน', values: { F: 20, theta: 0, mu: 0, vary: false } }, { label: 'แรงลดลงตามระยะ', values: { F: 60, theta: 0, mu: 0.1, vary: true } }],
+    toggles: [{ key: 'fbd', label: 'ลูกศรแรง' }],
+    world: { xMin: -1.5, xMax: L + 2, yMin: -1.3, yMax: 5.2, alignX: 'left' },
+    init: init, step: step, done: function (s) { return s.done; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, t = rad(p.theta), b = 1.0, cx = s.x + b / 2, cy = b / 2, F = s.F;
+      D.ground(0); for (var i = 0; i <= L; i += 2) { D.label(i + ' m', i + b / 2, 0, { dy: 16, align: 'center' }); }
+      D.rect(s.x, 0, b, b, { fill: c.primary });
+      var k = 2.4 / Math.max(p.F, 20);
+      if (D.view.fbd) {
+        if (F > 0.1) { D.arrow(s.x + b, cy + 0.2, F * k * Math.cos(t), F * k * Math.sin(t), { color: c.text, label: 'F = ' + fmt(F) + ' N', width: 3.5 }); D.arrow(s.x + b, cy + 0.2, F * k * Math.cos(t), 0, { color: c.orange, label: 'F cosθ = ' + fmt(F * Math.cos(t)), width: 2.5, dy: 14 }); if (p.theta > 0) D.angle(s.x + b, cy + 0.2, 30, 0, t, { label: 'θ' }); }
+        var N = Math.max(0, p.m * g - F * Math.sin(t)), f = p.mu * N;
+        if (f > 0.1 && s.v > 1e-4) D.arrow(s.x, 0.15, -f * k, 0, { color: c.red, label: 'f = ' + fmt(f), width: 2.5, dy: 14 });
+      }
+      if (s.v > 0.05) D.arrow(cx, -0.6, s.v * 0.3, 0, { color: c.muted, label: 'v ' + fmt(s.v) + ' m/s', width: 2, dy: 14 });
+      var gx = 0, gy = 2.4, gw = L, gh = 2.4, Fmax = Math.max(p.F, 10);
+      D.rect(gx, gy, gw, gh, { fill: c.card, stroke: c.line });
+      D.label('กราฟ F cosθ กับ s · พื้นที่ใต้กราฟ = งาน', gx, gy + gh, { dy: -8 });
+      var pts = [], fill = [[gx, gy]]; for (var j = 0; j <= 40; j++) { var xx = L * j / 40, Fy = forceAt(p, xx) * Math.cos(t); pts.push([gx + xx, gy + gh * 0.9 * Fy / Fmax]); if (xx <= s.x) fill.push([gx + xx, gy + gh * 0.9 * Fy / Fmax]); }
+      fill.push([gx + Math.min(s.x, L), gy]);
+      D.polyline(fill, { color: c.accentSoft, width: 0, fill: c.accentSoft, close: true, alpha: 0.9 }); D.polyline(pts, { color: c.orange, width: 2 });
+      D.label('W = ' + fmt(s.WF) + ' J', gx + Math.max(0.5, s.x / 2), gy + 0.5, { color: c.primary, align: 'center' });
+      D.label('F cosθ', gx, gy + gh * 0.9 * p.F * Math.cos(t) / Fmax, { dx: -40, color: c.orange }); D.label('s', gx + gw, gy, { dx: 6 });
+    },
+    dragHandles: function (s, p) { var t = rad(p.theta), k = 2.4 / Math.max(p.F, 20); return [{ param: 'theta', x: s.x + 1 + s.F * k * Math.cos(t), y: 0.7 + s.F * k * Math.sin(t), r: 12, map: function (wx, wy) { return PhysLab.clamp(PhysLab.deg(Math.atan2(wy - 0.7, Math.max(wx - s.x - 1, 1e-6))), 0, 90); } }]; },
+    readouts: function (s, p, t) {
+      var Ek = 0.5 * p.m * s.v * s.v;
+      return [
+        { label: 'ระยะทาง s', value: s.x, unit: 'm' }, { label: 'งานของแรง F', value: s.WF, unit: 'J', highlight: true },
+        { label: 'งานของแรงเสียดทาน', value: s.Wf, unit: 'J', color: '#B42318' }, { label: 'พลังงานจลน์ = งานลัพธ์', value: Ek, unit: 'J', highlight: true },
+        { label: 'กำลังขณะนี้ P = Fv cosθ', value: s.F * s.v * Math.cos(rad(p.theta)), unit: 'W' }, { label: 'กำลังเฉลี่ย W/t', value: t > 0 ? s.WF / t : 0, unit: 'W' }
+      ];
+    },
+    formulas: function (s, p, t) {
+      return [
+        { symbolic: 'W = Fs cosθ', substituted: '= ' + fmt(s.F) + ' × ' + fmt(s.x) + ' × cos ' + p.theta + '°', result: '= ' + fmt(s.F * s.x * Math.cos(rad(p.theta))) + ' J' + (p.vary ? ' (แรงคงที่) · จากพื้นที่กราฟ = ' + fmt(s.WF) + ' J' : '') },
+        { symbolic: 'P = W/t', substituted: '= ' + fmt(s.WF) + ' / ' + fmt(t), result: '= ' + fmt(t > 0 ? s.WF / t : 0) + ' W' },
+        { symbolic: 'P = Fv (แนวเดียวกัน)', substituted: '= ' + fmt(s.F * Math.cos(rad(p.theta))) + ' × ' + fmt(s.v), result: '= ' + fmt(s.F * s.v * Math.cos(rad(p.theta))) + ' W' }
+      ];
+    },
+    sample: function (s, p) { return { W: s.WF, Ek: 0.5 * p.m * s.v * s.v, s: s.x, Fx: s.F * Math.cos(rad(p.theta)) }; },
+    graphs: [{ title: 'งานสะสมและพลังงานจลน์กับเวลา', x: 't', series: [{ key: 'W', label: 'W (J)' }, { key: 'Ek', label: 'Ek (J)', color: '#0E6B57' }], window: 8 }, { title: 'F cosθ กับ s', x: 's', xLabel: 's (m)', series: [{ key: 'Fx', label: 'F cosθ (N)', color: '#E07A1F' }] }],
+    content: {
+      summary: '<b>งาน</b> แรงคูณระยะทางในแนวแรง W = Fs cosθ ดันไปทางเดียวกับการเคลื่อนที่ได้งานบวก ต้านได้งานลบ ตั้งฉากได้งานศูนย์ (หิ้วของเดินตรงไม่เกิดงาน) <b>งานจากกราฟ F-S</b> ถ้าแรงไม่คงที่ ให้หางานจากพื้นที่ใต้กราฟแรงกับระยะทาง <b>กำลัง</b> อัตราการทำงาน P = W/t หรือ P = Fv ทำงานเท่ากันแต่เร็วกว่าแปลว่ากำลังมากกว่า',
+      tryIt: ['เลือก "หิ้วของเดิน" ดูว่าแรงตั้งฉากกับการเคลื่อนที่ ทำงานเป็นศูนย์ กล่องไม่ขยับ', 'เปิด "แรงลดลงตามระยะ" ดูว่างานต้องหาจากพื้นที่ใต้กราฟ ไม่ใช่ F × s', 'ตั้งพื้นลื่น ดูว่าพลังงานจลน์เท่ากับงานของแรง F พอดี']
+    }
+  });
+})();
+</script>
+</body>
+</html>

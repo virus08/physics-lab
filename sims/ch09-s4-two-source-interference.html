@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S9.4 การแทรกสอดจากแหล่งกำเนิดสองแหล่ง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S9.4 การแทรกสอดจากแหล่งกำเนิดสองแหล่ง · บท 9 เรื่อง 9
+   สูตร: ผลต่างระยะทาง Δ = |S₁P − S₂P| · ปฏิบัพเมื่อ Δ = nλ · บัพเมื่อ Δ = (n − ½)λ · แนวปฏิบัพ/บัพเป็นไฮเพอร์โบลา
+   สนามคลื่น = ผลรวมคลื่นวงกลมจากสองแหล่งเฟสตรงกัน (กริด 110×80) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  var GW = 110, GH = 80, off = null, octx = null, img = null;
+  function hex(h) { h = String(h).replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+  function dist(x1, y1, x2, y2) { return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2)); }
+  function probe(p) { var r1 = dist(p.px, p.py, -p.d / 2, 0), r2 = dist(p.px, p.py, p.d / 2, 0), dl = Math.abs(r1 - r2), q = dl / p.lam, frac = q - Math.floor(q), kind = (frac < 0.1 || frac > 0.9) ? 'anti' : (frac > 0.4 && frac < 0.6) ? 'node' : 'mid'; return { r1: r1, r2: r2, dl: dl, q: q, kind: kind, n: kind === 'anti' ? Math.round(q) : Math.round(q + 0.5) }; }
+  function amp(p, x, y, t) { var k = 2 * Math.PI / p.lam, w = 2 * Math.PI * p.f, r1 = Math.max(dist(x, y, -p.d / 2, 0), 0.3), r2 = Math.max(dist(x, y, p.d / 2, 0), 0.3), a1 = 1 / Math.sqrt(r1), a2 = 1 / Math.sqrt(r2); return (a1 * Math.cos(k * r1 - w * t) + a2 * Math.cos(k * r2 - w * t)) / (a1 + a2); }
+  function hyperbola(D, dl, d, W, color, dash) {
+    if (dl < 1e-6) { D.line(0, 0, 0, W.yMax, { color: color, width: 1.5, dash: dash }); return; }
+    var A = dl / 2, B2 = d * d / 4 - A * A; if (B2 <= 1e-6) return; var L = [], R = [];
+    for (var y = 0; y <= W.yMax; y += 0.12) { var x = A * Math.sqrt(1 + y * y / B2); L.push([-x, y]); R.push([x, y]); }
+    D.polyline(L, { color: color, width: 1.5, dash: dash }); D.polyline(R, { color: color, width: 1.5, dash: dash });
+  }
+  PhysLab.createSim({
+    id: 'S9.4', chapter: 9, topics: [9], title: 'การแทรกสอดจากแหล่งกำเนิดสองแหล่ง',
+    alt: 'ถาดคลื่นมองจากบน มีแหล่งกำเนิดสองจุดส่งคลื่นวงกลมซ้อนกัน เห็นแนวปฏิบัพ (เส้นทึบ) และแนวบัพ (เส้นประ) เป็นเส้นโค้งแผ่ออก มีจุดตรวจ P ลากได้',
+    probe: probe, amp: amp,
+    params: {
+      d: { label: 'ระยะห่างแหล่งกำเนิด', symbol: 'd', unit: 'm', type: 'range', min: 0.4, max: 4, step: 0.1, default: 2 },
+      lam: { label: 'ความยาวคลื่น', symbol: 'λ', unit: 'm', type: 'range', min: 0.2, max: 1.5, step: 0.05, default: 0.5 },
+      f: { label: 'ความถี่ (ความเร็วภาพ)', symbol: 'f', unit: 'Hz', type: 'range', min: 0.2, max: 2, step: 0.1, default: 0.6 },
+      px: { label: 'จุดตรวจ P: x (ลากได้)', symbol: 'x', unit: 'm', type: 'range', min: -4.5, max: 4.5, step: 0.05, default: 1.1, drag: true },
+      py: { label: 'จุดตรวจ P: y', symbol: 'y', unit: 'm', type: 'range', min: 0.3, max: 6, step: 0.05, default: 3, drag: true }
+    },
+    presets: [{ label: 'd = 2 m λ = 0.5 m', values: { d: 2, lam: 0.5, px: 1.1, py: 3 } }, { label: 'λ ยาวขึ้น แนวห่างขึ้น', values: { d: 2, lam: 1 } }, { label: 'd กว้างขึ้น แนวถี่ขึ้น', values: { d: 4, lam: 0.5 } }, { label: 'P บนแนวกลาง (Δ = 0)', values: { px: 0, py: 3 } }],
+    toggles: [{ key: 'lines', label: 'แนวปฏิบัพ (ทึบ) และบัพ (ประ)' }, { key: 'paths', label: 'เส้น S₁P และ S₂P' }],
+    speeds: [0.25, 0.5, 1],
+    world: { xMin: -5, xMax: 5, yMin: -0.8, yMax: 6.4 },
+    init: function () { return { t: 0, yP: 0 }; }, step: function (s, p, dt, t) { s.t = t + dt; s.yP = amp(p, p.px, p.py, s.t); return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = D.world, t = s.t;
+      if (!off) { off = document.createElement('canvas'); off.width = GW; off.height = GH; octx = off.getContext('2d'); img = octx.createImageData(GW, GH); }
+      var bg = hex(c.card || '#ffffff'), cr = hex(c.primary), tr = hex(c.orange), data = img.data, xw = W.xMax - W.xMin, yh = W.yMax - W.yMin;
+      for (var gy = 0; gy < GH; gy++) { var y = W.yMax - yh * (gy + 0.5) / GH; for (var gx = 0; gx < GW; gx++) { var x = W.xMin + xw * (gx + 0.5) / GW, v = amp(p, x, y, t), i = (gy * GW + gx) * 4, m = v > 0 ? v : 0, n = v < 0 ? -v * 0.75 : 0; data[i] = bg[0] + (cr[0] - bg[0]) * m + (tr[0] - bg[0]) * n; data[i + 1] = bg[1] + (cr[1] - bg[1]) * m + (tr[1] - bg[1]) * n; data[i + 2] = bg[2] + (cr[2] - bg[2]) * m + (tr[2] - bg[2]) * n; data[i + 3] = 255; } }
+      octx.putImageData(img, 0, 0); ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(off, D.x(W.xMin), D.y(W.yMax), D.x(W.xMax) - D.x(W.xMin), D.y(W.yMin) - D.y(W.yMax)); ctx.restore();
+      if (D.view.lines) { var nmax = Math.floor(p.d / p.lam); for (var k = 0; k <= nmax; k++) hyperbola(D, k * p.lam, p.d, W, c.text, null); for (k = 1; k - 0.5 <= p.d / p.lam; k++) hyperbola(D, (k - 0.5) * p.lam, p.d, W, c.text, [5, 4]); }
+      D.dot(-p.d / 2, 0, 7, c.red, { stroke: c.card, width: 2 }); D.dot(p.d / 2, 0, 7, c.red, { stroke: c.card, width: 2 });
+      D.label('S₁', -p.d / 2, 0, { dy: 18, align: 'center', color: c.red }); D.label('S₂', p.d / 2, 0, { dy: 18, align: 'center', color: c.red });
+      var q = probe(p);
+      if (D.view.paths) { D.line(-p.d / 2, 0, p.px, p.py, { color: c.green, width: 1.5 }); D.line(p.d / 2, 0, p.px, p.py, { color: c.orange, width: 1.5 }); D.label('S₁P = ' + fmt(q.r1) + ' m', (-p.d / 2 + p.px) / 2, p.py / 2, { color: c.green, dx: -8, align: 'right' }); D.label('S₂P = ' + fmt(q.r2) + ' m', (p.d / 2 + p.px) / 2, p.py / 2, { color: c.orange, dx: 8 }); }
+      D.dot(p.px, p.py, 9, c.card, { stroke: c.text, width: 2.5 }); D.label('P', p.px, p.py, { dy: -14, align: 'center', bold: true, color: c.text });
+      var kindText = q.kind === 'anti' ? 'ปฏิบัพ (Δ = ' + q.n + 'λ) เสริมกัน' : q.kind === 'node' ? 'บัพ (Δ = ' + q.n + '−½ λ) หักล้างกัน' : 'ระหว่างแนว';
+      D.label('Δ = |S₁P − S₂P| = ' + fmt(q.dl) + ' m = ' + fmt(q.q) + ' λ → ' + kindText, W.xMin + 0.15, W.yMax - 0.25, { color: c.text, bold: true, bg: c.card });
+      D.label('d = ' + p.d + ' m · λ = ' + p.lam + ' m · แนวปฏิบัพ ' + (2 * Math.floor(p.d / p.lam) + 1) + ' แนว', W.xMin + 0.15, W.yMin + 0.25, { color: c.text, bg: c.card });
+    },
+    dragHandles: function (s, p) { return [{ param: 'px', x: p.px, y: p.py, r: 18, map: function (wx, wy) { return { px: PhysLab.clamp(wx, -4.5, 4.5), py: PhysLab.clamp(wy, 0.3, 6) }; } }]; },
+    readouts: function (s, p) { var q = probe(p); return [{ label: 'S₁P', value: q.r1, unit: 'm', color: '#0E6B57' }, { label: 'S₂P', value: q.r2, unit: 'm', color: '#E07A1F' }, { label: 'Δ = |S₁P − S₂P|', value: q.dl, unit: 'm', highlight: true }, { label: 'Δ/λ', value: q.q, highlight: true }, { label: 'ผลที่ P', value: q.kind === 'anti' ? 'ปฏิบัพ n = ' + q.n : q.kind === 'node' ? 'บัพ n = ' + q.n : 'ระหว่างแนว' }, { label: 'การกระจัดที่ P (สัมพัทธ์)', value: s.yP }, { label: 'จำนวนแนวปฏิบัพทั้งหมด', value: 2 * Math.floor(p.d / p.lam) + 1 }]; },
+    formulas: function (s, p) { var q = probe(p); return [{ symbolic: 'Δ = |S₁P − S₂P|', substituted: '= |' + fmt(q.r1) + ' − ' + fmt(q.r2) + '|', result: '= ' + fmt(q.dl) + ' m' }, { symbolic: 'ปฏิบัพ: Δ = nλ · บัพ: Δ = (n − ½)λ', substituted: 'Δ/λ = ' + fmt(q.dl) + '/' + p.lam, result: '= ' + fmt(q.q) + ' → ' + (q.kind === 'anti' ? 'ปฏิบัพ' : q.kind === 'node' ? 'บัพ' : 'ระหว่างแนว') }]; },
+    sample: function (s) { return { y: s.yP }; },
+    graphs: [{ title: 'การกระจัดที่จุด P กับเวลา', x: 't', series: [{ key: 'y', label: 'y (สัมพัทธ์)' }], window: 6, yMin: -1.1, yMax: 1.1 }],
+    content: {
+      summary: '<b>การแทรกสอดจากแหล่งกำเนิดสองแหล่ง</b> จุดที่ผลต่างระยะทางถึงสองแหล่งเป็นจำนวนเท่าของ λ (nλ) จะเสริมกัน เรียกปฏิบัพ ถ้าเป็นครึ่งคี่ ((n − ½)λ) จะหักล้างกัน เรียกบัพ แนวปฏิบัพและบัพเป็นเส้นโค้งไฮเพอร์โบลาสลับกัน',
+      tryIt: ['ลากจุด P ไปบนเส้นทึบ ดู Δ/λ เป็นจำนวนเต็มและกราฟแกว่งแรง', 'ลาก P ไปบนเส้นประ ดู Δ/λ เป็นครึ่งคี่และกราฟแทบไม่แกว่ง', 'เพิ่ม λ ดูว่าจำนวนแนวปฏิบัพลดลง เพิ่ม d ดูว่าแนวถี่ขึ้น']
+    }
+  });
+})();
+</script>
+</body>
+</html>

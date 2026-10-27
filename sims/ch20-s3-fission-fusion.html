@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S20.3 ฟิชชัน ฟิวชัน และพลังงานยึดเหนี่ยว · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S20.3 ฟิชชัน ฟิวชัน และพลังงานยึดเหนี่ยว · บท 20 เรื่อง 7, 8
+   หลัก: ฟิชชัน ²³⁵U + n → Ba + Kr + 3n (ปฏิกิริยาลูกโซ่) · ฟิวชัน ²H + ³H → ⁴He + n (17.6 MeV) · E = Δmc² · 1 u = 931.5 MeV
+   โหมดฟิชชันจำลองลูกโซ่แบบสุ่มบนตาราง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rng = PhysLab.rng(21);
+  var RE = { u235: { name: 'ฟิชชัน ²³⁵U + n → ¹⁴¹Ba + ⁹²Kr + 3n', dm: 0.2153, per: '≈ 200 MeV ต่อนิวเคลียส' }, dt: { name: 'ฟิวชัน ²H + ³H → ⁴He + n', dm: 0.01888, per: '17.6 MeV ต่อปฏิกิริยา' }, he4: { name: 'พลังงานยึดเหนี่ยว ⁴He (2p + 2n → ⁴He)', dm: 0.03038, per: '28.3 MeV (7.07 MeV ต่อนิวคลีออน)' }, fe56: { name: 'พลังงานยึดเหนี่ยว ⁵⁶Fe', dm: 0.5286, per: '492 MeV (8.79 MeV ต่อนิวคลีออน สูงสุด)' } };
+  var BE = [[1, 0], [2, 1.11], [3, 2.83], [4, 7.07], [6, 5.33], [7, 5.61], [12, 7.68], [16, 7.98], [20, 8.03], [28, 8.45], [40, 8.55], [56, 8.79], [63, 8.75], [84, 8.72], [100, 8.6], [120, 8.5], [141, 8.34], [160, 8.2], [180, 8.0], [208, 7.87], [235, 7.59], [238, 7.57]];
+  function init(p) { var nuc = [], neut = []; for (var i = 0; i < 48; i++) nuc.push({ x: 0.9 + (i % 8) * 0.95 + (rng() - 0.5) * 0.3, y: 1.1 + Math.floor(i / 8) * 0.62 + (rng() - 0.5) * 0.2, alive: true, frag: null }); neut.push({ x: 0.2, y: 2.9, vx: 2.2, vy: 0 }); return { nuc: nuc, neut: neut, fissions: 0, E: 0, fus: 0 }; }
+  function step(s, p, dt) {
+    if (p.mode === 'fission') { var nn = []; s.neut.forEach(function (n) { n.x += n.vx * dt; n.y += n.vy * dt; if (n.x < 0 || n.x > 8.6 || n.y < 0.5 || n.y > 4.6) return; if (p.rods && Math.abs(n.x - 4.3) < 0.12) return; var hit = false; for (var i = 0; i < 48; i++) { var q = s.nuc[i]; if (q.alive && i < p.nU && Math.hypot(n.x - q.x, n.y - q.y) < 0.2) { q.alive = false; q.frag = 0; s.fissions++; s.E += 200; hit = true; for (var k = 0; k < 3; k++) { var a = rng() * Math.PI * 2; nn.push({ x: q.x, y: q.y, vx: 2.2 * Math.cos(a), vy: 2.2 * Math.sin(a) }); } break; } } if (!hit) nn.push(n); }); s.neut = nn.slice(0, 200); s.nuc.forEach(function (q) { if (q.frag !== null) q.frag = Math.min(1, q.frag + dt * 2); }); }
+    else if (p.mode === 'fusion') { s.fus = Math.min(1, s.fus + dt * 0.35); }
+    return s;
+  }
+  PhysLab.createSim({
+    id: 'S20.3', chapter: 20, topics: [7, 8], title: 'ฟิชชัน ฟิวชัน และพลังงานยึดเหนี่ยว',
+    alt: 'โหมดฟิชชัน: นิวตรอนตัวหนึ่งวิ่งเข้าชนนิวเคลียสยูเรเนียมในตาราง แตกเป็นสองชิ้นและปล่อยนิวตรอนสามตัวไปชนตัวอื่นต่อเป็นลูกโซ่ มีแท่งควบคุมดูดซับนิวตรอนได้ โหมดฟิวชัน: ดิวเทอเรียมกับทริเทียมพุ่งเข้าหากันรวมเป็นฮีเลียมและนิวตรอน โหมดพลังงาน: กราฟพลังงานยึดเหนี่ยวต่อนิวคลีออน',
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'ฟิชชัน (ลูกโซ่)', value: 'fission' }, { label: 'ฟิวชัน', value: 'fusion' }, { label: 'พลังงาน E = Δmc²', value: 'energy' }], default: 'fission' },
+      nU: { label: 'จำนวนนิวเคลียส U-235 (ความเข้มข้น)', symbol: 'N', type: 'range', min: 8, max: 48, step: 1, default: 40 },
+      rods: { label: 'ใส่แท่งควบคุม (ดูดซับนิวตรอน)', type: 'toggle', default: false },
+      re: { label: 'ปฏิกิริยา (โหมดพลังงาน)', type: 'choice', options: Object.keys(RE).map(function (k) { return { label: RE[k].name, value: k }; }), default: 'u235' }
+    },
+    presets: [{ label: 'ลูกโซ่ไม่ควบคุม (ระเบิด)', values: { mode: 'fission', nU: 48, rods: false } }, { label: 'ใส่แท่งควบคุม (เตาปฏิกรณ์)', values: { mode: 'fission', nU: 40, rods: true } }, { label: 'เชื้อเพลิงเจือจาง (ลูกโซ่ดับ)', values: { mode: 'fission', nU: 12, rods: false } }, { label: 'ฟิวชัน D + T', values: { mode: 'fusion' } }, { label: 'พลังงานจากมวลที่หายไป', values: { mode: 'energy', re: 'u235' } }],
+    speeds: [0.5, 1], dt: 1 / 120,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: init, step: step,
+    timeLabel: function (t, s, p) { return p.mode === 'fission' ? 'ฟิชชัน ' + s.fissions + ' ครั้ง · E ≈ ' + fmt(s.E) + ' MeV · นิวตรอนอิสระ ' + s.neut.length : ''; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      if (p.mode === 'fission') {
+        D.rect(0.3, 0.5, 8.3, 4.1, { fill: c.card, stroke: c.line }); if (p.rods) { D.rect(4.18, 0.5, 0.24, 4.1, { fill: c.text }); D.label('แท่งควบคุม (แคดเมียม/โบรอน)', 4.3, 4.7, { dy: -2, align: 'center', color: c.text }); }
+        s.nuc.forEach(function (q, k) { if (k >= p.nU) { D.circle(q.x, q.y, 0.16, { stroke: c.line, width: 1, dash: [2, 2] }); return; } if (q.alive) { D.circle(q.x, q.y, 0.17, { fill: c.orange }); D.label('U', q.x, q.y, { align: 'center', color: '#fff' }); } else { var f = q.frag || 0; D.circle(q.x - 0.25 * f, q.y + 0.12 * f, 0.11, { fill: c.red }); D.circle(q.x + 0.25 * f, q.y - 0.12 * f, 0.09, { fill: c.primary }); if (f < 0.6) { ctx.save(); ctx.globalAlpha = 0.6 - f; D.circle(q.x, q.y, 0.3 + f, { fill: '#FFD54F' }); ctx.restore(); } } });
+        s.neut.forEach(function (n) { D.dot(n.x, n.y, 3.5, c.text, {}); });
+        D.label('²³⁵U + n → ¹⁴¹Ba + ⁹²Kr + 3n + ≈ 200 MeV · นิวตรอน 3 ตัวไปชนตัวอื่นต่อ = ปฏิกิริยาลูกโซ่', 0.3, 4.95, { color: c.text, bold: true });
+        D.label(p.rods ? 'แท่งควบคุมดูดซับนิวตรอนให้เหลือพอต่อลูกโซ่อย่างคงที่ (เตาปฏิกรณ์)' : s.neut.length > 40 ? 'ลูกโซ่ขยายตัวไม่ควบคุม (ระเบิดปรมาณู)' : 'ยิ่งเชื้อเพลิงหนาแน่น นิวตรอนยิ่งมีโอกาสชน', 0.3, 0.25, { color: c.primary });
+        D.rect(8.8, 0.5, 0.6, 4.1, { fill: c.soft }); D.rect(8.8, 0.5, 0.6, 4.1 * PhysLab.clamp(s.E / (48 * 200), 0, 1), { fill: c.red }); D.label('E', 9.1, 4.7, { dy: -2, align: 'center', color: c.red });
+      } else if (p.mode === 'fusion') {
+        var u = s.fus, gap = 3.0 * (1 - u), cx = 4.6, cy = 2.8;
+        if (u < 1) { D.circle(cx - gap / 2 - 0.3, cy, 0.3, { fill: c.orange }); D.label('²H', cx - gap / 2 - 0.3, cy, { align: 'center', color: '#fff', bold: true }); D.circle(cx + gap / 2 + 0.35, cy, 0.35, { fill: c.primary }); D.label('³H', cx + gap / 2 + 0.35, cy, { align: 'center', color: '#fff', bold: true }); D.arrow(cx - gap / 2 - 0.9, cy + 0.6, 0.5, 0, { color: c.text, width: 2 }); D.arrow(cx + gap / 2 + 0.95, cy + 0.6, -0.5, 0, { color: c.text, width: 2 }); }
+        else { D.circle(cx - 0.6, cy, 0.38, { fill: c.green }); D.label('⁴He', cx - 0.6, cy, { align: 'center', color: '#fff', bold: true }); D.dot(cx + 1.6, cy + 0.3, 6, c.text, {}); D.label('n (14.1 MeV)', cx + 1.6, cy + 0.55, { align: 'center', color: c.text }); D.arrow(cx + 0.9, cy + 0.3, 0.5, 0, { color: c.text, width: 2 }); ctx.save(); ctx.globalAlpha = 0.25; D.circle(cx, cy, 1.6, { fill: '#FFD54F' }); ctx.restore(); D.label('ปล่อย 17.6 MeV', cx, cy - 1.0, { align: 'center', color: c.red, bold: true }); }
+        D.label('ฟิวชัน: นิวเคลียสเบารวมเป็นหนัก ²H + ³H → ⁴He + n + 17.6 MeV (ดวงอาทิตย์ ระเบิดไฮโดรเจน)', 0.3, 4.95, { color: c.text, bold: true });
+        D.label('ต้องร้อนหลายล้านเคลวินเพื่อเอาชนะแรงผลักระหว่างประจุบวก · ต่อมวลเชื้อเพลิงให้พลังงานมากกว่าฟิชชัน', 0.3, 0.3, { color: c.primary });
+        D.label(u < 1 ? 'เข้าใกล้ ' + fmt(u * 100, 2) + '%' : 'รวมแล้ว', cx, 1.2, { align: 'center', color: c.muted });
+      } else {
+        var R = RE[p.re], E = R.dm * 931.5, gx0 = 4.4, gx1 = 9.7, gy0 = 0.9, gy1 = 4.4, X = function (A) { return gx0 + (gx1 - gx0) * A / 240; }, Y = function (b) { return gy0 + (gy1 - gy0) * b / 9.5; };
+        D.label(R.name, 0.3, 4.95, { color: c.text, bold: true }); D.label('มวลที่หายไป Δm = ' + R.dm + ' u', 0.3, 4.4, { color: c.text }); D.label('E = Δmc² = ' + R.dm + ' × 931.5 MeV', 0.3, 4.0, { color: c.text }); D.label('= ' + fmt(E) + ' MeV (' + R.per + ')', 0.3, 3.6, { color: c.red, bold: true });
+        D.label('มวล 1 u → 931.5 MeV · เทียบ: เผาถ่านหิน 1 อะตอม ≈ 4 eV (น้อยกว่า 50 ล้านเท่า)', 0.3, 2.9, { color: c.muted });
+        D.rect(gx0, gy0, gx1 - gx0, gy1 - gy0, { fill: c.card, stroke: c.line }); D.polyline(BE.map(function (q) { return [X(q[0]), Y(q[1])]; }), { color: c.primary, width: 2 }); D.label('พลังงานยึดเหนี่ยวต่อนิวคลีออน (MeV)', gx0 + 0.1, gy1 - 0.1, { color: c.text }); D.label('เลขมวล A', gx1, gy0, { dy: 12, align: 'right', color: c.muted });
+        D.dot(X(56), Y(8.79), 5, c.red, {}); D.label('⁵⁶Fe เสถียรสุด', X(56) + 0.1, Y(8.79) - 0.25, { color: c.red }); D.dot(X(235), Y(7.59), 5, c.orange, {}); D.label('²³⁵U', X(235) - 0.1, Y(7.59) - 0.25, { align: 'right', color: c.orange }); D.dot(X(4), Y(7.07), 5, c.green, {}); D.label('⁴He', X(4) + 0.1, Y(7.07) + 0.25, { color: c.green }); D.dot(X(2), Y(1.11), 4, c.green, {}); D.label('²H', X(2) + 0.1, Y(1.11), { color: c.green });
+        D.arrow(X(220), Y(7.65) + 0.3, -1.2, 0.25, { color: c.orange, width: 2, label: 'ฟิชชัน →', dx: 20 }); D.arrow(X(3), Y(2.5), 0.3, 1.2, { color: c.green, width: 2, label: 'ฟิวชัน', dx: 12 });
+        D.label('ทั้งสองไปสู่ A ที่ยึดเหนี่ยวแน่นกว่า มวลที่หายไปจึงกลายเป็นพลังงาน', gx0 + 0.1, 0.35, { color: c.text });
+      }
+    },
+    readouts: function (s, p) { if (p.mode === 'fission') return [{ label: 'ฟิชชันเกิดแล้ว', value: s.fissions, highlight: true }, { label: 'นิวตรอนอิสระ', value: s.neut.length }, { label: 'E ≈ 200 MeV × ครั้ง', value: s.E, unit: 'MeV', highlight: true }, { label: 'E (J)', value: s.E * 1.6e-13, unit: 'J' }]; if (p.mode === 'fusion') return [{ label: 'ปฏิกิริยา', value: '²H + ³H → ⁴He + n' }, { label: 'พลังงาน', value: 17.6, unit: 'MeV', highlight: true }, { label: 'Δm', value: 0.01888, unit: 'u' }]; var R = RE[p.re]; return [{ label: 'Δm', value: R.dm, unit: 'u' }, { label: 'E = Δm × 931.5', value: R.dm * 931.5, unit: 'MeV', highlight: true }, { label: 'E (J)', value: R.dm * 931.5 * 1.6e-13, unit: 'J' }]; },
+    formulas: function (s, p) { var R = RE[p.re]; return [{ symbolic: 'E = Δmc² · 1 u = 931.5 MeV', substituted: '= ' + R.dm + ' × 931.5', result: '= ' + fmt(R.dm * 931.5) + ' MeV' }]; },
+    content: {
+      summary: '<b>ฟิชชันและฟิวชัน</b> ฟิชชันคือนิวเคลียสหนักแตกเป็นเบา (ยูเรเนียมในเตาปฏิกรณ์และระเบิดปรมาณู) ปล่อยนิวตรอนไปทำให้เกิดต่อเป็นลูกโซ่ ควบคุมด้วยแท่งดูดซับนิวตรอน ฟิวชันคือนิวเคลียสเบารวมเป็นหนัก (ไฮโดรเจนบนดวงอาทิตย์) ทั้งสองปล่อยพลังงานมหาศาล <b>พลังงานนิวเคลียร์และพลังงานยึดเหนี่ยว</b> มวลที่หายไปกลายเป็นพลังงาน E = Δmc² หรือคิดง่าย ๆ มวล 1 u ให้พลังงาน 931.5 MeV นิวเคลียสที่มีพลังงานยึดเหนี่ยวต่อนิวคลีออนสูงสุดคือเหล็ก-56',
+      tryIt: ['กดเล่นโหมดฟิชชันโดยไม่ใส่แท่งควบคุม ดูจำนวนนิวตรอนพุ่งขึ้นแบบลูกโซ่', 'ใส่แท่งควบคุมแล้วเล่นใหม่ ดูว่าลูกโซ่ถูกจำกัดอยู่ครึ่งเดียว', 'ลดจำนวน U เหลือ 12 ดูว่าลูกโซ่ดับเอง (ต่ำกว่ามวลวิกฤต)']
+    }
+  });
+})();
+</script>
+</body>
+</html>

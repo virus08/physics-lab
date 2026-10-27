@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S13.1 แรง สนาม ศักย์ และจุดสะเทิน · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S13.1 แรง สนาม ศักย์ และจุดสะเทิน · บท 13 เรื่อง 1, 2, 3, 4
+   สูตร: F = kq₁q₂/r² · E = kq/r² · V = kq/r · F = qE · k = 9×10⁹ N·m²/C² · จุดสะเทินคือจุดที่ E รวม = 0
+   แบบจำลองนิ่ง เส้นสนามลากด้วย RK2 จากประจุบวก (หรือจากประจุลบเมื่อไม่มีประจุบวก) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, k = 9e9;
+  function charges(p) { return [{ x: -p.d / 2, y: 0, q: p.q1 * 1e-6, label: 'q₁' }, { x: p.d / 2, y: 0, q: p.q2 * 1e-6, label: 'q₂' }]; }
+  function field(p, x, y) { var ex = 0, ey = 0, v = 0; charges(p).forEach(function (c) { var dx = x - c.x, dy = y - c.y, r2 = dx * dx + dy * dy, r = Math.sqrt(r2); if (r < 1e-6 || c.q === 0) return; var e = k * c.q / r2; ex += e * dx / r; ey += e * dy / r; v += k * c.q / r; }); return { ex: ex, ey: ey, E: Math.hypot(ex, ey), V: v }; }
+  function neutral(p) { if (p.q1 === 0 || p.q2 === 0) return []; var xs = [], prev = null; for (var x = -7; x <= 7; x += 0.004) { if (Math.abs(x + p.d / 2) < 0.03 || Math.abs(x - p.d / 2) < 0.03) { prev = null; continue; } var ex = field(p, x, 0).ex; if (prev !== null && prev * ex < 0) xs.push(x - 0.002); prev = ex; } return xs; }
+  function trace(p, W) { var cs = charges(p), lines = [], src = cs.filter(function (c) { return c.q > 0; }), sgn = 1; if (!src.length) { src = cs.filter(function (c) { return c.q < 0; }); sgn = -1; } src.forEach(function (c) { var n = Math.max(4, Math.round(5 * Math.abs(c.q * 1e6))); for (var i = 0; i < n; i++) { var a = 2 * Math.PI * (i + 0.5) / n, x = c.x + 0.2 * Math.cos(a), y = c.y + 0.2 * Math.sin(a), pts = [[x, y]]; for (var s = 0; s < 700; s++) { var f = field(p, x, y); if (f.E < 1e-9) break; var h = 0.035, kx = f.ex / f.E * sgn, ky = f.ey / f.E * sgn, f2 = field(p, x + kx * h / 2, y + ky * h / 2); if (f2.E < 1e-9) break; x += f2.ex / f2.E * sgn * h; y += f2.ey / f2.E * sgn * h; pts.push([x, y]); if (x < W.xMin - 0.2 || x > W.xMax + 0.2 || y < W.yMin - 0.2 || y > W.yMax + 0.2) break; var hit = cs.some(function (o) { return o !== c && Math.hypot(x - o.x, y - o.y) < 0.19; }); if (hit) break; } lines.push(pts); } }); return lines; }
+  PhysLab.createSim({
+    id: 'S13.1', chapter: 13, topics: [1, 2, 3, 4], title: 'แรง สนาม ศักย์ และจุดสะเทิน', static: true,
+    alt: 'ประจุสองตัวบนแกนนอน มีเส้นสนามไฟฟ้าโค้งจากประจุบวกไปประจุลบ ลูกศรแรงคูลอมบ์บนประจุทั้งสอง จุดตรวจที่ลากได้แสดง E และ V และเครื่องหมายกากบาทที่จุดสะเทิน',
+    field: field, neutral: neutral,
+    params: {
+      q1: { label: 'ประจุ q₁', symbol: 'q₁', unit: 'µC', type: 'range', min: -5, max: 5, step: 0.5, default: 2 },
+      q2: { label: 'ประจุ q₂', symbol: 'q₂', unit: 'µC', type: 'range', min: -5, max: 5, step: 0.5, default: -1 },
+      d: { label: 'ระยะห่าง', symbol: 'r', unit: 'm', type: 'range', min: 0.6, max: 4, step: 0.1, default: 2 },
+      q: { label: 'ประจุทดสอบที่จุดตรวจ', symbol: 'q', unit: 'µC', type: 'range', min: -2, max: 2, step: 0.1, default: 0.5 },
+      px: { label: 'จุดตรวจ x (ลากได้)', unit: 'm', type: 'range', min: -4, max: 4, step: 0.05, default: 0.5, drag: true },
+      py: { label: 'จุดตรวจ y', unit: 'm', type: 'range', min: -3, max: 3, step: 0.05, default: 1.5, drag: true }
+    },
+    presets: [{ label: 'บวก 2 กับ ลบ 1 (ขั้วคู่)', values: { q1: 2, q2: -1, d: 2 } }, { label: 'บวกทั้งคู่ (จุดสะเทินอยู่กลาง)', values: { q1: 2, q2: 2, d: 2 } }, { label: 'บวก 4 กับ บวก 1', values: { q1: 4, q2: 1, d: 2 } }, { label: 'ต่างชนิด 4 กับ −1 (จุดสะเทินนอกใกล้ตัวเล็ก)', values: { q1: 4, q2: -1, d: 2 } }, { label: 'ประจุเดี่ยว', values: { q1: 3, q2: 0 } }],
+    toggles: [{ key: 'lines', label: 'เส้นสนาม' }, { key: 'vectors', label: 'ลูกศร E บนตาราง', default: false }, { key: 'force', label: 'แรงคูลอมบ์ระหว่างประจุ' }, { key: 'neutral', label: 'จุดสะเทิน' }],
+    world: { xMin: -4.4, xMax: 4.4, yMin: -3.2, yMax: 3.2 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = D.world, cs = charges(p);
+      if (D.view.lines) trace(p, W).forEach(function (pts) { D.polyline(pts, { color: c.muted, width: 1.2 }); });
+      if (D.view.vectors) for (var gx = -4; gx <= 4; gx += 0.5) for (var gy = -3; gy <= 3; gy += 0.5) { var near = cs.some(function (o) { return Math.hypot(gx - o.x, gy - o.y) < 0.35; }); if (near) continue; var f = field(p, gx, gy); if (f.E < 1) continue; var L = 0.14 + 0.2 * PhysLab.clamp((Math.log10(f.E) - 2) / 3, 0, 1); D.arrow(gx - f.ex / f.E * L / 2, gy - f.ey / f.E * L / 2, f.ex / f.E * L, f.ey / f.E * L, { color: c.line, width: 1.2 }); }
+      var Fc = k * cs[0].q * cs[1].q / (p.d * p.d);
+      cs.forEach(function (ch, i) { if (ch.q === 0) return; var col = ch.q > 0 ? c.red : c.primary; D.circle(ch.x, ch.y, 0.18 + 0.02 * Math.abs(ch.q * 1e6), { fill: col }); D.label(ch.q > 0 ? '+' : '−', ch.x, ch.y, { align: 'center', color: '#fff', bold: true, size: 16 }); D.label(ch.label + ' = ' + (ch.q * 1e6) + ' µC', ch.x, ch.y - 0.28, { dy: 12, align: 'center', color: col }); if (D.view.force && cs[0].q !== 0 && cs[1].q !== 0) { var dir = (i === 0 ? -1 : 1) * (Fc > 0 ? 1 : -1), L = 0.5 + 0.4 * PhysLab.clamp(Math.log10(Math.abs(Fc)) / 3, 0, 1); D.arrow(ch.x + dir * 0.25 * (Fc > 0 ? 1 : -0.1), ch.y, dir * L, 0, { color: c.green, width: 2.5, label: i === 0 ? 'F = ' + fmt(Math.abs(Fc)) + ' N' : '', dy: -12 }); } });
+      if (D.view.neutral) neutral(p).forEach(function (x) { D.line(x - 0.12, -0.12, x + 0.12, 0.12, { color: c.orange, width: 2.5 }); D.line(x - 0.12, 0.12, x + 0.12, -0.12, { color: c.orange, width: 2.5 }); D.label('จุดสะเทิน x = ' + fmt(x) + ' m', x, 0.2, { dy: -4, align: 'center', color: c.orange, bg: c.card }); });
+      var f0 = field(p, p.px, p.py), Lp = 0.5 + 0.5 * PhysLab.clamp((Math.log10(Math.max(f0.E, 1)) - 2) / 3, 0, 1);
+      if (f0.E > 1) D.arrow(p.px, p.py, f0.ex / f0.E * Lp, f0.ey / f0.E * Lp, { color: c.orange, width: 2.5, label: 'E ' + fmt(f0.E) + ' N/C' });
+      if (p.q !== 0 && f0.E > 1) { var sg = p.q > 0 ? 1 : -1; D.arrow(p.px, p.py, sg * f0.ex / f0.E * Lp * 0.7, sg * f0.ey / f0.E * Lp * 0.7, { color: c.green, width: 2, label: 'F = qE ' + fmt(Math.abs(p.q * 1e-6 * f0.E)) + ' N', dy: 30 }); }
+      D.dot(p.px, p.py, 7, c.card, { stroke: c.text, width: 2 }); D.label('P · V = ' + fmt(f0.V) + ' V', p.px, p.py + 0.18, { dy: -6, align: 'center', color: c.text, bg: c.card });
+      D.label('F = kq₁q₂/r² = ' + fmt(Fc) + ' N (' + (Fc > 0 ? 'ผลัก' : Fc < 0 ? 'ดูด' : '—') + ') · เส้นสนามพุ่งออกจาก + เข้าหา −', W.xMin + 0.15, W.yMax - 0.2, { color: c.text, bg: c.card });
+    },
+    dragHandles: function (s, p) { return [{ param: 'px', x: p.px, y: p.py, r: 18, map: function (wx, wy) { return { px: PhysLab.clamp(wx, -4, 4), py: PhysLab.clamp(wy, -3, 3) }; } }]; },
+    readouts: function (s, p) { var Fc = k * p.q1 * 1e-6 * p.q2 * 1e-6 / (p.d * p.d), f = field(p, p.px, p.py), ns = neutral(p); return [{ label: 'แรงระหว่างประจุ F', value: Math.abs(Fc), unit: 'N', highlight: true }, { label: 'ชนิดแรง', value: Fc > 0 ? 'ผลักกัน' : Fc < 0 ? 'ดูดกัน' : 'ไม่มี' }, { label: 'E ที่ P', value: f.E, unit: 'N/C', color: '#E07A1F' }, { label: 'V ที่ P', value: f.V, unit: 'V' }, { label: 'แรงบนประจุทดสอบ F = qE', value: Math.abs(p.q * 1e-6 * f.E), unit: 'N', color: '#0E6B57' }, { label: 'จุดสะเทิน', value: ns.length ? ns.map(function (x) { return 'x = ' + fmt(x) + ' m'; }).join(', ') : 'ไม่มีบนแกน' }]; },
+    formulas: function (s, p) { var f = field(p, p.px, p.py), r1 = Math.hypot(p.px + p.d / 2, p.py), r2 = Math.hypot(p.px - p.d / 2, p.py); return [{ symbolic: 'F = kq₁q₂/r²', substituted: '= 9×10⁹ × ' + p.q1 + '×10⁻⁶ × ' + p.q2 + '×10⁻⁶ / ' + p.d + '²', result: '= ' + fmt(k * p.q1 * p.q2 * 1e-12 / (p.d * p.d)) + ' N' }, { symbolic: 'E = kq/r² (รวมแบบเวกเตอร์)', substituted: 'r₁ = ' + fmt(r1) + ' m, r₂ = ' + fmt(r2) + ' m', result: '|E| = ' + fmt(f.E) + ' N/C' }, { symbolic: 'V = kq₁/r₁ + kq₂/r₂', substituted: '= 9×10⁹(' + p.q1 + '×10⁻⁶/' + fmt(r1) + ' + ' + p.q2 + '×10⁻⁶/' + fmt(r2) + ')', result: '= ' + fmt(f.V) + ' V' }]; },
+    content: {
+      summary: '<b>กฎของคูลอมบ์</b> ประจุสองตัวออกแรงต่อกัน F = kq₁q₂/r² เหมือนกันผลัก ต่างกันดูด k = 9 × 10⁹ N·m²/C² และแรงที่ประจุได้รับในสนาม F = qE <b>สนามไฟฟ้า</b> บริเวณรอบประจุที่ออกแรงต่อประจุอื่น E = kq/r² เส้นสนามพุ่งออกจากประจุบวกเข้าหาประจุลบ <b>ศักย์ไฟฟ้า</b> พลังงานต่อหนึ่งหน่วยประจุ V = kq/r <b>จุดสะเทิน</b> จุดที่สนามไฟฟ้าหักล้างกันเป็นศูนย์ ประจุชนิดเดียวกันจุดสะเทินอยู่ระหว่างทั้งสอง ประจุต่างชนิดอยู่ด้านนอกใกล้ประจุที่เล็กกว่า',
+      tryIt: ['ตั้ง q₁ = q₂ = 2 µC ดูจุดสะเทินอยู่กึ่งกลางพอดี แล้วเปลี่ยน q₂ เป็น 4 ดูจุดสะเทินเลื่อนเข้าหาประจุเล็ก', 'ตั้ง q₁ = 4, q₂ = −1 ดูจุดสะเทินออกไปอยู่ด้านนอกใกล้ประจุ −1', 'ลากจุดตรวจเข้าใกล้ประจุ ดู E เพิ่มแบบ 1/r² และ V เพิ่มแบบ 1/r']
+    }
+  });
+})();
+</script>
+</body>
+</html>

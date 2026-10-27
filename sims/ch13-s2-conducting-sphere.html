@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S13.2 สนามและศักย์ของตัวนำทรงกลม · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S13.2 สนามและศักย์ของตัวนำทรงกลม · บท 13 เรื่อง 5, 6
+   สูตร: ภายใน E = 0, V = kQ/R คงที่ · ที่ผิว E = kQ/R² · ภายนอก E = kQ/r², V = kQ/r · C = R/k
+   แบบจำลองนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, k = 9e9;
+  function E(p, r) { return r < p.R ? 0 : k * p.Q * 1e-6 / (r * r); }
+  function V(p, r) { return k * p.Q * 1e-6 / Math.max(r, p.R); }
+  var CX = 2.0, CY = 2.9, SC = 0.6, TH = 1.1;
+  function plot(D, area, fn, p, rmax, title, color, unit) {
+    var c = D.color, vals = [], lo = 0, hi = 0, n = 120, i;
+    for (i = 0; i <= n; i++) { var r = rmax * i / n, v = fn(p, Math.max(r, 0.02)); vals.push([r, v]); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    if (hi === lo) hi = lo + 1; var pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+    function X(r) { return area.x0 + (area.x1 - area.x0) * r / rmax; } function Y(v) { return area.y0 + (area.y1 - area.y0) * (v - lo) / (hi - lo); }
+    D.rect(area.x0, area.y0, area.x1 - area.x0, area.y1 - area.y0, { fill: c.card, stroke: c.line });
+    D.line(area.x0, Y(0), area.x1, Y(0), { color: c.line, width: 1 });
+    D.line(X(p.R), area.y0, X(p.R), area.y1, { color: c.muted, dash: [3, 3], width: 1 }); D.label('R', X(p.R), area.y0, { dy: 12, align: 'center', color: c.muted });
+    D.polyline(vals.map(function (q) { return [X(q[0]), Y(q[1])]; }), { color: color, width: 2.5 });
+    var rp = Math.min(p.r, rmax); D.line(X(rp), area.y0, X(rp), area.y1, { color: c.orange, dash: [4, 3], width: 1 }); D.dot(X(rp), Y(fn(p, p.r)), 5, c.orange, { stroke: c.card, width: 1.5 });
+    D.label(title + ' ที่ r = ' + fmt(fn(p, p.r)) + ' ' + unit, area.x0 + 0.08, area.y1 - 0.05, { color: color, bold: true });
+    D.label('r (m)', area.x1, area.y0, { dy: 12, align: 'right', color: c.muted }); D.label(fmt(hi - pad) + ' ' + unit, area.x0, area.y1, { dx: -4, align: 'right', color: c.muted }); D.label('0', area.x0, Y(0), { dx: -4, align: 'right', color: c.muted });
+  }
+  PhysLab.createSim({
+    id: 'S13.2', chapter: 13, topics: [5, 6], title: 'สนามและศักย์ของตัวนำทรงกลม', static: true,
+    alt: 'ทรงกลมตัวนำมีประจุกระจายที่ผิว ภายในไม่มีสนาม ลูกศรสนามพุ่งออกรอบ ๆ ด้านขวาเป็นกราฟ E-r (ศูนย์ภายใน สูงสุดที่ผิว ลดแบบ 1/r²) และกราฟ V-r (คงที่ภายใน ลดแบบ 1/r)',
+    E: E, V: V,
+    params: {
+      Q: { label: 'ประจุบนทรงกลม', symbol: 'Q', unit: 'µC', type: 'range', min: -10, max: 10, step: 0.5, default: 5 },
+      R: { label: 'รัศมีทรงกลม', symbol: 'R', unit: 'm', type: 'range', min: 0.2, max: 2, step: 0.05, default: 1 },
+      r: { label: 'ระยะจุดตรวจจากศูนย์กลาง (ลากได้)', symbol: 'r', unit: 'm', type: 'range', min: 0.05, max: 5, step: 0.05, default: 1.6, drag: true }
+    },
+    presets: [{ label: 'Q = 5 µC R = 1 m', values: { Q: 5, R: 1, r: 1.6 } }, { label: 'จุดตรวจภายใน (E = 0)', values: { r: 0.5 } }, { label: 'จุดตรวจที่ผิว', values: { r: 1 } }, { label: 'ไกล 2 เท่าของ R (E เหลือ 1/4)', values: { r: 2 } }, { label: 'ประจุลบ', values: { Q: -5 } }],
+    toggles: [{ key: 'arrows', label: 'ลูกศรสนาม' }],
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 6 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, Rw = p.R * SC, col = p.Q >= 0 ? c.red : c.primary, i;
+      D.circle(CX, CY, Rw, { fill: c.accentSoft, stroke: col, width: 2 });
+      for (i = 0; i < 14; i++) { var a = 2 * Math.PI * i / 14; D.label(p.Q >= 0 ? '+' : '−', CX + (Rw + 0.09) * Math.cos(a), CY + (Rw + 0.09) * Math.sin(a), { align: 'center', color: col, bold: true }); }
+      D.label('E = 0', CX, CY, { align: 'center', color: c.text, bold: true }); D.label('V = kQ/R คงที่ภายใน', CX, CY - Rw - 0.32, { align: 'center', color: c.text });
+      if (D.view.arrows && p.Q !== 0) for (i = 0; i < 12; i++) { var b = 2 * Math.PI * (i + 0.5) / 12, r0 = Rw + 0.16, L = 0.22 + 0.4 * PhysLab.clamp(Math.abs(E(p, p.R)) / 2e5, 0, 1), sg = p.Q > 0 ? 1 : -1; D.arrow(CX + (sg > 0 ? r0 : r0 + L) * Math.cos(b), CY + (sg > 0 ? r0 : r0 + L) * Math.sin(b), sg * L * Math.cos(b), sg * L * Math.sin(b), { color: c.muted, width: 1.5 }); }
+      var th = TH, px = CX + p.r * SC * Math.cos(th), py = CY + p.r * SC * Math.sin(th);
+      D.line(CX, CY, px, py, { color: c.orange, dash: [4, 3], width: 1 }); D.dot(px, py, 7, c.orange, { stroke: c.card, width: 2 }); D.label('r = ' + p.r + ' m', px + 0.14, py, { color: c.orange, bg: c.card });
+      D.label('R = ' + p.R + ' m · Q = ' + p.Q + ' µC', CX, 0.3, { align: 'center', color: c.text });
+      plot(D, { x0: 5.0, x1: 9.7, y0: 3.45, y1: 5.7 }, E, p, 5, 'E', c.primary, 'N/C');
+      plot(D, { x0: 5.0, x1: 9.7, y0: 0.5, y1: 2.75 }, V, p, 5, 'V', c.green, 'V');
+    },
+    dragHandles: function (s, p) { var th = TH; return [{ param: 'r', x: CX + p.r * SC * Math.cos(th), y: CY + p.r * SC * Math.sin(th), r: 16, map: function (wx, wy) { return PhysLab.clamp(Math.hypot(wx - CX, wy - CY) / SC, 0.05, 5); } }]; },
+    readouts: function (s, p) { return [{ label: 'E ที่ r', value: E(p, p.r), unit: 'N/C', highlight: true, color: '#1F5FBF' }, { label: 'V ที่ r', value: V(p, p.r), unit: 'V', highlight: true, color: '#0E6B57' }, { label: 'E ที่ผิว = kQ/R²', value: k * p.Q * 1e-6 / (p.R * p.R), unit: 'N/C' }, { label: 'V ที่ผิว = kQ/R', value: k * p.Q * 1e-6 / p.R, unit: 'V' }, { label: 'ตำแหน่งจุดตรวจ', value: p.r < p.R ? 'ภายใน' : Math.abs(p.r - p.R) < 1e-9 ? 'ที่ผิว' : 'ภายนอก' }, { label: 'ความจุ C = R/k', value: p.R / k * 1e12, unit: 'pF' }]; },
+    formulas: function (s, p) { var inside = p.r < p.R; return [{ symbolic: inside ? 'ภายใน: E = 0' : 'E = kQ/r²', substituted: inside ? 'r < R' : '= 9×10⁹ × ' + p.Q + '×10⁻⁶ / ' + p.r + '²', result: '= ' + fmt(E(p, p.r)) + ' N/C' }, { symbolic: inside ? 'ภายใน: V = kQ/R' : 'V = kQ/r', substituted: '= 9×10⁹ × ' + p.Q + '×10⁻⁶ / ' + (inside ? p.R : p.r), result: '= ' + fmt(V(p, p.r)) + ' V' }, { symbolic: 'C = R/k', substituted: '= ' + p.R + ' / 9×10⁹', result: '= ' + fmt(p.R / k * 1e12) + ' pF' }]; },
+    content: {
+      summary: '<b>สนามไฟฟ้าของตัวนำทรงกลม</b> ภายในเป็นศูนย์ ที่ผิวมากที่สุด E = kQ/R² ออกไปข้างนอกลดลงตาม 1/r² <b>ศักย์ไฟฟ้าของตัวนำทรงกลม</b> ภายในคงที่เท่ากับที่ผิว V = kQ/R ออกไปข้างนอกลดลงตาม 1/r',
+      tryIt: ['ลากจุดตรวจจากนอกเข้าไปในทรงกลม ดูว่า E ตกเป็นศูนย์ทันทีแต่ V ยังคงที่', 'เพิ่ม R เป็น 2 เท่า ดูว่า E ที่ผิวลด 4 เท่า แต่ V ที่ผิวลด 2 เท่า', 'ตั้ง r = 2R ดูว่า E เหลือ 1/4 และ V เหลือ 1/2 ของค่าที่ผิว']
+    }
+  });
+})();
+</script>
+</body>
+</html>

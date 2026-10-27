@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S4.2 คานและโมเมนต์ของแรง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S4.2 คานและโมเมนต์ของแรง · บท 4 เรื่อง 2, 3, 4, 5, 7, 8
+   สูตร: M = F × ระยะตั้งฉาก · ΣF = 0 (N = W₁ + W₂ + W คาน) · ΣM = 0 (ทวนเข็ม = ตามเข็ม) · แรงคู่ควบ Mc = F × d
+   คานหมุนรอบจุดหมุนเมื่อ ΣM ≠ 0: α = ΣM / I (มีความหน่วง) จำกัด ±25° · semi-implicit Euler dt 1/120 · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad, g = 9.8;
+  function torques(p, th) {
+    var cs = Math.cos(rad(th)), W1 = p.m1 * g, W2 = p.m2 * g, Wb = p.mb * g, xc = p.L / 2;
+    var arm1 = (p.x1 - p.xp) * cs, arm2 = (p.x2 - p.xp) * cs, armb = (xc - p.xp) * cs;
+    var M1 = -W1 * arm1, M2 = -W2 * arm2, Mb = -Wb * armb, Mc = p.Fc * p.dc;
+    var sum = M1 + M2 + Mb + Mc, ccw = 0, cw = 0;
+    [M1, M2, Mb, Mc].forEach(function (m) { if (m > 0) ccw += m; else cw += -m; });
+    return { W1: W1, W2: W2, Wb: Wb, arm1: arm1, arm2: arm2, armb: armb, M1: M1, M2: M2, Mb: Mb, Mc: Mc, sum: sum, ccw: ccw, cw: cw, N: W1 + W2 + Wb, I: p.m1 * Math.pow(p.x1 - p.xp, 2) + p.m2 * Math.pow(p.x2 - p.xp, 2) + p.mb * p.L * p.L / 12 + p.mb * Math.pow(xc - p.xp, 2) + 0.5 };
+  }
+  function init() { return { th: 0, w: 0 }; }
+  function step(s, p, dt) { var T = torques(p, s.th); var alpha = T.sum / T.I - 1.2 * s.w; s.w += alpha * dt; s.th += PhysLab.deg(s.w * dt); if (s.th > 25) { s.th = 25; s.w = Math.min(0, s.w); } if (s.th < -25) { s.th = -25; s.w = Math.max(0, s.w); } return s; }
+  PhysLab.createSim({
+    id: 'S4.2', chapter: 4, topics: [2, 3, 4, 5, 7, 8], title: 'คานและโมเมนต์ของแรง',
+    alt: 'คานวางบนจุดหมุน มีน้ำหนักสองก้อนที่ลากตำแหน่งได้ ลูกศรแรงแนวฉากที่จุดหมุน และแรงคู่ควบสองแรง คานจะเอียงเมื่อโมเมนต์ไม่สมดุล',
+    torques: torques,
+    params: {
+      L: { label: 'ความยาวคาน', symbol: 'L', unit: 'm', type: 'range', min: 2, max: 6, step: 0.5, default: 4 },
+      xp: { label: 'ตำแหน่งจุดหมุน', symbol: 'x_p', unit: 'm', type: 'range', min: 0, max: 6, step: 0.1, default: 2, drag: true },
+      mb: { label: 'มวลคาน (ที่กึ่งกลาง)', symbol: 'm คาน', unit: 'kg', type: 'range', min: 0, max: 10, step: 0.5, default: 0 },
+      m1: { label: 'มวลก้อนที่ 1', symbol: 'm₁', unit: 'kg', type: 'range', min: 0, max: 20, step: 0.5, default: 6 },
+      x1: { label: 'ตำแหน่ง m₁', symbol: 'x₁', unit: 'm', type: 'range', min: 0, max: 6, step: 0.1, default: 1, drag: true },
+      m2: { label: 'มวลก้อนที่ 2', symbol: 'm₂', unit: 'kg', type: 'range', min: 0, max: 20, step: 0.5, default: 3, drag: false },
+      x2: { label: 'ตำแหน่ง m₂', symbol: 'x₂', unit: 'm', type: 'range', min: 0, max: 6, step: 0.1, default: 4, drag: true },
+      Fc: { label: 'แรงคู่ควบ F (ทวนเข็มเป็นบวก)', symbol: 'F', unit: 'N', type: 'range', min: -100, max: 100, step: 1, default: 0 },
+      dc: { label: 'ระยะห่างแรงคู่ควบ', symbol: 'd', unit: 'm', type: 'range', min: 0.2, max: 2, step: 0.1, default: 1 }
+    },
+    presets: [
+      { label: 'สมดุล 6 kg ที่ 1 m กับ 3 kg ที่ 4 m', values: { L: 4, xp: 2, m1: 6, x1: 1, m2: 3, x2: 4, mb: 0, Fc: 0 } }, { label: 'ไม่สมดุล (ซ้ายหนัก)', values: { L: 4, xp: 2, m1: 6, x1: 0.5, m2: 3, x2: 4, mb: 0, Fc: 0 } },
+      { label: 'คานมีมวล 4 kg', values: { L: 4, xp: 1.5, m1: 6, x1: 0.5, m2: 0, x2: 4, mb: 4, Fc: 0 } }, { label: 'แรงคู่ควบ 20 N ห่าง 1 m', values: { m1: 0, m2: 0, mb: 0, Fc: 20, dc: 1, xp: 2 } }
+    ],
+    toggles: [{ key: 'arms', label: 'ระยะตั้งฉาก' }],
+    world: function (p) { return { xMin: -0.6, xMax: p.L + 0.8, yMin: -1.6, yMax: 2.6, alignX: 'left' }; },
+    init: init, step: step,
+    draw: function (ctx, s, p, D) {
+      var c = D.color, T = torques(p, s.th), t = rad(s.th), cs = Math.cos(t), sn = Math.sin(t), py = 0.6;
+      function bp(x, up) { return [p.xp + (x - p.xp) * cs - (up || 0) * sn, py + (x - p.xp) * sn + (up || 0) * cs]; }
+      D.ground(-1.2); D.polyline([[p.xp, py], [p.xp - 0.35, -1.2], [p.xp + 0.35, -1.2]], { color: c.muted, width: 2, close: true, fill: c.soft });
+      var a = bp(0), b = bp(p.L); D.polyline([bp(0, -0.06), bp(p.L, -0.06), bp(p.L, 0.06), bp(0, 0.06)], { color: c.primary, width: 1.5, close: true, fill: c.primary });
+      for (var i = 0; i <= p.L; i++) { var q = bp(i, -0.1); D.label(String(i), q[0], q[1], { dy: 10, align: 'center' }); }
+      D.dot(p.xp, py, 6, c.text);
+      function weight(m, x, col, name) { if (m <= 0) return; var q = bp(x, 0.06); var sz = 0.25 + m * 0.02; D.rect(q[0] - sz / 2, q[1], sz, sz, { fill: col }); D.label(name + ' ' + m + ' kg', q[0], q[1] + sz + 0.15, { align: 'center' }); D.arrow(q[0], q[1] + sz / 2, 0, -Math.min(1.1, m * g * 0.012) - 0.3, { color: c.red, label: fmt(m * g) + ' N', width: 2.5 }); }
+      weight(p.m1, p.x1, c.orange, 'm₁'); weight(p.m2, p.x2, c.green, 'm₂');
+      if (p.mb > 0) { var qc = bp(p.L / 2, -0.06); D.arrow(qc[0], qc[1], 0, -Math.min(1.0, p.mb * g * 0.012) - 0.3, { color: c.red, label: 'W คาน ' + fmt(T.Wb), width: 2, dash: [3, 3] }); }
+      D.arrow(p.xp, py - 0.06, 0, Math.min(1.2, T.N * 0.006) + 0.3, { color: c.green, label: 'N = ' + fmt(T.N) + ' N', width: 3, dx: 8 });
+      if (Math.abs(p.Fc) > 0.01) { var q1 = bp(p.xp - p.dc / 2, 0.06), q2 = bp(p.xp + p.dc / 2, 0.06), len = 0.6 * Math.sign(p.Fc); D.arrow(q1[0], q1[1], 0, -len, { color: c.text, label: 'F', width: 2.5 }); D.arrow(q2[0], q2[1], 0, len, { color: c.text, label: 'F', width: 2.5 }); D.label('แรงคู่ควบ Mc = F × d = ' + fmt(T.Mc) + ' N·m', p.xp, 2.3, { align: 'center' }); }
+      if (D.view.arms) { [[p.x1, T.arm1, p.m1], [p.x2, T.arm2, p.m2]].forEach(function (e) { if (e[2] <= 0) return; var q = bp(e[0]); D.line(p.xp, -0.9, q[0], -0.9, { color: c.muted, width: 1.5 }); D.line(q[0], -0.9, q[0], q[1], { color: c.muted, dash: [3, 3], width: 1 }); D.label('ระยะตั้งฉาก ' + fmt(Math.abs(e[1])) + ' m', (p.xp + q[0]) / 2, -0.9, { dy: 12, align: 'center' }); }); }
+      D.label('ทวนเข็ม ' + fmt(T.ccw) + ' N·m · ตามเข็ม ' + fmt(T.cw) + ' N·m · ΣM = ' + fmt(T.sum), -0.5, 2.5, { color: Math.abs(T.sum) < 0.5 ? c.green : c.red });
+      D.label(Math.abs(T.sum) < 0.5 ? 'สมดุลสัมบูรณ์: ΣF = 0 และ ΣM = 0' : (T.sum > 0 ? 'หมุนทวนเข็ม' : 'หมุนตามเข็ม'), -0.5, 2.2, {});
+    },
+    dragHandles: function (s, p) { var t = rad(s.th); function bp(x) { return { x: p.xp + (x - p.xp) * Math.cos(t), y: 0.6 + (x - p.xp) * Math.sin(t) }; } var h1 = bp(p.x1), h2 = bp(p.x2); return [{ param: 'x1', x: h1.x, y: h1.y + 0.3, r: 14, map: function (wx) { return PhysLab.clamp(wx, 0, p.L); } }, { param: 'x2', x: h2.x, y: h2.y + 0.3, r: 14, map: function (wx) { return PhysLab.clamp(wx, 0, p.L); } }, { param: 'xp', x: p.xp, y: -0.4, r: 14, map: function (wx) { return PhysLab.clamp(wx, 0, p.L); } }]; },
+    readouts: function (s, p) {
+      var T = torques(p, s.th);
+      return [
+        { label: 'M ของ m₁', value: Math.abs(T.M1), unit: 'N·m ' + (T.M1 >= 0 ? 'ทวนเข็ม' : 'ตามเข็ม') }, { label: 'M ของ m₂', value: Math.abs(T.M2), unit: 'N·m ' + (T.M2 >= 0 ? 'ทวนเข็ม' : 'ตามเข็ม') },
+        { label: 'ΣM ทวนเข็ม', value: T.ccw, unit: 'N·m' }, { label: 'ΣM ตามเข็ม', value: T.cw, unit: 'N·m' },
+        { label: 'ΣM สุทธิ', value: T.sum, unit: 'N·m', highlight: true }, { label: 'แรงแนวฉากที่จุดหมุน N', value: T.N, unit: 'N', highlight: true },
+        { label: 'มุมเอียงของคาน', value: s.th, unit: '°' }, { label: 'สถานะ', value: Math.abs(T.sum) < 0.5 ? 'สมดุล' : 'ไม่สมดุล' }
+      ];
+    },
+    formulas: function (s, p) {
+      var T = torques(p, s.th);
+      return [
+        { symbolic: 'M = F × ระยะตั้งฉาก', substituted: 'm₁: ' + fmt(T.W1) + ' × ' + fmt(Math.abs(T.arm1)) + ' · m₂: ' + fmt(T.W2) + ' × ' + fmt(Math.abs(T.arm2)), result: '= ' + fmt(Math.abs(T.M1)) + ' · ' + fmt(Math.abs(T.M2)) + ' N·m' },
+        { symbolic: 'ΣM = 0: ทวนเข็ม = ตามเข็ม', substituted: fmt(T.ccw) + ' กับ ' + fmt(T.cw), result: Math.abs(T.sum) < 0.5 ? 'สมดุล ✓' : 'ต่าง ' + fmt(T.sum) + ' N·m' },
+        { symbolic: 'ΣF = 0: N = W₁ + W₂ + W คาน', substituted: '= ' + fmt(T.W1) + ' + ' + fmt(T.W2) + ' + ' + fmt(T.Wb), result: '= ' + fmt(T.N) + ' N' },
+        { symbolic: 'Mc = F × d', substituted: '= ' + p.Fc + ' × ' + p.dc, result: '= ' + fmt(T.Mc) + ' N·m' }
+      ];
+    },
+    sample: function (s) { return { th: s.th }; },
+    graphs: [{ title: 'มุมเอียงคานกับเวลา', x: 't', series: [{ key: 'th', label: 'θ (°)' }], window: 8 }],
+    content: {
+      summary: '<b>สมดุลต่อการเลื่อนที่</b> ΣF = 0 <b>สมดุลต่อการหมุน</b> ΣM = 0 โมเมนต์ทวนเข็มเท่ากับตามเข็ม <b>สมดุลสัมบูรณ์</b> มีทั้งสองอย่าง <b>โมเมนต์ของแรง</b> M = แรง × ระยะตั้งฉากจากจุดหมุนถึงแนวแรง แรงที่แนวผ่านจุดหมุนไม่มีโมเมนต์ <b>เทคนิคการเลือกจุดหมุน</b> เลือกจุดที่มีแรงที่ยังไม่รู้ค่าผ่าน เพื่อให้โมเมนต์ของแรงนั้นเป็นศูนย์ <b>โมเมนต์ของแรงคู่ควบ</b> แรงสองแรงขนาดเท่ากัน ขนานกัน ทิศตรงข้าม ทำให้หมุนอย่างเดียว Mc = F × ระยะห่างระหว่างแนวแรง',
+      tryIt: ['ลาก m₂ ไปจนคานสมดุล แล้วตรวจว่า W₁ × ระยะ = W₂ × ระยะ', 'ลากจุดหมุนไปไว้ใต้ m₁ ดูว่าโมเมนต์ของ m₁ กลายเป็นศูนย์ (เทคนิคเลือกจุดหมุน)', 'ใส่แรงคู่ควบ ดูว่าคานหมุนโดย N ไม่เปลี่ยน เพราะแรงคู่ควบหักกันในแนวเลื่อน']
+    }
+  });
+})();
+</script>
+</body>
+</html>

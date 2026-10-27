@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S12.3 ความเข้มเสียงและระดับเสียง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S12.3 ความเข้มเสียงและระดับเสียง · บท 12 เรื่อง 5, 6
+   สูตร: I = P/4πr² · I₀ = 10⁻¹² W/m² · β = 10 log(I/I₀) · ห่าง 2 เท่า I เหลือ 1/4 (ลด 6 dB) · I เพิ่ม 10 เท่า β เพิ่ม 10 dB
+   แบบจำลองนิ่ง · เสียงจริงผ่าน Web Audio ปรับความดังตามระยะ · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, Audio = PhysLab.Audio, I0 = 1e-12, audioOn = false;
+  function gainFor(p) { var b = calc(p).beta; return PhysLab.clamp(0.25 * Math.pow(10, (b - 100) / 20), 0.001, 0.25); }
+  function calc(p) { var I = p.P / (4 * Math.PI * p.r * p.r); return { I: I, beta: 10 * Math.log10(I / I0) }; }
+  PhysLab.createSim({
+    id: 'S12.3', chapter: 12, topics: [5, 6], title: 'ความเข้มเสียงและระดับเสียง', static: true, audio: true,
+    alt: 'ลำโพงตรงกลางซ้ายแผ่คลื่นเสียงเป็นวงกลมที่จางลงตามระยะ ผู้ฟังลากได้ตามแนวนอน มีมาตรวัดเดซิเบลแนวตั้งทางขวา',
+    calc: calc,
+    params: {
+      P: { label: 'กำลังเสียงของแหล่งกำเนิด', symbol: 'P', unit: 'W', type: 'range', min: 0.0001, max: 10, step: 0.0001, default: 0.1 },
+      r: { label: 'ระยะผู้ฟัง (ลากได้)', symbol: 'r', unit: 'm', type: 'range', min: 0.5, max: 20, step: 0.1, default: 4 }
+    },
+    presets: [{ label: 'ลำโพง 0.1 W ห่าง 4 m', values: { P: 0.1, r: 4 } }, { label: 'ห่าง 2 เท่า (8 m) ลด 6 dB', values: { P: 0.1, r: 8 } }, { label: 'กำลัง 10 เท่า (1 W) เพิ่ม 10 dB', values: { P: 1, r: 4 } }, { label: 'กระซิบ 0.0001 W', values: { P: 0.0001, r: 1 } }, { label: 'ดังมาก 10 W ใกล้ 0.5 m', values: { P: 10, r: 0.5 } }],
+    world: { xMin: -2.5, xMax: 24, yMin: -6, yMax: 6 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p), i;
+      D.rect(-2.2, -0.9, 1.3, 1.8, { fill: c.text }); D.polyline([[-0.9, -0.5], [-0.3, -1.1], [-0.3, 1.1], [-0.9, 0.5]], { close: true, fill: c.muted }); D.label('P = ' + p.P + ' W', -1.6, -1.2, { dy: 10, align: 'center', color: c.text });
+      for (i = 1; i <= 11; i++) { var rr = i * 2, a = PhysLab.clamp(0.9 / (i * 0.55), 0.05, 0.9); ctx.save(); ctx.globalAlpha = a; D.arc(-0.3, 0, rr, -1.2, 1.2, { color: c.primary, width: 2 }); ctx.restore(); }
+      D.line(-0.3, -4.8, p.r - 0.3, -4.8, { color: c.orange, width: 1.5 }); D.label('r = ' + p.r + ' m', (p.r - 0.3) / 2, -4.8, { dy: 14, align: 'center', color: c.orange });
+      D.circle(p.r - 0.3, 0.9, 0.45, { fill: c.orange }); D.rect(p.r - 0.75, -1.4, 0.9, 1.9, { fill: c.orange }); D.label('ผู้ฟัง', p.r - 0.3, -1.6, { dy: 10, align: 'center', color: c.orange });
+      D.label('I = P/4πr² = ' + fmt(C.I) + ' W/m² · β = 10 log(I/I₀) = ' + fmt(C.beta) + ' dB', -2.2, 5.5, { color: c.text, bold: true });
+      var mx = 22, lo = -5, hi = 5, Y = function (dB) { return lo + (hi - lo) * PhysLab.clamp(dB / 140, 0, 1); };
+      D.rect(mx - 0.5, lo, 1, hi - lo, { fill: c.soft }); D.rect(mx - 0.5, lo, 1, Y(C.beta) - lo, { fill: C.beta > 85 ? c.red : C.beta > 60 ? c.orange : c.green });
+      [[0, 'เริ่มได้ยิน'], [20, 'กระซิบ'], [40, 'ห้องเงียบ'], [60, 'คุยปกติ'], [85, 'เริ่มอันตรายถ้าฟังนาน'], [100, 'คอนเสิร์ต'], [120, 'เจ็บหู'], [140, 'เครื่องบินเจ็ต']].forEach(function (m) { D.line(mx - 0.7, Y(m[0]), mx + 0.5, Y(m[0]), { color: c.text, width: 1 }); D.label(m[0] + ' dB ' + m[1], mx - 0.9, Y(m[0]), { align: 'right', color: c.muted }); });
+      D.label(fmt(C.beta) + ' dB', mx + 0.7, Y(C.beta), { color: c.text, bold: true });
+    },
+    dragHandles: function (s, p) { return [{ param: 'r', x: p.r - 0.3, y: 0, r: 22, map: function (wx) { return PhysLab.clamp(wx + 0.3, 0.5, 20); } }]; },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'I = P/4πr²', value: C.I, unit: 'W/m²', highlight: true }, { label: 'I/I₀', value: C.I / I0 }, { label: 'β = 10 log(I/I₀)', value: C.beta, unit: 'dB', highlight: true }, { label: 'ถ้าห่าง 2 เท่า: I', value: C.I / 4, unit: 'W/m²' }, { label: 'ถ้าห่าง 2 เท่า: β', value: C.beta - 10 * Math.log10(4), unit: 'dB' }]; },
+    formulas: function (s, p) { var C = calc(p); return [{ symbolic: 'I = P/4πr²', substituted: '= ' + p.P + ' / (4π × ' + p.r + '²)', result: '= ' + fmt(C.I) + ' W/m²' }, { symbolic: 'β = 10 log(I/I₀)', substituted: '= 10 log(' + fmt(C.I) + ' / 10⁻¹²)', result: '= ' + fmt(C.beta) + ' dB' }]; },
+    setup: function (api) { var btn = api.addButton('ฟังเสียง', function () { audioOn = !audioOn; if (audioOn) { Audio.tone('s', { freq: 440, gain: gainFor(api.params) }); btn.textContent = 'หยุดเสียง'; } else { Audio.stop('s'); btn.textContent = 'ฟังเสียง'; } }); },
+    onParam: function (k, v, p) { if (audioOn) Audio.set('s', { gain: gainFor(p) }); },
+    content: {
+      summary: '<b>ความเข้มเสียง</b> กำลังเสียงต่อพื้นที่ I = P/4πr² ห่างออกไป 2 เท่า ความเข้มลดเหลือ 1/4 ความเข้มต่ำสุดที่ได้ยิน I₀ = 10⁻¹² W/m² <b>ระดับเสียง</b> หน่วยเดซิเบล β = 10 log(I/I₀) ความเข้มเพิ่ม 10 เท่า ระดับเสียงเพิ่ม 10 dB',
+      tryIt: ['ลากผู้ฟังจาก 4 m ไป 8 m ดูว่า I เหลือ 1/4 และ β ลด 6 dB', 'เพิ่ม P จาก 0.1 เป็น 1 W ดูว่า β เพิ่ม 10 dB พอดี', 'กด "ฟังเสียง" แล้วลากผู้ฟังออกห่าง ฟังว่าเสียงค่อยลง']
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S3.3 แรงสปริง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S3.3 แรงสปริง · บท 3 เรื่อง 9
+   สูตร: F = −kx · ยืดหรือหด x จากตำแหน่งธรรมชาติ · แขวนมวล: mg = kx → x = mg/k · แบบนิ่ง ลากมวลได้ · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  PhysLab.createSim({
+    id: 'S3.3', chapter: 3, topics: [9], title: 'แรงสปริง', static: true,
+    alt: 'สปริงแนวนอนติดผนัง มีมวลที่ลากยืดหรือหดได้ ลูกศรแรงสปริงชี้กลับหาตำแหน่งธรรมชาติ และกราฟ F กับ x เป็นเส้นตรงผ่านจุดกำเนิด',
+    params: {
+      k: { label: 'ค่าคงตัวสปริง', symbol: 'k', unit: 'N/m', type: 'range', min: 10, max: 500, step: 10, default: 100 },
+      x: { label: 'ระยะยืด (+) หรือหด (−)', symbol: 'x', unit: 'm', type: 'range', min: -0.3, max: 0.3, step: 0.01, default: 0.1, drag: true },
+      m: { label: 'มวลที่แขวน (แนวดิ่ง)', symbol: 'm', unit: 'kg', type: 'range', min: 0, max: 5, step: 0.1, default: 1 }
+    },
+    presets: [{ label: 'ยืด 0.1 m', values: { k: 100, x: 0.1 } }, { label: 'หด 0.2 m', values: { k: 100, x: -0.2 } }, { label: 'สปริงแข็ง 400 N/m', values: { k: 400, x: 0.1 } }, { label: 'แขวน 1 kg (x = mg/k)', values: { k: 100, m: 1, x: 0.098 } }],
+    toggles: [{ key: 'vert', label: 'แสดงสปริงแขวนมวล' }],
+    world: { xMin: -0.45, xMax: 0.95, yMin: -0.5, yMax: 0.45 },
+    init: function (p) { return { F: -p.k * p.x, xeq: p.m * 9.8 / p.k }; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, L0 = 0.4, wallX = -0.4, y = 0.2;
+      D.hatch(wallX, y - 0.22, wallX, y + 0.22, { n: 6, side: -1 }); D.line(wallX, y - 0.25, 0.9, y - 0.25, { color: c.line, width: 1.5 });
+      var bx = wallX + L0 + p.x;
+      D.spring(wallX, y, bx, y, { coils: 12, amp: 9, color: c.muted });
+      D.rect(bx, y - 0.1, 0.2, 0.2, { fill: c.primary });
+      D.line(wallX + L0, y - 0.3, wallX + L0, y + 0.3, { color: c.line, dash: [4, 3] }); D.label('ตำแหน่งธรรมชาติ x = 0', wallX + L0, y + 0.3, { dy: -10, align: 'center' });
+      var k = 0.25 / Math.max(Math.abs(s.F), 10);
+      if (Math.abs(p.x) > 0.002) { D.arrow(bx + 0.1, y, s.F * k, 0, { color: c.orange, label: 'F = −kx = ' + fmt(s.F) + ' N', width: 3.5, dy: -14 }); D.line(wallX + L0, y - 0.18, bx, y - 0.18, { color: c.text, width: 1.5 }); D.label('x = ' + fmt(p.x) + ' m', (wallX + L0 + bx) / 2, y - 0.18, { dy: 12, align: 'center', color: c.text }); }
+      D.textPx('ลากกล่องเพื่อยืดหรือหด', D.x(wallX), D.y(y + 0.42), { size: 12, color: c.muted });
+      var gx0 = -0.4, gy0 = -0.48, gw = 0.35, gh = 0.3;
+      D.rect(gx0, gy0, gw, gh, { fill: c.card, stroke: c.line });
+      D.line(gx0, gy0 + gh / 2, gx0 + gw, gy0 + gh / 2, { color: c.line, width: 1 }); D.line(gx0 + gw / 2, gy0, gx0 + gw / 2, gy0 + gh, { color: c.line, width: 1 });
+      var sc = (gh / 2) / Math.max(p.k * 0.3, 1);
+      D.line(gx0, gy0 + gh / 2 + p.k * 0.3 * sc * 0.95, gx0 + gw, gy0 + gh / 2 - p.k * 0.3 * sc * 0.95, { color: c.orange, width: 2 });
+      D.dot(gx0 + gw / 2 + p.x / 0.3 * gw / 2 * 0.95, gy0 + gh / 2 + s.F * sc * 0.95, 5, c.primary);
+      D.label('กราฟ F-x ความชัน = −k', gx0, gy0 + gh, { dy: -8, color: c.muted }); D.label('x', gx0 + gw, gy0 + gh / 2, { dx: 4 }); D.label('F', gx0 + gw / 2, gy0 + gh, { dy: -8, dx: 6 });
+      if (D.view.vert) {
+        var vx = 0.78, topY = 0.42, xe = s.xeq, yM = topY - L0 - xe;
+        D.line(vx - 0.15, topY, vx + 0.15, topY, { color: c.line, width: 3 });
+        D.spring(vx, topY, vx, yM, { coils: 10, amp: 7, color: c.muted });
+        D.rect(vx - 0.08, yM - 0.16, 0.16, 0.16, { fill: c.orange }); D.label(p.m + ' kg', vx, yM - 0.08, { align: 'center', color: c.card });
+        D.line(vx + 0.12, topY - L0, vx + 0.12, yM, { color: c.text, width: 1.5 }); D.label('x = mg/k = ' + fmt(xe) + ' m', vx + 0.14, (topY - L0 + yM) / 2, { color: c.text });
+        D.label('สมดุล: kx = mg', vx, yM - 0.26, { align: 'center' });
+      }
+    },
+    dragHandles: function (s, p, D) { return [{ param: 'x', x: -0.4 + 0.4 + p.x + 0.1, y: 0.2, r: 16, map: function (wx) { return wx - 0.1; } }]; },
+    readouts: function (s, p) {
+      return [
+        { label: 'x', value: p.x, unit: 'm' }, { label: 'แรงสปริง F = −kx', value: s.F, unit: 'N', color: '#E07A1F', highlight: true },
+        { label: 'ทิศของแรง', value: p.x > 0 ? 'ดึงกลับ (ตรงข้ามการยืด)' : p.x < 0 ? 'ดันออก (ตรงข้ามการหด)' : 'ศูนย์' }, { label: 'ขนาด |F|', value: Math.abs(s.F), unit: 'N' },
+        { label: 'ระยะสมดุลเมื่อแขวน m', value: s.xeq, unit: 'm', highlight: true }, { label: 'น้ำหนัก mg', value: p.m * 9.8, unit: 'N' }
+      ];
+    },
+    formulas: function (s, p) { return [{ symbolic: 'F = −kx', substituted: '= −(' + p.k + ')(' + fmt(p.x) + ')', result: '= ' + fmt(s.F) + ' N' }, { symbolic: 'แขวนมวล: kx = mg → x = mg/k', substituted: '= ' + p.m + '(9.8)/' + p.k, result: '= ' + fmt(s.xeq) + ' m' }]; },
+    content: {
+      summary: '<b>แรงสปริง</b> สปริงยืดหรือหดเท่าไรก็ดันกลับเท่านั้น F = −kx เครื่องหมายลบแปลว่าทิศตรงข้ามกับการยืด ค่า k บอกความแข็งของสปริง ยิ่ง k มาก ยิ่งต้องใช้แรงมากในการยืดเท่าเดิม',
+      tryIt: ['ลากกล่องไปทางขวาแล้วซ้าย ดูว่าลูกศรแรงชี้กลับหาตำแหน่งธรรมชาติเสมอ', 'เพิ่ม k เป็น 4 เท่า ดูว่าแรงที่ x เท่าเดิมเพิ่ม 4 เท่า และกราฟชันขึ้น', 'เปิดสปริงแขวน แล้วเพิ่มมวล ดูว่าระยะยืดเพิ่มตาม mg/k']
+    }
+  });
+})();
+</script>
+</body>
+</html>

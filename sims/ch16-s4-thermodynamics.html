@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S16.4 งาน กฎข้อที่หนึ่ง และกราฟ P-V · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S16.4 งาน กฎข้อที่หนึ่ง และกราฟ P-V · บท 16 เรื่อง 11, 12, 13, 14
+   สูตร: W = PΔV (พื้นที่ใต้กราฟ P-V) · Q = ΔU + W · ΔU = (3/2)nRΔT (แก๊สอะตอมเดี่ยว) · ความดันคงที่ W = P(V₂−V₁) · อุณหภูมิคงที่ W = nRT ln(V₂/V₁) · วนครบรอบ W สุทธิ = พื้นที่ในวงปิด
+   กระบวนการดำเนินไปตามเวลา (u 0→1) พร้อมระบายพื้นที่ใต้กราฟ · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, R = 8.31;
+  function T0(p) { return p.P1 * 1e3 * p.V1 * 1e-3 / (p.n * R); }
+  function state(p, u) {
+    var P1 = p.P1 * 1e3, P2 = p.P2 * 1e3, V1 = p.V1 * 1e-3, V2 = p.V2 * 1e-3;
+    if (p.proc === 'isobaric') return { P: P1, V: V1 + (V2 - V1) * u };
+    if (p.proc === 'isochoric') return { P: P1 + (P2 - P1) * u, V: V1 };
+    if (p.proc === 'isothermal') { var V = V1 + (V2 - V1) * u; return { P: P1 * V1 / V, V: V }; }
+    var leg = Math.min(3, Math.floor(u * 4)), f = u * 4 - leg;
+    if (leg === 0) return { P: P1, V: V1 + (V2 - V1) * f }; if (leg === 1) return { P: P1 + (P2 - P1) * f, V: V2 }; if (leg === 2) return { P: P2, V: V2 + (V1 - V2) * f }; return { P: P2 + (P1 - P2) * f, V: V1 };
+  }
+  function totals(p) { var P1 = p.P1 * 1e3, P2 = p.P2 * 1e3, V1 = p.V1 * 1e-3, V2 = p.V2 * 1e-3, Ta = T0(p), W, Tb; if (p.proc === 'isobaric') { W = P1 * (V2 - V1); Tb = Ta * V2 / V1; } else if (p.proc === 'isochoric') { W = 0; Tb = Ta * P2 / P1; } else if (p.proc === 'isothermal') { W = p.n * R * Ta * Math.log(V2 / V1); Tb = Ta; } else { W = (P1 - P2) * (V2 - V1); Tb = Ta; } var dU = 1.5 * p.n * R * (Tb - Ta); return { W: W, dU: dU, Q: dU + W, Ta: Ta, Tb: Tb }; }
+  function init() { return { u: 0, W: 0, last: null }; }
+  function step(s, p, dt) { if (s.u >= 1) return s; var prev = state(p, s.u); s.u = Math.min(1, s.u + 0.2 * dt); var cur = state(p, s.u); s.W += 0.5 * (prev.P + cur.P) * (cur.V - prev.V); return s; }
+  PhysLab.createSim({
+    id: 'S16.4', chapter: 16, topics: [11, 12, 13, 14], title: 'งาน กฎข้อที่หนึ่ง และกราฟ P-V',
+    alt: 'กระบอกสูบทางซ้ายมีลูกสูบเลื่อนตามปริมาตร มีเปลวไฟเมื่อรับความร้อน ด้านขวาเป็นกราฟ P-V ที่จุดสถานะเคลื่อนไปตามเส้นทางของกระบวนการ และระบายพื้นที่ใต้กราฟที่แทนงาน',
+    totals: totals, state: state,
+    params: {
+      proc: { label: 'กระบวนการ', type: 'choice', options: [{ label: 'ความดันคงที่', value: 'isobaric' }, { label: 'ปริมาตรคงที่', value: 'isochoric' }, { label: 'อุณหภูมิคงที่', value: 'isothermal' }, { label: 'วัฏจักร (สี่เหลี่ยม)', value: 'cycle' }], default: 'isobaric' },
+      n: { label: 'จำนวนโมล (อะตอมเดี่ยว)', symbol: 'n', unit: 'mol', type: 'range', min: 0.1, max: 5, step: 0.1, default: 1 },
+      P1: { label: 'ความดันเริ่มต้น P₁', symbol: 'P₁', unit: 'kPa', type: 'range', min: 50, max: 500, step: 10, default: 200 },
+      P2: { label: 'ความดันปลาย P₂ (ปริมาตรคงที่/วัฏจักร)', symbol: 'P₂', unit: 'kPa', type: 'range', min: 50, max: 500, step: 10, default: 100 },
+      V1: { label: 'ปริมาตรเริ่มต้น V₁', symbol: 'V₁', unit: 'L', type: 'range', min: 2, max: 50, step: 1, default: 10 },
+      V2: { label: 'ปริมาตรปลาย V₂', symbol: 'V₂', unit: 'L', type: 'range', min: 2, max: 50, step: 1, default: 30 }
+    },
+    presets: [{ label: 'ขยายตัวที่ความดันคงที่ 10 → 30 L', values: { proc: 'isobaric', P1: 200, V1: 10, V2: 30 } }, { label: 'หดตัวที่ความดันคงที่ (W ลบ)', values: { proc: 'isobaric', V1: 30, V2: 10 } }, { label: 'ให้ความร้อนปริมาตรคงที่ (W = 0)', values: { proc: 'isochoric', P1: 100, P2: 300, V1: 10 } }, { label: 'ขยายตัวอุณหภูมิคงที่ (ΔU = 0)', values: { proc: 'isothermal', P1: 300, V1: 10, V2: 30 } }, { label: 'วัฏจักรตามเข็ม (W สุทธิ +)', values: { proc: 'cycle', P1: 300, P2: 100, V1: 10, V2: 30 } }],
+    speeds: [0.5, 1, 2], dt: 1 / 120,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: init, step: step,
+    timeLabel: function (t, s) { return 'ความคืบหน้า ' + fmt(s.u * 100, 3) + '% · W สะสม = ' + fmt(s.W) + ' J'; },
+    done: function (s) { return s.u >= 1; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, st = state(p, s.u), T = st.P * st.V / (p.n * R), tot = totals(p), i;
+      var h = 0.5 + 3.2 * st.V / 0.05, x0 = 0.7, w = 2.2;
+      D.rect(x0, 0.8, w, h, { fill: 'hsl(' + (240 - PhysLab.clamp((T - 100) / 1400, 0, 1) * 240) + ', 70%, 85%)' }); D.line(x0, 4.6, x0, 0.8, { color: c.text, width: 3 }); D.line(x0, 0.8, x0 + w, 0.8, { color: c.text, width: 3 }); D.line(x0 + w, 0.8, x0 + w, 4.6, { color: c.text, width: 3 });
+      D.rect(x0, 0.8 + h, w, 0.16, { fill: c.muted }); D.line(x0 + w / 2, 0.8 + h + 0.16, x0 + w / 2, 4.9, { color: c.muted, width: 5 });
+      var dQ = tot.Q; if (Math.abs(dQ) > 1) { for (i = 0; i < 4; i++) D.polyline([[x0 + 0.3 + i * 0.5, 0.25], [x0 + 0.45 + i * 0.5, 0.7], [x0 + 0.6 + i * 0.5, 0.25]], { close: true, fill: dQ > 0 ? c.red : c.primary }); D.label(dQ > 0 ? 'ใส่ความร้อน Q > 0' : 'ดึงความร้อนออก Q < 0', x0 + w / 2, 0.1, { dy: 4, align: 'center', color: dQ > 0 ? c.red : c.primary }); }
+      D.label('V = ' + fmt(st.V * 1000) + ' L · P = ' + fmt(st.P / 1000) + ' kPa · T = ' + fmt(T) + ' K', x0 + w / 2, 5.0, { dy: 4, align: 'center', color: c.text, bold: true });
+      var gx0 = 4.0, gx1 = 9.6, gy0 = 0.9, gy1 = 4.6, X = function (V) { return gx0 + (gx1 - gx0) * V / 0.055; }, Y = function (P) { return gy0 + (gy1 - gy0) * P / 5.5e5; };
+      D.rect(gx0, gy0, gx1 - gx0, gy1 - gy0, { fill: c.card, stroke: c.line }); D.label('V (L)', gx1, gy0, { dy: 12, align: 'right', color: c.muted }); D.label('P (kPa)', gx0, gy1, { dy: -4, color: c.muted });
+      [10, 20, 30, 40, 50].forEach(function (V) { D.label(String(V), X(V * 1e-3), gy0, { dy: 12, align: 'center', color: c.muted }); }); [100, 200, 300, 400, 500].forEach(function (P) { D.label(String(P), gx0, Y(P * 1e3), { dx: -4, align: 'right', color: c.muted }); });
+      var path = [], area = []; for (i = 0; i <= 60; i++) { var q = state(p, i / 60); path.push([X(q.V), Y(q.P)]); } D.polyline(path, { color: c.line, width: 1.5, dash: [4, 3] });
+      var n = Math.max(1, Math.round(s.u * 60)); for (i = 0; i <= n; i++) { var q2 = state(p, Math.min(s.u, i / 60) ); area.push([X(q2.V), Y(q2.P)]); }
+      if (p.proc !== 'cycle' && area.length > 1) { var poly = [[area[0][0], gy0]].concat(area, [[area[area.length - 1][0], gy0]]); D.polyline(poly, { close: true, fill: 'rgba(224,122,31,0.25)' }); }
+      else if (area.length > 2) D.polyline(area, { close: s.u >= 1, fill: s.u >= 1 ? 'rgba(224,122,31,0.25)' : null, color: c.orange, width: 2 });
+      D.polyline(area, { color: c.orange, width: 2.5 }); D.dot(X(st.V), Y(st.P), 6, c.red, { stroke: c.card, width: 1.5 });
+      D.label('พื้นที่ใต้กราฟ = W ที่แก๊สทำ' + (p.proc === 'cycle' ? ' · วนครบรอบ: พื้นที่ในวงปิด = W สุทธิ' : ''), gx0 + 0.1, gy1 - 0.08, { color: c.text, bg: c.card });
+      D.label('Q = ΔU + W: ' + fmt(tot.Q) + ' = ' + fmt(tot.dU) + ' + ' + fmt(tot.W) + ' J (ทั้งกระบวนการ)', 4.0, 0.3, { color: c.primary, bold: true });
+    },
+    readouts: function (s, p) { var tot = totals(p); return [{ label: 'W ที่แก๊สทำ (ทั้งกระบวนการ)', value: tot.W, unit: 'J', highlight: true }, { label: 'ΔU = (3/2)nRΔT', value: tot.dU, unit: 'J', highlight: true }, { label: 'Q = ΔU + W', value: tot.Q, unit: 'J', highlight: true }, { label: 'T เริ่ม → T ปลาย', value: fmt(tot.Ta) + ' → ' + fmt(tot.Tb), unit: 'K' }, { label: 'W สะสมถึงตอนนี้', value: s.W, unit: 'J' }, { label: 'เครื่องหมาย', value: (tot.Q > 0 ? 'Q+ ดูดความร้อน' : tot.Q < 0 ? 'Q− คายความร้อน' : 'Q = 0') + ' · ' + (tot.W > 0 ? 'W+ ขยายตัว' : tot.W < 0 ? 'W− ถูกอัด' : 'W = 0') }]; },
+    formulas: function (s, p) { var tot = totals(p); return [p.proc === 'isobaric' ? { symbolic: 'W = PΔV', substituted: '= ' + p.P1 + '×10³ × (' + p.V2 + ' − ' + p.V1 + ')×10⁻³', result: '= ' + fmt(tot.W) + ' J' } : p.proc === 'isochoric' ? { symbolic: 'W = PΔV = 0 (ΔV = 0)', substituted: '', result: 'W = 0' } : p.proc === 'isothermal' ? { symbolic: 'W = nRT ln(V₂/V₁)', substituted: '= ' + p.n + ' × 8.31 × ' + fmt(tot.Ta) + ' × ln(' + p.V2 + '/' + p.V1 + ')', result: '= ' + fmt(tot.W) + ' J' } : { symbolic: 'W สุทธิ = (P₁ − P₂)(V₂ − V₁)', substituted: '= (' + p.P1 + ' − ' + p.P2 + ')×10³ × (' + p.V2 + ' − ' + p.V1 + ')×10⁻³', result: '= ' + fmt(tot.W) + ' J' }, { symbolic: 'ΔU = (3/2)nRΔT', substituted: '= 1.5 × ' + p.n + ' × 8.31 × (' + fmt(tot.Tb) + ' − ' + fmt(tot.Ta) + ')', result: '= ' + fmt(tot.dU) + ' J' }, { symbolic: 'Q = ΔU + W', substituted: '= ' + fmt(tot.dU) + ' + ' + fmt(tot.W), result: '= ' + fmt(tot.Q) + ' J' }]; },
+    sample: function (s, p) { var st = state(p, s.u); return { V: st.V * 1000, P: st.P / 1000 }; },
+    graphs: [{ title: 'P และ V กับเวลา', x: 't', series: [{ key: 'P', label: 'P (kPa)' }, { key: 'V', label: 'V (L)', color: '#E07A1F' }], window: 6 }],
+    content: {
+      summary: '<b>งานที่ทำโดยแก๊ส</b> แก๊สขยายตัวดันลูกสูบได้งาน W = PΔV <b>กฎข้อที่หนึ่งของอุณหพลศาสตร์</b> ความร้อนที่ใส่เข้าไป = พลังงานภายในที่เพิ่ม + งานที่แก๊สทำ Q = ΔU + W <b>การแทนเครื่องหมาย</b> Q บวกเมื่อดูดความร้อน ΔU บวกเมื่ออุณหภูมิเพิ่ม W บวกเมื่อแก๊สขยายตัว กลับกันเป็นลบ ไม่เปลี่ยนเป็นศูนย์ <b>กราฟ P-V</b> พื้นที่ใต้กราฟคืองาน ขยายตัวได้งานบวก หดตัวได้งานลบ วนครบรอบพื้นที่ในวงปิดคืองานสุทธิ',
+      tryIt: ['กระบวนการความดันคงที่: กดเล่นแล้วดูพื้นที่สี่เหลี่ยมใต้กราฟเท่ากับ W', 'เลือกปริมาตรคงที่ ดูว่าไม่มีพื้นที่ใต้กราฟ (W = 0) ความร้อนทั้งหมดกลายเป็น ΔU', 'เลือกวัฏจักร ดูว่า W สุทธิ = พื้นที่ในสี่เหลี่ยม และ ΔU ครบรอบ = 0']
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S11.1 การสะท้อน การหักเห และลึกปรากฏ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S11.1 การสะท้อน การหักเห และลึกปรากฏ · บท 11 เรื่อง 1, 2, 3, 4
+   สูตร: n = c/v · มุมตก = มุมสะท้อน · sinθ₁/sinθ₂ = n₂/n₁ · sinθc = n₂/n₁ · h จริง/h ปรากฏ = n วัตถุ/n ตา
+   แบบจำลองนิ่ง (เรขาคณิตของรังสี) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad, deg = PhysLab.deg, C0 = 3e8;
+  function snell(p) { var s2 = p.n1 * Math.sin(rad(p.th1)) / p.n2; return { s2: s2, th2: s2 <= 1 ? deg(Math.asin(s2)) : NaN, tir: s2 > 1, thc: p.n1 > p.n2 ? deg(Math.asin(p.n2 / p.n1)) : NaN, v1: C0 / p.n1, v2: C0 / p.n2 }; }
+  function depth(p) { return { happ: p.h * p.n1 / p.n2 }; }
+  PhysLab.createSim({
+    id: 'S11.1', chapter: 11, topics: [1, 2, 3, 4], title: 'การสะท้อน การหักเห และลึกปรากฏ', static: true,
+    alt: 'โหมดหักเห: รังสีแสงผ่านรอยต่อตัวกลางสองชนิด มีรังสีสะท้อนและรังสีหักเห พร้อมมุม โหมดกระจกเงาราบ: วัตถุหน้ากระจกกับภาพเสมือนหลังกระจก โหมดลึกปรากฏ: ปลาในน้ำที่ตาเห็นตื้นกว่าจริง',
+    snell: snell, depth: depth,
+    params: {
+      mode: { label: 'สถานการณ์', type: 'choice', options: [{ label: 'การหักเห / มุมวิกฤต', value: 'refract' }, { label: 'กระจกเงาราบ', value: 'mirror' }, { label: 'ลึกจริง ลึกปรากฏ', value: 'depth' }], default: 'refract' },
+      n1: { label: 'ดัชนีหักเหตัวกลางที่ 1 (ด้านบน)', symbol: 'n₁', type: 'range', min: 1, max: 2.5, step: 0.01, default: 1 },
+      n2: { label: 'ดัชนีหักเหตัวกลางที่ 2 (ด้านล่าง)', symbol: 'n₂', type: 'range', min: 1, max: 2.5, step: 0.01, default: 1.33 },
+      th1: { label: 'มุมตกกระทบ', symbol: 'θ₁', unit: '°', type: 'range', min: 0, max: 89, step: 1, default: 30 },
+      d: { label: 'ระยะวัตถุจากกระจก (โหมดกระจก)', symbol: 's', unit: 'm', type: 'range', min: 0.3, max: 2.5, step: 0.05, default: 1.2, drag: true },
+      h: { label: 'ความลึกจริง (โหมดลึกปรากฏ)', symbol: 'h', unit: 'm', type: 'range', min: 0.5, max: 3, step: 0.05, default: 1.5, drag: true }
+    },
+    presets: [{ label: 'อากาศ → น้ำ 30°', values: { mode: 'refract', n1: 1, n2: 1.33, th1: 30 } }, { label: 'น้ำ → อากาศ 30° (เบนออก)', values: { mode: 'refract', n1: 1.33, n2: 1, th1: 30 } }, { label: 'น้ำ → อากาศ 60° (สะท้อนกลับหมด)', values: { mode: 'refract', n1: 1.33, n2: 1, th1: 60 } }, { label: 'แก้ว → อากาศ ที่มุมวิกฤต', values: { mode: 'refract', n1: 1.5, n2: 1, th1: 42 } }, { label: 'เพชร n = 2.42', values: { mode: 'refract', n1: 1, n2: 2.42, th1: 45 } }, { label: 'กระจกเงาราบ', values: { mode: 'mirror', d: 1.2 } }, { label: 'ปลาในน้ำลึก 1.5 m', values: { mode: 'depth', n1: 1, n2: 1.33, h: 1.5 } }],
+    toggles: [{ key: 'refl', label: 'รังสีสะท้อน' }, { key: 'angles', label: 'มุม' }],
+    world: function (p) { return p.mode === 'refract' ? { xMin: -3, xMax: 3, yMin: -2.4, yMax: 2.4 } : p.mode === 'mirror' ? { xMin: -3.6, xMax: 3.6, yMin: -1.3, yMax: 2.2 } : { xMin: -2.6, xMax: 2.6, yMin: -p.h - 0.6, yMax: 1.7 }; },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = D.world;
+      if (p.mode === 'refract') {
+        var S = snell(p), t1 = rad(p.th1), ix = Math.sin(t1), iy = -Math.cos(t1);
+        D.rect(W.xMin, 0, W.xMax - W.xMin, W.yMax, { fill: p.n1 <= p.n2 ? c.card : c.accentSoft }); D.rect(W.xMin, W.yMin, W.xMax - W.xMin, -W.yMin, { fill: p.n2 >= p.n1 ? c.accentSoft : c.card });
+        D.line(W.xMin, 0, W.xMax, 0, { color: c.muted, width: 2 }); D.line(0, -2.2, 0, 2.2, { color: c.muted, dash: [4, 3], width: 1 });
+        D.arrow(-2.3 * ix, -2.3 * iy, 2.3 * ix, 2.3 * iy, { color: c.orange, width: 3 }); D.label('รังสีตกกระทบ', -2.3 * ix, -2.3 * iy, { dx: 10, color: c.orange });
+        if (D.view.refl || S.tir) { D.arrow(0, 0, 2.3 * ix, -2.3 * iy, { color: S.tir ? c.red : c.muted, width: S.tir ? 3 : 1.5 }); D.label(S.tir ? 'สะท้อนกลับหมด' : 'รังสีสะท้อน', 2.3 * ix, -2.3 * iy, { dx: 8, color: S.tir ? c.red : c.muted }); if (D.view.angles && p.th1 > 0) D.angle(0, 0, 60, Math.PI / 2 - t1, Math.PI / 2, { label: 'θ′ ' + p.th1 + '°' }); }
+        if (!S.tir) { var t2 = rad(S.th2); D.arrow(0, 0, 2.3 * Math.sin(t2), -2.3 * Math.cos(t2), { color: c.primary, width: 3 }); D.label('รังสีหักเห', 2.3 * Math.sin(t2), -2.3 * Math.cos(t2), { dx: 8, color: c.primary }); if (D.view.angles && S.th2 > 0.5) D.angle(0, 0, 60, -Math.PI / 2, -Math.PI / 2 + t2, { label: 'θ₂ ' + fmt(S.th2) + '°' }); }
+        if (D.view.angles && p.th1 > 0) D.angle(0, 0, 44, Math.PI / 2, Math.PI / 2 + t1, { label: 'θ₁ ' + p.th1 + '°' });
+        D.label('n₁ = ' + p.n1 + ' · v₁ = c/n₁ = ' + fmt(S.v1 / 1e8) + '×10⁸ m/s', W.xMin + 0.15, W.yMax - 0.2, { color: c.text, bold: true, bg: c.card });
+        D.label('n₂ = ' + p.n2 + ' · v₂ = c/n₂ = ' + fmt(S.v2 / 1e8) + '×10⁸ m/s' + (isFinite(S.thc) ? ' · มุมวิกฤต θc = ' + fmt(S.thc) + '°' : ''), W.xMin + 0.15, W.yMin + 0.2, { color: c.text, bold: true, bg: c.card });
+      } else if (p.mode === 'mirror') {
+        var d = p.d, hO = 0.9;
+        D.line(0, -1.0, 0, 1.9, { color: c.primary, width: 4 }); D.hatch(0, -1.0, 0, 1.9, { n: 14, side: -1 }); D.label('กระจกเงาราบ', 0.08, 1.9, { color: c.primary });
+        D.arrow(-d, 0, 0, hO, { color: c.orange, width: 3 }); D.label('วัตถุ', -d, 0, { dy: 14, align: 'center', color: c.orange });
+        ctx.save(); ctx.globalAlpha = 0.55; D.arrow(d, 0, 0, hO, { color: c.primary, width: 3 }); ctx.restore(); D.label('ภาพเสมือน', d, 0, { dy: 14, align: 'center', color: c.primary });
+        D.line(W.xMin + 0.2, 0, W.xMax - 0.2, 0, { color: c.line, width: 1 });
+        [0.62, 0.3].forEach(function (k) { var ya = hO * k, ux = -d, uy = ya - hO, L = (W.xMin + 0.1) / ux; D.line(-d, hO, 0, ya, { color: c.text, width: 1.5 }); D.arrow(0, ya, ux * L, uy * L, { color: c.text, width: 1.5 }); D.line(0, ya, d, hO, { color: c.text, dash: [4, 4], width: 1 }); });
+        var ye = hO * 0.46 + (hO * 0.46 - hO) * ((W.xMin + 0.3) / -d); D.circle(W.xMin + 0.35, ye, 0.12, { fill: c.card, stroke: c.text, width: 2 }); D.dot(W.xMin + 0.35, ye, 4, c.text, {}); D.label('ตา', W.xMin + 0.35, ye - 0.15, { dy: 12, align: 'center' });
+        D.line(-d, -0.5, 0, -0.5, { color: c.orange, width: 1.5 }); D.label('s = ' + fmt(d) + ' m', -d / 2, -0.5, { dy: 14, align: 'center', color: c.orange });
+        D.line(0, -0.5, d, -0.5, { color: c.primary, width: 1.5 }); D.label("s′ = " + fmt(d) + ' m', d / 2, -0.5, { dy: 14, align: 'center', color: c.primary });
+        D.label('ภาพเสมือน หัวตั้ง ขนาดเท่าวัตถุ อยู่หลังกระจกลึกเท่าระยะวัตถุ', W.xMin + 0.2, W.yMin + 0.2, { color: c.text });
+      } else {
+        var H = depth(p), xs = 0.28 * p.h, thw = Math.atan(xs / p.h), sa = p.n2 * Math.sin(thw) / p.n1;
+        D.rect(W.xMin, W.yMin, W.xMax - W.xMin, -W.yMin, { fill: c.accentSoft }); D.line(W.xMin, 0, W.xMax, 0, { color: c.primary, width: 2 });
+        D.label('อากาศ n₁ = ' + p.n1, W.xMin + 0.15, 0.15, { color: c.text }); D.label('น้ำ n₂ = ' + p.n2, W.xMin + 0.15, -0.25, { color: c.primary });
+        D.dot(0, -p.h, 10, c.orange, { stroke: c.card, width: 2 }); D.label('วัตถุจริง ลึก h = ' + fmt(p.h) + ' m', 0.2, -p.h, { color: c.orange });
+        if (sa <= 1) { var ta = Math.asin(sa), hApp = xs / Math.tan(ta); [1, -1].forEach(function (sg) { D.line(0, -p.h, sg * xs, 0, { color: c.orange, width: 1.5 }); D.arrow(sg * xs, 0, sg * Math.sin(ta) * 1.5, Math.cos(ta) * 1.5, { color: c.orange, width: 1.5 }); D.line(sg * xs, 0, 0, -hApp, { color: c.primary, dash: [4, 4], width: 1 }); }); ctx.save(); ctx.globalAlpha = 0.55; D.dot(0, -hApp, 10, c.primary, { stroke: c.card, width: 2 }); ctx.restore(); D.label('ภาพปรากฏ ลึก ' + fmt(hApp) + ' m', 0.2, -hApp, { color: c.primary }); }
+        D.circle(0, 1.45, 0.14, { fill: c.card, stroke: c.text, width: 2 }); D.dot(0, 1.45, 5, c.text, {}); D.label('ตา', 0.22, 1.45, {});
+        D.line(-W.xMax + 0.5, 0, -W.xMax + 0.5, -p.h, { color: c.orange, width: 1.5 }); D.label('h', -W.xMax + 0.5, -p.h / 2, { dx: -8, align: 'right', color: c.orange });
+        D.line(-W.xMax + 0.8, 0, -W.xMax + 0.8, -H.happ, { color: c.primary, width: 1.5 }); D.label("h′", -W.xMax + 0.8, -H.happ / 2, { dx: 8, color: c.primary });
+        D.label('h จริง/h ปรากฏ = n วัตถุ/n ตา → h′ = h × ' + p.n1 + '/' + p.n2 + ' = ' + fmt(H.happ) + ' m', W.xMin + 0.15, W.yMin + 0.2, { color: c.text });
+      }
+    },
+    dragHandles: function (s, p) { if (p.mode === 'mirror') return [{ param: 'd', x: -p.d, y: 0.9, r: 16, map: function (wx) { return PhysLab.clamp(-wx, 0.3, 2.5); } }]; if (p.mode === 'depth') return [{ param: 'h', x: 0, y: -p.h, r: 16, map: function (wx, wy) { return PhysLab.clamp(-wy, 0.5, 3); } }]; return []; },
+    readouts: function (s, p) {
+      if (p.mode === 'refract') { var S = snell(p); return [{ label: 'v₁ = c/n₁', value: S.v1, unit: 'm/s' }, { label: 'v₂ = c/n₂', value: S.v2, unit: 'm/s' }, { label: 'มุมสะท้อน', value: p.th1, unit: '°' }, { label: 'sinθ₂ = n₁ sinθ₁/n₂', value: S.s2 }, { label: 'θ₂', value: S.th2, unit: S.tir ? 'สะท้อนกลับหมด' : '°', highlight: true }, { label: 'มุมวิกฤต θc', value: S.thc, unit: isFinite(S.thc) ? '°' : 'ไม่มี (n₁ ≤ n₂)', highlight: true }]; }
+      if (p.mode === 'mirror') return [{ label: 'ระยะวัตถุ s', value: p.d, unit: 'm' }, { label: 'ระยะภาพ s′ (หลังกระจก)', value: p.d, unit: 'm', highlight: true }, { label: 'ชนิดภาพ', value: 'เสมือน หัวตั้ง เท่าวัตถุ' }, { label: 'กำลังขยาย m', value: 1 }];
+      var H = depth(p); return [{ label: 'ลึกจริง h', value: p.h, unit: 'm' }, { label: 'ลึกปรากฏ h′ = h n₁/n₂', value: H.happ, unit: 'm', highlight: true }, { label: 'ดูตื้นขึ้น', value: p.h - H.happ, unit: 'm' }];
+    },
+    formulas: function (s, p) { if (p.mode === 'refract') { var S = snell(p); return [{ symbolic: 'n = c/v', substituted: 'v₂ = 3×10⁸ / ' + p.n2, result: '= ' + fmt(S.v2) + ' m/s' }, { symbolic: 'sinθ₁/sinθ₂ = n₂/n₁', substituted: 'sinθ₂ = ' + p.n1 + ' sin' + p.th1 + '° / ' + p.n2, result: '= ' + fmt(S.s2) + (S.tir ? ' > 1 → สะท้อนกลับหมด' : ' → θ₂ = ' + fmt(S.th2) + '°') }, { symbolic: 'sinθc = n₂/n₁', substituted: isFinite(S.thc) ? '= ' + p.n2 + '/' + p.n1 : 'ใช้เมื่อ n₁ > n₂ เท่านั้น', result: isFinite(S.thc) ? 'θc = ' + fmt(S.thc) + '°' : '' }]; } if (p.mode === 'mirror') return [{ symbolic: 'มุมตก = มุมสะท้อน', substituted: 's′ = s', result: '= ' + fmt(p.d) + ' m หลังกระจก' }]; var H = depth(p); return [{ symbolic: 'h จริง/h ปรากฏ = n วัตถุ/n ตา', substituted: 'h′ = ' + p.h + ' × ' + p.n1 + '/' + p.n2, result: '= ' + fmt(H.happ) + ' m' }]; },
+    content: {
+      summary: '<b>ค่าพื้นฐาน</b> แสงในสุญญากาศเร็ว c = 3 × 10⁸ m/s ดัชนีหักเห n = c/v บอกว่าตัวกลางทำให้แสงช้าลงกี่เท่า และยังใช้ v = fλ ได้ <b>การสะท้อน</b> มุมตกกระทบเท่ามุมสะท้อน กระจกเงาราบให้ภาพเสมือนอยู่หลังกระจกลึกเท่าระยะวัตถุ <b>การหักเหและมุมวิกฤต</b> กฎของสเนลล์ sinθ₁/sinθ₂ = n₂/n₁ แสงจากตัวกลางหนาแน่นไปเบาบางจะเบนออกจากเส้นแนวฉาก ถ้ามุมตกกระทบถึงมุมวิกฤต sinθc = n₂/n₁ แสงจะสะท้อนกลับหมด (หลักของเส้นใยแก้วนำแสง) <b>ลึกจริงลึกปรากฏ</b> มองของในน้ำจะเห็นตื้นกว่าจริง ตามสัดส่วน h จริง/h ปรากฏ = n วัตถุ/n ตา',
+      tryIt: ['ตั้ง n₁ = 1.33 (น้ำ) n₂ = 1 (อากาศ) แล้วเพิ่มมุมจนถึงมุมวิกฤต 48.8° ดูรังสีหักเหหายไป', 'โหมดกระจก: ลากวัตถุเข้าใกล้กระจก ดูภาพเลื่อนตามเสมอ', 'โหมดลึกปรากฏ: เพิ่ม n₂ เป็น 1.5 ดูว่าภาพยิ่งตื้นขึ้น'],
+      reference: { title: 'ดัชนีหักเหที่ใช้บ่อย', columns: ['ตัวกลาง', 'n', 'v (×10⁸ m/s)'], rows: [['สุญญากาศ / อากาศ', '1.00', '3.00'], ['น้ำ', '1.33', '2.26'], ['แก้ว', '1.50', '2.00'], ['เพชร', '2.42', '1.24']] }
+    }
+  });
+})();
+</script>
+</body>
+</html>

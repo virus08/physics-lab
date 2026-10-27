@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S12.5 บีต · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S12.5 บีต · บท 12 เรื่อง 8
+   สูตร: y = sin(2πf₁t) + sin(2πf₂t) = 2 cos(π(f₁−f₂)t) sin(π(f₁+f₂)t) · ความถี่บีต = |f₁ − f₂|
+   รูปคลื่นคำนวณจากสูตร ตัวชี้เวลาจริง · เสียงสองความถี่พร้อมกันผ่าน Web Audio · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, Audio = PhysLab.Audio, audioOn = false;
+  function fb(p) { return Math.abs(p.f1 - p.f2); }
+  function win(p) { var b = fb(p); return b > 0 ? PhysLab.clamp(2 / b, 0.05, 1) : 0.05; }
+  function y(p, t) { return Math.sin(2 * Math.PI * p.f1 * t) + Math.sin(2 * Math.PI * p.f2 * t); }
+  PhysLab.createSim({
+    id: 'S12.5', chapter: 12, topics: [8], title: 'บีต', audio: true,
+    alt: 'กราฟคลื่นเสียงสองความถี่ใกล้กันรวมกัน เห็นแอมพลิจูดพอง-แฟบเป็นจังหวะ มีเส้นขอบเขตการดัง และตัวชี้เวลาเคลื่อนไปตามกราฟ',
+    fb: fb,
+    params: {
+      f1: { label: 'ความถี่ที่ 1', symbol: 'f₁', unit: 'Hz', type: 'range', min: 200, max: 600, step: 1, default: 440 },
+      f2: { label: 'ความถี่ที่ 2', symbol: 'f₂', unit: 'Hz', type: 'range', min: 200, max: 600, step: 1, default: 444 }
+    },
+    presets: [{ label: '440 กับ 444 Hz (บีต 4 Hz)', values: { f1: 440, f2: 444 } }, { label: '440 กับ 442 Hz (บีต 2 Hz)', values: { f1: 440, f2: 442 } }, { label: '440 กับ 450 Hz (บีต 10 Hz)', values: { f1: 440, f2: 450 } }, { label: 'เท่ากันพอดี (ไม่มีบีต)', values: { f1: 440, f2: 440 } }],
+    toggles: [{ key: 'parts', label: 'คลื่นแต่ละความถี่' }, { key: 'env', label: 'ขอบเขตความดัง' }],
+    speeds: [1], dt: 1 / 120,
+    world: { xMin: -0.5, xMax: 13.3, yMin: -4.4, yMax: 3.2 },
+    init: function () { return { t: 0 }; }, step: function (s, p, dt, t) { s.t = t + dt; return s; },
+    timeLabel: function (t) { return 't = ' + fmt(t, 3) + ' s'; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = win(p), N = 600, pts = [], e1 = [], e2 = [], p1 = [], p2 = [], i;
+      for (i = 0; i <= N; i++) { var tt = W * i / N, xx = 12.5 * i / N; pts.push([xx, y(p, tt)]); var env = 2 * Math.abs(Math.cos(Math.PI * (p.f1 - p.f2) * tt)); e1.push([xx, env]); e2.push([xx, -env]); p1.push([xx, Math.sin(2 * Math.PI * p.f1 * tt) - 3.3]); p2.push([xx, Math.sin(2 * Math.PI * p.f2 * tt) - 3.3]); }
+      D.line(0, 0, 12.5, 0, { color: c.line, width: 1 });
+      if (D.view.env) { D.polyline(e1, { color: c.orange, width: 1.5, dash: [4, 4] }); D.polyline(e2, { color: c.orange, width: 1.5, dash: [4, 4] }); }
+      D.polyline(pts, { color: c.primary, width: 1.5 });
+      if (D.view.parts) { D.line(0, -3.3, 12.5, -3.3, { color: c.line, width: 1 }); D.polyline(p1, { color: c.green, width: 1 }); D.polyline(p2, { color: c.red, width: 1 }); D.label('f₁ = ' + p.f1 + ' Hz (เขียว) และ f₂ = ' + p.f2 + ' Hz (แดง) แยกกัน', 0, -2.1, { color: c.text }); }
+      var tc = W > 0 ? (s.t % W) : 0, xc = 12.5 * tc / W; D.line(xc, -2.05, xc, 2.05, { color: c.text, width: 1.5 }); D.dot(xc, y(p, tc), 6, c.text, { stroke: c.card, width: 1.5 });
+      if (fb(p) > 0) { var Tb = 1 / fb(p); for (var k = 0; k * Tb <= W + 1e-9; k++) { D.line(12.5 * k * Tb / W, -0.25, 12.5 * k * Tb / W, 0.25, { color: c.orange, width: 2 }); } D.line(0, 2.3, 12.5 * Tb / W, 2.3, { color: c.orange, width: 1.5 }); D.label('T บีต = 1/|f₁ − f₂| = ' + fmt(Tb) + ' s', 12.5 * Tb / W / 2, 2.3, { dy: -6, align: 'center', color: c.orange }); }
+      D.label('ผลรวม: ดัง-ค่อยสลับ ' + fmt(fb(p)) + ' ครั้งต่อวินาที · ความถี่ที่ได้ยิน ≈ ' + fmt((p.f1 + p.f2) / 2) + ' Hz', 0, 3.0, { color: c.text, bold: true });
+      D.label('0', 0, -0.05, { dy: 12, align: 'center', color: c.muted }); D.label(fmt(W) + ' s', 12.5, -0.05, { dy: 12, align: 'center', color: c.muted });
+    },
+    readouts: function (s, p) { return [{ label: 'ความถี่บีต = |f₁ − f₂|', value: fb(p), unit: 'Hz', highlight: true }, { label: 'คาบบีต = 1/f บีต', value: fb(p) > 0 ? 1 / fb(p) : NaN, unit: 's' }, { label: 'ความถี่เสียงที่ได้ยิน (f₁ + f₂)/2', value: (p.f1 + p.f2) / 2, unit: 'Hz' }, { label: 'แอมพลิจูดรวมขณะนี้', value: Math.abs(2 * Math.cos(Math.PI * (p.f1 - p.f2) * s.t)) }]; },
+    formulas: function (s, p) { return [{ symbolic: 'f บีต = |f₁ − f₂|', substituted: '= |' + p.f1 + ' − ' + p.f2 + '|', result: '= ' + fmt(fb(p)) + ' Hz' }, { symbolic: 'y = 2 cos(π(f₁−f₂)t) sin(π(f₁+f₂)t)', substituted: 'ซองความดังเปลี่ยนด้วยความถี่ |f₁−f₂|', result: 'ได้ยินดัง ' + fmt(fb(p)) + ' ครั้ง/วินาที' }]; },
+    sample: function (s, p) { return { env: Math.abs(2 * Math.cos(Math.PI * (p.f1 - p.f2) * s.t)) }; },
+    graphs: [{ title: 'ความดัง (ซองคลื่น) กับเวลา', x: 't', series: [{ key: 'env', label: 'แอมพลิจูด', color: '#E07A1F' }], window: 2, yMin: 0, yMax: 2.2 }],
+    setup: function (api) { var btn = api.addButton('ฟังเสียง', function () { audioOn = !audioOn; if (audioOn) { Audio.tone('a', { freq: api.params.f1, gain: 0.08 }); Audio.tone('b', { freq: api.params.f2, gain: 0.08 }); btn.textContent = 'หยุดเสียง'; } else { Audio.stop('a'); Audio.stop('b'); btn.textContent = 'ฟังเสียง'; } }); },
+    onParam: function (k, v, p) { if (audioOn) { Audio.set('a', { freq: p.f1 }); Audio.set('b', { freq: p.f2 }); } },
+    content: {
+      summary: '<b>บีต</b> เสียงสองความถี่ใกล้กันรวมกันแล้วดังค่อยสลับเป็นจังหวะ ความถี่บีต = |f₁ − f₂| ใช้ตั้งเสียงเครื่องดนตรี เมื่อบีตหายไปแสดงว่าความถี่ตรงกันพอดี',
+      tryIt: ['ตั้ง f₂ = 444 Hz ดูว่าซองคลื่นพอง-แฟบ 4 ครั้งต่อวินาที', 'กด "ฟังเสียง" แล้วค่อย ๆ เลื่อน f₂ เข้าหา 440 ฟังว่าจังหวะวูบวาบช้าลงจนหายไป', 'ตั้งห่างกัน 10 Hz ดูว่าบีตถี่ขึ้นและคาบบีตสั้นลง']
+    }
+  });
+})();
+</script>
+</body>
+</html>

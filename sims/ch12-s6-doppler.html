@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S12.6 ปรากฏการณ์ดอปเพลอร์และคลื่นกระแทก · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S12.6 ปรากฏการณ์ดอปเพลอร์และคลื่นกระแทก · บท 12 เรื่อง 9, 10
+   สูตร: f′ = f (v ± v ผู้ฟัง)/(v ∓ v แหล่ง) (บวกบน = เข้าหากัน) · คลื่นกระแทกเมื่อ v แหล่ง > v: sinθ = v/v แหล่ง = 1/เลขมัค
+   หน้าคลื่นวาดเป็นวงกลมที่ปล่อยทุก 0.25 s (ภาพ) ขยายด้วย v จริง · เสียงความถี่ f′ ผ่าน Web Audio · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, deg = PhysLab.deg, Audio = PhysLab.Audio, audioOn = false, TV = 0.25;
+  function heard(p, xs, xo) { var left = xs < xo, ts = left ? p.vs : -p.vs, to = left ? -p.vo : p.vo, den = p.v - ts; if (den <= 0) return NaN; return p.f * (p.v + to) / den; }
+  function init(p) { return { xs: -650, xo: p.xo, fronts: [], last: -1, fh: heard(p, -650, p.xo), passed: false }; }
+  function step(s, p, dt, t) { s.xs += p.vs * dt; s.xo += p.vo * dt; if (t - s.last >= TV) { s.fronts.push({ x: s.xs, t0: t }); s.last = t; if (s.fronts.length > 80) s.fronts.shift(); } s.fh = heard(p, s.xs, s.xo); if (s.xs > s.xo) s.passed = true; if (audioOn && isFinite(s.fh)) Audio.set('d', { freq: PhysLab.clamp(s.fh, 50, 4000) }); return s; }
+  PhysLab.createSim({
+    id: 'S12.6', chapter: 12, topics: [9, 10], title: 'ปรากฏการณ์ดอปเพลอร์และคลื่นกระแทก', audio: true,
+    alt: 'รถพยาบาลเคลื่อนไปทางขวาปล่อยหน้าคลื่นวงกลม หน้าคลื่นด้านหน้าชิดกัน ด้านหลังห่างกัน ผู้ฟังยืนทางขวา เมื่อแหล่งเร็วกว่าเสียงหน้าคลื่นซ้อนเป็นรูปกรวย',
+    heard: heard,
+    params: {
+      f: { label: 'ความถี่ของแหล่งกำเนิด', symbol: 'f', unit: 'Hz', type: 'range', min: 200, max: 1000, step: 10, default: 500 },
+      vs: { label: 'อัตราเร็วแหล่งกำเนิด (ไปทางขวา)', symbol: 'v แหล่ง', unit: 'm/s', type: 'range', min: 0, max: 600, step: 5, default: 30 },
+      vo: { label: 'ความเร็วผู้ฟัง (+ ไปขวา)', symbol: 'v ผู้ฟัง', unit: 'm/s', type: 'range', min: -60, max: 60, step: 5, default: 0 },
+      v: { label: 'อัตราเร็วเสียง', symbol: 'v', unit: 'm/s', type: 'range', min: 300, max: 400, step: 1, default: 343 },
+      xo: { label: 'ตำแหน่งเริ่มของผู้ฟัง (ลากได้)', unit: 'm', type: 'range', min: -400, max: 700, step: 10, default: 350, drag: true }
+    },
+    presets: [{ label: 'รถพยาบาล 30 m/s ผ่านผู้ฟัง', values: { f: 500, vs: 30, vo: 0, xo: 350 } }, { label: 'รถแข่ง 80 m/s', values: { vs: 80, vo: 0 } }, { label: 'ผู้ฟังวิ่งเข้าหาแหล่งที่หยุดนิ่ง', values: { vs: 0, vo: -20, xo: 500 } }, { label: 'เครื่องบินเหนือเสียง มัค 1.5', values: { vs: 515, vo: 0, xo: 700 } }, { label: 'พอดีความเร็วเสียง (มัค 1)', values: { vs: 343 } }],
+    toggles: [{ key: 'fronts', label: 'หน้าคลื่น' }, { key: 'cone', label: 'กรวยคลื่นกระแทก (เมื่อเร็วกว่าเสียง)' }],
+    speeds: [0.25, 0.5, 1], dt: 1 / 120,
+    world: { xMin: -800, xMax: 800, yMin: -470, yMax: 470 },
+    init: init, step: step,
+    done: function (s) { return s.xs > 820; },
+    timeLabel: function (t, s) { return 't = ' + fmt(t, 3) + ' s · ได้ยิน ' + (isFinite(s.fh) ? fmt(s.fh) + ' Hz' : '—'); },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, t = D.t, mach = p.vs / p.v;
+      if (D.view.fronts) s.fronts.forEach(function (fr) { var r = p.v * (t - fr.t0); if (r <= 0 || r > 1800) return; ctx.save(); ctx.globalAlpha = PhysLab.clamp(1 - r / 1500, 0.1, 0.9); D.circle(fr.x, 0, r, { stroke: c.primary, width: 1.5 }); ctx.restore(); });
+      if (D.view.cone && mach > 1) { var th = Math.asin(1 / mach), L = 1700; D.line(s.xs, 0, s.xs - L * Math.cos(th), L * Math.sin(th), { color: c.red, width: 2.5 }); D.line(s.xs, 0, s.xs - L * Math.cos(th), -L * Math.sin(th), { color: c.red, width: 2.5 }); D.angle(s.xs, 0, 60, Math.PI - th, Math.PI, { label: 'θ ' + fmt(deg(th)) + '°' }); D.label('คลื่นกระแทก: sinθ = v/v แหล่ง = 1/' + fmt(mach) + ' (มัค ' + fmt(mach) + ')', -780, 430, { color: c.red, bold: true, bg: c.card }); }
+      D.rect(s.xs - 40, -18, 80, 36, { fill: c.red }); D.rect(s.xs + 10, -18, 30, 26, { fill: c.card }); D.dot(s.xs - 22, -22, 5, c.text, {}); D.dot(s.xs + 22, -22, 5, c.text, {}); D.label('แหล่ง f = ' + p.f + ' Hz · ' + p.vs + ' m/s →', s.xs, -30, { dy: 12, align: 'center', color: c.red });
+      D.dot(s.xo, 0, 9, c.orange, { stroke: c.card, width: 2 }); D.rect(s.xo - 8, -40, 16, 32, { fill: c.orange }); D.label('ผู้ฟัง' + (p.vo ? ' ' + p.vo + ' m/s' : ''), s.xo, -46, { dy: 12, align: 'center', color: c.orange });
+      D.label(isFinite(s.fh) ? 'ได้ยิน f′ = ' + fmt(s.fh) + ' Hz (' + (s.fh > p.f + 0.5 ? 'สูงขึ้น เข้าหากัน' : s.fh < p.f - 0.5 ? 'ต่ำลง ออกจากกัน' : 'เท่าเดิม') + ')' : 'แหล่งเร็วกว่าเสียง: เสียงมาถึงเป็นคลื่นกระแทก', s.xo, 30, { align: 'center', color: c.orange, bold: true, bg: c.card });
+      D.label('ด้านหน้า: หน้าคลื่นชิดกัน λ สั้น f สูง · ด้านหลัง: ห่างกัน λ ยาว f ต่ำ', -780, -440, { color: c.text, bg: c.card });
+    },
+    dragHandles: function (s, p, D) { return D.running ? [] : [{ param: 'xo', x: s.xo, y: 0, r: 18, map: function (wx) { return PhysLab.clamp(wx, -400, 700); } }]; },
+    readouts: function (s, p) { var fa = p.vs < p.v ? p.f * p.v / (p.v - p.vs) : NaN, fr = p.f * p.v / (p.v + p.vs); return [{ label: 'f′ ขณะนี้', value: s.fh, unit: 'Hz', highlight: true }, { label: 'f′ ขณะเข้าหา (ผู้ฟังนิ่ง)', value: fa, unit: 'Hz' }, { label: 'f′ ขณะออกห่าง (ผู้ฟังนิ่ง)', value: fr, unit: 'Hz' }, { label: 'λ ด้านหน้า · ด้านหลัง', value: fmt((p.v - p.vs) / p.f) + ' · ' + fmt((p.v + p.vs) / p.f), unit: 'm' }, { label: 'เลขมัค v แหล่ง/v', value: p.vs / p.v }, { label: 'มุมกรวย θ', value: p.vs > p.v ? deg(Math.asin(p.v / p.vs)) : NaN, unit: p.vs > p.v ? '°' : 'ไม่เกิด (ช้ากว่าเสียง)' }]; },
+    formulas: function (s, p) { var left = s.xs < s.xo; return [{ symbolic: 'f′ = f (v ± v ผู้ฟัง)/(v ∓ v แหล่ง)', substituted: '= ' + p.f + ' (' + p.v + ' ' + (left ? (p.vo <= 0 ? '+ ' + (-p.vo) : '− ' + p.vo) : (p.vo >= 0 ? '+ ' + p.vo : '− ' + (-p.vo))) + ')/(' + p.v + ' ' + (left ? '− ' : '+ ') + p.vs + ')', result: isFinite(s.fh) ? '= ' + fmt(s.fh) + ' Hz' : 'ไม่นิยาม (เร็วกว่าเสียง)' }, { symbolic: 'sinθ = v/v แหล่ง', substituted: '= ' + p.v + '/' + p.vs, result: p.vs > p.v ? 'θ = ' + fmt(deg(Math.asin(p.v / p.vs))) + '°' : 'ไม่เกิดคลื่นกระแทก' }]; },
+    sample: function (s) { return { fh: s.fh }; },
+    graphs: [{ title: 'ความถี่ที่ผู้ฟังได้ยินกับเวลา', x: 't', series: [{ key: 'fh', label: "f′ (Hz)", color: '#E07A1F' }], window: 30, zero: false }],
+    setup: function (api) { var btn = api.addButton('ฟังเสียง', function () { audioOn = !audioOn; if (audioOn) { Audio.tone('d', { freq: isFinite(api.state.fh) ? api.state.fh : api.params.f, gain: 0.1 }); btn.textContent = 'หยุดเสียง'; } else { Audio.stop('d'); btn.textContent = 'ฟังเสียง'; } }); },
+    content: {
+      summary: '<b>ปรากฏการณ์ดอปเพลอร์</b> แหล่งกำเนิดกับผู้ฟังเคลื่อนเข้าหากันจะได้ยินความถี่สูงขึ้น ออกจากกันจะได้ยินต่ำลง (เสียงไซเรนรถพยาบาลที่วิ่งผ่าน) <b>คลื่นกระแทก</b> เมื่อแหล่งกำเนิดเร็วกว่าเสียง หน้าคลื่นซ้อนกันเป็นรูปกรวย มุมกรวยหาจาก sinθ = v/v แหล่ง = 1/เลขมัค',
+      tryIt: ['กดเล่นแล้วดูกราฟ f′ ตกลงทันทีเมื่อรถวิ่งผ่านผู้ฟัง', 'กด "ฟังเสียง" ฟังเสียงไซเรนเปลี่ยนจากสูงเป็นต่ำ', 'ตั้ง v แหล่ง = 515 m/s (มัค 1.5) ดูหน้าคลื่นซ้อนเป็นกรวยและอ่านมุม θ']
+    }
+  });
+})();
+</script>
+</body>
+</html>

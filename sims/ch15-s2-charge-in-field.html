@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S15.2 ประจุเคลื่อนที่ในสนามแม่เหล็ก · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S15.2 ประจุเคลื่อนที่ในสนามแม่เหล็ก · บท 15 เรื่อง 4, 5
+   สูตร: F = qvB sinθ · วงกลม r = mv/qB · T = 2πm/qB
+   อินทิเกรตด้วย Boris-like (หมุนเวกเตอร์ความเร็วด้วยมุม ωdt รักษาอัตราเร็วพอดี) · สนามพุ่งเข้ากระดาษ (×) หรือออก (•) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad;
+  var PART = [{ label: 'โปรตอน', value: 'p' }, { label: 'อิเล็กตรอน', value: 'e' }, { label: 'แอลฟา', value: 'a' }];
+  var MQ = { p: { m: 1.67e-27, q: 1.6e-19, name: 'โปรตอน (+e)' }, e: { m: 9.11e-31, q: -1.6e-19, name: 'อิเล็กตรอน (−e)' }, a: { m: 6.64e-27, q: 3.2e-19, name: 'แอลฟา (+2e)' } };
+  function calc(p) { var P = MQ[p.part], v = p.v * 1e6, B = p.B * p.bdir, r = P.m * v / (Math.abs(P.q) * p.B), F = Math.abs(P.q) * v * p.B * Math.sin(rad(p.th)), T = 2 * Math.PI * P.m / (Math.abs(P.q) * p.B), w = -P.q * B / P.m; return { P: P, v: v, r: r, F: F, T: T, w: w, scale: 1 / Math.max(r, 1e-6) }; }
+  var TVIS = 2.5;
+  function init() { return { x: -2.4, y: 0, vx: 1, vy: 0, trail: [], T: 0 }; }
+  function step(s, p, dt, t) {
+    var C = calc(p), dth = (C.w > 0 ? 1 : -1) * 2 * Math.PI * dt / TVIS, cs = Math.cos(dth), sn = Math.sin(dth), vx = s.vx * cs - s.vy * sn, vy = s.vx * sn + s.vy * cs;
+    s.vx = vx; s.vy = vy; var speed = 2 * Math.PI / TVIS; s.x += s.vx * speed * dt; s.y += s.vy * speed * dt; s.trail.push([s.x, s.y]); if (s.trail.length > 400) s.trail.shift(); s.T = t + dt; return s;
+  }
+  PhysLab.createSim({
+    id: 'S15.2', chapter: 15, topics: [4, 5], title: 'ประจุเคลื่อนที่ในสนามแม่เหล็ก',
+    alt: 'บริเวณสนามแม่เหล็กสม่ำเสมอแสดงด้วยเครื่องหมาย × ทั่วพื้นที่ อนุภาคมีประจุวิ่งเข้ามาแล้วถูกแรงแม่เหล็กที่ตั้งฉากกับความเร็วบังคับให้วิ่งเป็นวงกลม รัศมีวงแสดงตามสูตร',
+    calc: calc,
+    params: {
+      part: { label: 'อนุภาค', type: 'choice', options: PART, default: 'p' },
+      v: { label: 'อัตราเร็ว', symbol: 'v', unit: '×10⁶ m/s', type: 'range', min: 0.1, max: 10, step: 0.1, default: 2 },
+      B: { label: 'ความเข้มสนาม', symbol: 'B', unit: 'T', type: 'range', min: 0.01, max: 2, step: 0.01, default: 0.5 },
+      bdir: { label: 'ทิศสนาม', type: 'choice', options: [{ label: '× เข้ากระดาษ', value: -1 }, { label: '• ออกจากกระดาษ', value: 1 }], default: -1 },
+      th: { label: 'มุมระหว่าง v กับ B (สำหรับคิดแรง)', symbol: 'θ', unit: '°', type: 'range', min: 0, max: 90, step: 1, default: 90 }
+    },
+    presets: [{ label: 'โปรตอน 2×10⁶ m/s ใน 0.5 T', values: { part: 'p', v: 2, B: 0.5, bdir: -1, th: 90 } }, { label: 'อิเล็กตรอน (วนกลับทิศ)', values: { part: 'e' } }, { label: 'แอลฟา (รัศมีใหญ่ขึ้น)', values: { part: 'a' } }, { label: 'B เพิ่ม 2 เท่า (รัศมีครึ่งหนึ่ง)', values: { part: 'p', B: 1 } }, { label: 'v ขนานกับ B (ไม่มีแรง)', values: { th: 0 } }],
+    toggles: [{ key: 'vec', label: 'ลูกศร v และ F' }, { key: 'circle', label: 'วงกลมตามสูตร' }],
+    speeds: [0.25, 0.5, 1], dt: 1 / 120,
+    world: { xMin: -4.4, xMax: 4.4, yMin: -2.3, yMax: 2.3 },
+    init: init, step: step,
+    timeLabel: function (t, s, p) { var C = calc(p); return 'เวลาจริง ' + fmt(t / TVIS * C.T) + ' s (1 รอบ = ' + fmt(C.T) + ' s)'; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p), i, j;
+      for (i = -4; i <= 4; i++) for (j = -2; j <= 2; j += 0.5) { if (p.bdir < 0) { D.line(i - 0.07, j - 0.07, i + 0.07, j + 0.07, { color: c.line, width: 1.5 }); D.line(i - 0.07, j + 0.07, i + 0.07, j - 0.07, { color: c.line, width: 1.5 }); } else { D.circle(i, j, 0.08, { stroke: c.line, width: 1.5 }); D.dot(i, j, 1.5, c.line, {}); } }
+      if (D.view.circle) { var cx = -2.4, cy = (C.w > 0 ? 1 : -1); D.circle(cx, cy, 1, { stroke: c.muted, dash: [4, 4], width: 1 }); D.label('r = mv/qB = ' + fmt(C.r * 100) + ' cm', cx, cy, { align: 'center', color: c.muted }); }
+      if (s.trail.length > 1) D.polyline(s.trail, { color: c.primary, width: 2 });
+      var col = C.P.q > 0 ? c.red : c.primary; D.dot(s.x, s.y, 8, col, { stroke: c.card, width: 2 }); D.label(C.P.q > 0 ? '+' : '−', s.x, s.y, { align: 'center', color: '#fff', bold: true });
+      if (D.view.vec) { D.arrow(s.x, s.y, s.vx * 0.6, s.vy * 0.6, { color: c.orange, width: 2.5, label: 'v' }); var fx = (C.w > 0 ? -s.vy : s.vy), fy = (C.w > 0 ? s.vx : -s.vx); D.arrow(s.x, s.y, fx * 0.5, fy * 0.5, { color: c.green, width: 2.5, label: 'F' }); }
+      D.label(C.P.name + ' · B = ' + p.B + ' T ' + (p.bdir < 0 ? '(×)' : '(•)') + ' · F = qvB sinθ = ' + fmt(C.F) + ' N ตั้งฉากกับ v เสมอ', -4.3, 2.15, { color: c.text, bold: true, bg: c.card });
+      D.label('r = mv/qB = ' + fmt(C.r) + ' m · T = 2πm/qB = ' + fmt(C.T) + ' s (ภาพย่อ/ขยายให้ r = 1 ช่อง)', -4.3, -2.15, { color: c.primary, bg: c.card });
+    },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'F = qvB sinθ', value: C.F, unit: 'N', highlight: true }, { label: 'r = mv/qB', value: C.r, unit: 'm', highlight: true }, { label: 'T = 2πm/qB', value: C.T, unit: 's' }, { label: 'f = 1/T', value: 1 / C.T, unit: 'Hz' }, { label: 'q · m', value: fmt(C.P.q) + ' C · ' + fmt(C.P.m) + ' kg' }, { label: 'ทิศการวน (มองจากหน้า)', value: C.w > 0 ? 'ทวนเข็มนาฬิกา' : 'ตามเข็มนาฬิกา' }]; },
+    formulas: function (s, p) { var C = calc(p); return [{ symbolic: 'F = qvB sinθ', substituted: '= ' + fmt(Math.abs(C.P.q)) + ' × ' + fmt(C.v) + ' × ' + p.B + ' × sin' + p.th + '°', result: '= ' + fmt(C.F) + ' N' }, { symbolic: 'r = mv/qB', substituted: '= ' + fmt(C.P.m) + ' × ' + fmt(C.v) + ' / (' + fmt(Math.abs(C.P.q)) + ' × ' + p.B + ')', result: '= ' + fmt(C.r) + ' m' }, { symbolic: 'T = 2πr/v = 2πm/qB', substituted: '', result: '= ' + fmt(C.T) + ' s' }]; },
+    content: {
+      summary: '<b>แรงบนประจุที่เคลื่อนที่</b> F = qvB sinθ ประจุวิ่งตั้งฉากกับสนามโดนแรงมากสุด วิ่งขนานไม่โดนแรง ทิศหาจากกฎมือขวา (ประจุลบกลับทิศ) <b>การเคลื่อนที่แบบวงกลมในสนามแม่เหล็ก</b> แรงแม่เหล็กตั้งฉากกับความเร็วเสมอ จึงไม่ทำงานและไม่เปลี่ยนอัตราเร็ว ประจุวิ่งเป็นวงกลมรัศมี r = mv/qB',
+      tryIt: ['เปลี่ยนจากโปรตอนเป็นอิเล็กตรอน ดูว่าวนกลับทิศและรัศมีเล็กลงมาก (มวลน้อย)', 'เพิ่ม B เป็น 2 เท่า ดูว่ารัศมีเหลือครึ่งเดียวแต่คาบก็สั้นลงครึ่งเดียว', 'เพิ่ม v ดูว่ารัศมีใหญ่ขึ้นแต่คาบ T ไม่เปลี่ยน']
+    }
+  });
+})();
+</script>
+</body>
+</html>

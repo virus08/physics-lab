@@ -1,0 +1,15 @@
+{
+  "name": "physics-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "แบบจำลองฟิสิกส์เชิงโต้ตอบ ม.ปลาย 20 บท 76 ชุด สำหรับนักเรียน (HTML5 + JavaScript ไม่ต้องติดตั้ง)",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "catalog": "node tools/build-catalog.mjs",
+    "serve": "python3 -m http.server 8080"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}

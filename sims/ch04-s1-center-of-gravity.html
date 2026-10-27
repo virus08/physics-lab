@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S4.1 จุดศูนย์ถ่วงและสมดุล 3 แบบ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S4.1 จุดศูนย์ถ่วงและสมดุล 3 แบบ · บท 4 เรื่อง 1, 9, 10, 11
+   สูตร: จุดศูนย์ถ่วง x_cg = Σ(m x)/Σm · กล่องเอียง φ รอบมุมล่าง: ความสูง CG = (w/2) sinφ + (h/2) cosφ
+   เสถียร = ผลักแล้ว CG สูงขึ้น · ไม่เสถียร = CG ต่ำลง · สะเทิน = CG ระดับเดิม · แบบนิ่ง ลากได้ · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad, deg = PhysLab.deg;
+  function cgHeight(shape, w, h, phi) {
+    var t = rad(phi);
+    if (shape === 'box') return (w / 2) * Math.sin(t) + (h / 2) * Math.cos(t);
+    if (shape === 'cone') return (w / 2) * Math.sin(t) + (h / 4) * Math.cos(t);
+    if (shape === 'tip') return (3 * h / 4) * Math.cos(t);
+    return h / 2;
+  }
+  function kind(shape, w, h, phi) {
+    if (shape === 'ball') return { type: 'สะเทิน', back: 'อยู่ตรงนั้น' };
+    if (shape === 'tip') return { type: 'ไม่เสถียร', back: 'ล้ม' };
+    var tip = deg(Math.atan2(w / 2, shape === 'box' ? h / 2 : h / 4));
+    return { type: 'เสถียร', back: phi < tip ? 'กลับคืน' : 'ล้ม (CG เลยขอบฐาน)', tipAngle: tip };
+  }
+  function cg(p) { return (p.m1 * p.x1 + p.m2 * p.x2) / (p.m1 + p.m2); }
+  var SHAPES = [{ label: 'กล่อง', value: 'box' }, { label: 'กรวยฐานกว้าง', value: 'cone' }, { label: 'กรวยตั้งปลาย', value: 'tip' }, { label: 'ลูกบอล', value: 'ball' }];
+  PhysLab.createSim({
+    id: 'S4.1', chapter: 4, topics: [1, 9, 10, 11], title: 'จุดศูนย์ถ่วงและสมดุล 3 แบบ', static: true,
+    alt: 'ซ้าย วัตถุถูกผลักให้เอียงรอบมุมล่าง มีจุดศูนย์ถ่วงและเส้นดิ่งผ่านจุดนั้นเทียบกับขอบฐาน ขวา แท่งที่มีมวลสองก้อนและเครื่องหมายจุดศูนย์ถ่วงรวม',
+    cgHeight: cgHeight, kind: kind, cg: cg,
+    params: {
+      shape: { label: 'รูปร่างวัตถุ', type: 'choice', options: SHAPES, default: 'box' },
+      phi: { label: 'มุมที่ถูกผลักให้เอียง', symbol: 'φ', unit: '°', type: 'range', min: 0, max: 60, step: 1, default: 15, drag: true },
+      w: { label: 'ความกว้างฐาน', symbol: 'w', unit: 'm', type: 'range', min: 0.3, max: 2, step: 0.1, default: 1 },
+      h: { label: 'ความสูง', symbol: 'h', unit: 'm', type: 'range', min: 0.3, max: 2, step: 0.1, default: 1.5 },
+      m1: { label: 'มวลก้อนซ้าย', symbol: 'm₁', unit: 'kg', type: 'range', min: 0.5, max: 10, step: 0.5, default: 2 },
+      m2: { label: 'มวลก้อนขวา', symbol: 'm₂', unit: 'kg', type: 'range', min: 0.5, max: 10, step: 0.5, default: 6 },
+      x1: { label: 'ตำแหน่ง m₁', symbol: 'x₁', unit: 'm', type: 'range', min: 0, max: 4, step: 0.1, default: 0.5, drag: true },
+      x2: { label: 'ตำแหน่ง m₂', symbol: 'x₂', unit: 'm', type: 'range', min: 0, max: 4, step: 0.1, default: 3.5, drag: true }
+    },
+    presets: [{ label: 'กล่องเตี้ยฐานกว้าง (เสถียรมาก)', values: { shape: 'box', w: 2, h: 0.6, phi: 20 } }, { label: 'กล่องสูงฐานแคบ (ล้มง่าย)', values: { shape: 'box', w: 0.4, h: 2, phi: 15 } }, { label: 'กรวยตั้งปลาย (ไม่เสถียร)', values: { shape: 'tip', phi: 5 } }, { label: 'ลูกบอล (สะเทิน)', values: { shape: 'ball', phi: 30 } }, { label: 'มวลเท่ากัน CG กึ่งกลาง', values: { m1: 4, m2: 4, x1: 0.5, x2: 3.5 } }],
+    world: { xMin: -2.2, xMax: 9.5, yMin: -1.2, yMax: 3.4 },
+    init: function (p) { return { hc: cgHeight(p.shape, p.w, p.h, p.phi), h0: cgHeight(p.shape, p.w, p.h, 0), k: kind(p.shape, p.w, p.h, p.phi), xcg: cg(p) }; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, t = rad(p.phi), w = p.w, h = p.h;
+      D.line(-2, 0, 4.2, 0, { color: c.line, width: 2 }); D.hatch(-2, 0, 4.2, 0, { n: 20 });
+      var px = 0, py = 0, pts, cgx, cgy;
+      function rot(x, y) { return [px + x * Math.cos(t) - y * Math.sin(t), py + x * Math.sin(t) + y * Math.cos(t)]; }
+      if (p.shape === 'box') { pts = [rot(0, 0), rot(w, 0), rot(w, h), rot(0, h)]; var cc = rot(w / 2, h / 2); cgx = cc[0]; cgy = cc[1]; }
+      else if (p.shape === 'cone') { pts = [rot(0, 0), rot(w, 0), rot(w / 2, h)]; var c2 = rot(w / 2, h / 4); cgx = c2[0]; cgy = c2[1]; }
+      else if (p.shape === 'tip') { pts = [rot(0, 0), rot(w / 2, h), rot(-w / 2, h)]; var c3 = rot(0, 3 * h / 4); cgx = c3[0]; cgy = c3[1]; }
+      else { cgx = h / 2 * Math.sin(t) * 0 + p.phi * 0.03; cgy = h / 2; }
+      if (pts) D.polyline(pts, { color: c.primary, width: 2.5, close: true, fill: c.accentSoft }); else D.circle(cgx, cgy, h / 2, { fill: c.accentSoft, stroke: c.primary, width: 2.5 });
+      D.line(cgx, cgy, cgx, 0, { color: c.red, dash: [4, 3], width: 1.5 }); D.dot(cgx, cgy, 6, c.red); D.label('CG', cgx, cgy, { dx: 10, color: c.red });
+      D.label('สูง CG = ' + fmt(s.hc) + ' m (ตั้งตรง ' + fmt(s.h0) + ')', -2, 3.2, { color: c.text });
+      D.label('สมดุล' + s.k.type + ' · ปล่อยแล้ว' + s.k.back, -2, 2.9, { color: s.k.type === 'เสถียร' ? c.green : s.k.type === 'ไม่เสถียร' ? c.red : c.orange });
+      if (s.k.tipAngle) D.label('ล้มเมื่อเอียงเกิน ' + fmt(s.k.tipAngle) + '°', -2, 2.6, {});
+      var bx = 5.2, bw = 4, by = 1.2;
+      D.label('จุดศูนย์ถ่วงรวมของมวล 2 ก้อนบนแท่งเบา', bx, 3.2, {});
+      D.rect(bx, by - 0.08, bw, 0.16, { fill: c.muted });
+      D.rect(bx + p.x1 - 0.2, by + 0.08, 0.4, 0.3 + p.m1 * 0.05, { fill: c.orange }); D.label('m₁ ' + p.m1 + ' kg', bx + p.x1, by + 0.5 + p.m1 * 0.05, { align: 'center' });
+      D.rect(bx + p.x2 - 0.2, by + 0.08, 0.4, 0.3 + p.m2 * 0.05, { fill: c.green }); D.label('m₂ ' + p.m2 + ' kg', bx + p.x2, by + 0.5 + p.m2 * 0.05, { align: 'center' });
+      D.polyline([[bx + s.xcg, by - 0.1], [bx + s.xcg - 0.25, by - 0.55], [bx + s.xcg + 0.25, by - 0.55]], { color: c.red, width: 2, close: true, fill: c.red });
+      D.label('CG ที่ x = ' + fmt(s.xcg) + ' m', bx + s.xcg, by - 0.8, { align: 'center', color: c.red });
+      D.label('0', bx, by - 0.3, { align: 'center' }); D.label('4 m', bx + bw, by - 0.3, { align: 'center' });
+    },
+    dragHandles: function (s, p) {
+      var t = rad(p.phi), top = p.shape === 'tip' ? [-(p.h) * Math.sin(t) * 0 + p.w / 2 * Math.cos(t) - p.h * Math.sin(t), p.w / 2 * Math.sin(t) + p.h * Math.cos(t)] : [p.w * Math.cos(t) - p.h * Math.sin(t), p.w * Math.sin(t) + p.h * Math.cos(t)];
+      return [
+        { param: 'phi', x: top[0], y: top[1], r: 12, map: function (wx, wy) { var a = deg(Math.atan2(wx - (p.shape === 'tip' ? p.w / 2 : p.w), wy)); return PhysLab.clamp(a, 0, 60); } },
+        { param: 'x1', x: 5.2 + p.x1, y: 1.4, r: 12, map: function (wx) { return PhysLab.clamp(wx - 5.2, 0, 4); } },
+        { param: 'x2', x: 5.2 + p.x2, y: 1.4, r: 12, map: function (wx) { return PhysLab.clamp(wx - 5.2, 0, 4); } }
+      ];
+    },
+    readouts: function (s, p) {
+      return [
+        { label: 'ชนิดสมดุล', value: s.k.type, highlight: true }, { label: 'ปล่อยมือแล้ว', value: s.k.back },
+        { label: 'สูง CG ขณะเอียง', value: s.hc, unit: 'm' }, { label: 'เทียบตั้งตรง', value: s.hc - s.h0 > 1e-6 ? 'สูงขึ้น' : s.hc - s.h0 < -1e-6 ? 'ต่ำลง' : 'เท่าเดิม' },
+        { label: 'CG รวมของ 2 มวล', value: s.xcg, unit: 'm', highlight: true }, { label: 'มวลรวม', value: p.m1 + p.m2, unit: 'kg' }
+      ];
+    },
+    formulas: function (s, p) { return [{ symbolic: 'x_cg = (m₁x₁ + m₂x₂)/(m₁ + m₂)', substituted: '= (' + p.m1 + '×' + p.x1 + ' + ' + p.m2 + '×' + p.x2 + ')/(' + p.m1 + ' + ' + p.m2 + ')', result: '= ' + fmt(s.xcg) + ' m' }, { symbolic: 'กล่องเอียง: h_cg = (w/2) sinφ + (h/2) cosφ', substituted: '', result: '= ' + fmt(s.hc) + ' m' }]; },
+    content: {
+      summary: '<b>จุดศูนย์กลางชนิดต่าง ๆ</b> จุดศูนย์กลางพื้นที่ ปริมาตร มวล และน้ำหนัก (CG) คือจุดที่ถือว่าน้ำหนักทั้งก้อนรวมอยู่ตรงนั้น ใช้เป็นจุดวางแรงน้ำหนักในการคำนวณ <b>สมดุลเสถียร</b> ถูกผลักแล้วจุดศูนย์ถ่วงยกสูงขึ้น ปล่อยมือแล้วกลับมาที่เดิม เช่น กรวยวางฐานกว้าง <b>สมดุลไม่เสถียร</b> ถูกผลักแล้วจุดศูนย์ถ่วงต่ำลง ล้มไปเลย เช่น กรวยตั้งบนปลายแหลม <b>สมดุลสะเทิน</b> ถูกผลักแล้วจุดศูนย์ถ่วงอยู่ระดับเดิม เช่น ลูกบอลบนพื้นราบ',
+      tryIt: ['ลากกล่องให้เอียงมากขึ้นเรื่อย ๆ จนเส้นดิ่งจาก CG เลยขอบฐาน แล้วดูว่าสถานะเปลี่ยนเป็นล้ม', 'เทียบกล่องเตี้ยฐานกว้างกับกล่องสูงฐานแคบ ว่าแบบไหนทนการเอียงได้มากกว่า', 'ลากมวลบนแท่งให้ CG อยู่กึ่งกลางพอดี (ต้องให้ m₁x₁ สมดุลกับ m₂x₂)']
+    }
+  });
+})();
+</script>
+</body>
+</html>

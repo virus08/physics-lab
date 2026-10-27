@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S1.3 สัญกรณ์วิทยาศาสตร์และคำนำหน้าหน่วย · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S1.3 สัญกรณ์วิทยาศาสตร์และคำนำหน้าหน่วย · บท 1 เรื่อง 3, 4 (อ้างอิงเรื่อง 1, 2 ในตาราง)
+   สูตร: ค่า = A × 10ⁿ โดย 1 ≤ A < 10 · คำนำหน้า = 10 ยกกำลังพหุคูณของ 3 ตั้งแต่พิโก (10⁻¹²) ถึงเทระ (10¹²) · แบบนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, sup = PhysLab.sup;
+  var PREFIX = [{ e: 12, sym: 'T', name: 'เทระ' }, { e: 9, sym: 'G', name: 'จิกะ' }, { e: 6, sym: 'M', name: 'เมกะ' }, { e: 3, sym: 'k', name: 'กิโล' }, { e: 0, sym: '', name: '' }, { e: -3, sym: 'm', name: 'มิลลิ' }, { e: -6, sym: 'µ', name: 'ไมโคร' }, { e: -9, sym: 'n', name: 'นาโน' }, { e: -12, sym: 'p', name: 'พิโก' }];
+  function parse(str) { var s = String(str).trim().replace(/,/g, '').replace(/×\s*10\^?/i, 'e'); var v = parseFloat(s); return isFinite(v) ? v : NaN; }
+  function decompose(v) {
+    if (!isFinite(v) || v === 0) return { A: 0, n: 0, k: 0, pref: PREFIX[4], inPref: 0 };
+    var n = Math.floor(Math.log10(Math.abs(v))), A = v / Math.pow(10, n);
+    if (Math.abs(A) >= 10) { A /= 10; n += 1; }
+    var k = PhysLab.clamp(3 * Math.floor(n / 3), -12, 12);
+    var pref = PREFIX.filter(function (p) { return p.e === k; })[0];
+    return { A: A, n: n, k: k, pref: pref, inPref: v / Math.pow(10, k) };
+  }
+  var UNITS = [{ label: 'เมตร m', value: 'm' }, { label: 'กรัม g', value: 'g' }, { label: 'วินาที s', value: 's' }, { label: 'นิวตัน N', value: 'N' }, { label: 'วัตต์ W', value: 'W' }, { label: 'เฮิรตซ์ Hz', value: 'Hz' }, { label: 'จูล J', value: 'J' }];
+
+  PhysLab.createSim({
+    id: 'S1.3', chapter: 1, topics: [3, 4], title: 'สัญกรณ์วิทยาศาสตร์และคำนำหน้าหน่วย', static: true,
+    alt: 'เส้นจำนวนสเกลลอการิทึมจากพิโกถึงเทระ มีตัวชี้ค่าที่พิมพ์ และแสดงค่าในรูป A คูณสิบยกกำลัง n พร้อมคำนำหน้าหน่วยที่เหมาะ',
+    decompose: decompose, parse: parse,
+    params: {
+      v: { label: 'ค่าที่ต้องการเขียน', type: 'text', default: '14000', hint: 'พิมพ์ได้เช่น 14000, 0.0047, 3.2e8' },
+      unit: { label: 'หน่วย', type: 'choice', options: UNITS, default: 'm' }
+    },
+    presets: [
+      { label: '14,000 m', values: { v: '14000', unit: 'm' } }, { label: '0.0047 s', values: { v: '0.0047', unit: 's' } },
+      { label: 'ความเร็วแสง 3×10⁸ m/s', values: { v: '300000000', unit: 'm' } }, { label: 'ขนาดอะตอม 1e-10 m', values: { v: '0.0000000001', unit: 'm' } }, { label: '2.4 GHz', values: { v: '2400000000', unit: 'Hz' } }
+    ],
+    world: { xMin: 0, xMax: 100, yMin: 0, yMax: 50, fit: 'stretch', pad: 0, yUp: false },
+    init: function (p) { var v = parse(p.v); return Object.assign({ v: v, ok: isFinite(v) }, decompose(v)); }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = D.W, x0 = 50, x1 = W - 50, yL = 150;
+      function X(e) { return x0 + (e + 12) / 24 * (x1 - x0); }
+      D.textPx('เส้นจำนวน (สเกลลอการิทึม) และคำนำหน้าหน่วย', 24, 28, { size: 13, color: c.muted });
+      D.ctx.strokeStyle = c.line; D.ctx.lineWidth = 2; D.ctx.beginPath(); D.ctx.moveTo(x0, yL); D.ctx.lineTo(x1, yL); D.ctx.stroke();
+      for (var e = -12; e <= 12; e++) { var major = e % 3 === 0; D.ctx.strokeStyle = major ? c.text : c.line; D.ctx.lineWidth = major ? 2 : 1; D.ctx.beginPath(); D.ctx.moveTo(X(e), yL - (major ? 12 : 6)); D.ctx.lineTo(X(e), yL + (major ? 12 : 6)); D.ctx.stroke(); if (major) { D.textPx('10' + sup(e), X(e), yL + 26, { align: 'center', size: 11, mono: true, color: c.muted }); var pr = PREFIX.filter(function (q) { return q.e === e; })[0]; D.textPx(pr.name ? pr.name + ' (' + pr.sym + ')' : 'หน่วยฐาน', X(e), yL + 44, { align: 'center', size: 11, color: c.text }); } }
+      if (s.ok && s.v !== 0) {
+        var pos = PhysLab.clamp(Math.log10(Math.abs(s.v)), -12.5, 12.5), px = X(pos);
+        D.ctx.strokeStyle = c.red; D.ctx.lineWidth = 3; D.ctx.beginPath(); D.ctx.moveTo(px, yL - 40); D.ctx.lineTo(px, yL + 14); D.ctx.stroke();
+        D.ctx.beginPath(); D.ctx.arc(px, yL - 44, 7, 0, Math.PI * 2); D.ctx.fillStyle = c.red; D.ctx.fill();
+        D.textPx(fmt(s.A, 4) + ' × 10' + sup(s.n), px, yL - 62, { align: 'center', size: 13, mono: true, bold: true, color: c.red });
+        var yB = yL + 100;
+        D.rectPx(24, yB, W - 48, 110, { fill: c.card, stroke: c.line });
+        D.textPx(String(p.v).trim() + ' ' + p.unit, 40, yB + 24, { size: 16, mono: true, color: c.muted });
+        D.textPx('= ' + fmt(s.A, 4) + ' × 10' + sup(s.n) + ' ' + p.unit, 40, yB + 54, { size: 22, mono: true, bold: true, color: c.primary });
+        D.textPx('= ' + fmt(s.inPref, 4) + ' ' + s.pref.sym + p.unit + (s.pref.name ? ' (' + s.pref.name + p.unit + ')' : ' (ไม่ต้องใช้คำนำหน้า)'), 40, yB + 86, { size: 18, mono: true, bold: true, color: c.green });
+        if (Math.abs(s.n) > 12) D.textPx('ค่านี้เกินช่วงพิโกถึงเทระของตาราง จึงใช้ A × 10ⁿ แทน', 40, yB + 130, { size: 12, color: c.red });
+      } else { D.textPx('พิมพ์ตัวเลขที่อ่านได้ก่อน', 24, yL + 100, { size: 14, color: c.red }); }
+    },
+    readouts: function (s, p) {
+      if (!s.ok) return [{ label: 'สถานะ', value: 'ตัวเลขไม่ถูกต้อง' }];
+      return [
+        { label: 'A (1 ≤ A < 10)', value: s.A, sig: 4 }, { label: 'n', value: s.n, sig: 3 },
+        { label: 'สัญกรณ์วิทยาศาสตร์', value: fmt(s.A, 4) + ' × 10' + sup(s.n) + ' ' + p.unit, highlight: true },
+        { label: 'คำนำหน้าที่เหมาะ', value: (s.pref.name || 'ไม่ต้องใช้') + (s.pref.sym ? ' (' + s.pref.sym + ')' : ''), highlight: true },
+        { label: 'ค่าในหน่วยนั้น', value: fmt(s.inPref, 4) + ' ' + s.pref.sym + p.unit }, { label: 'ตัวคูณของคำนำหน้า', value: '10' + sup(s.k) }
+      ];
+    },
+    content: {
+      summary: '<b>สัญกรณ์ทางวิทยาศาสตร์</b> วิธีเขียนเลขที่ใหญ่มากหรือเล็กมากให้สั้น ในรูป A × 10ⁿ โดย A อยู่ระหว่าง 1 ถึงไม่ถึง 10 เช่น 14,000 เขียนเป็น 1.4 × 10⁴ และ 0.0047 เขียนเป็น 4.7 × 10⁻³ <b>คำนำหน้าหน่วย</b> คำสั้น ๆ ที่เติมหน้าหน่วยแทนตัวคูณ เช่น กิโล = พัน (10³), เมกะ = ล้าน (10⁶), มิลลิ = หนึ่งในพัน (10⁻³), ไมโคร = หนึ่งในล้าน (10⁻⁶) ไล่ตั้งแต่เทระ (10¹²) ลงไปถึงพิโก (10⁻¹²)',
+      tryIt: ['พิมพ์ 0.0047 ดูว่า n ติดลบและคำนำหน้าเป็นมิลลิ', 'พิมพ์ 2400000000 แล้วเลือกหน่วย Hz ดูว่าได้ 2.4 GHz (ความถี่ WiFi)', 'พิมพ์ค่าที่เล็กกว่าพิโก เช่น 1e-15 ดูว่าตารางคำนำหน้าไม่พอ ต้องใช้ A × 10ⁿ'],
+      reference: { title: 'หน่วยฐานเอสไอ 7 ตัว และหน่วยอนุพันธ์ที่พบบ่อย (เรื่อง 1 และ 2)', columns: ['ปริมาณ', 'หน่วย', 'สัญลักษณ์', 'หมายเหตุ'], rows: [
+        ['ความยาว', 'เมตร', 'm', 'หน่วยฐาน'], ['มวล', 'กิโลกรัม', 'kg', 'หน่วยฐาน'], ['เวลา', 'วินาที', 's', 'หน่วยฐาน'], ['อุณหภูมิ', 'เคลวิน', 'K', 'หน่วยฐาน'],
+        ['กระแสไฟฟ้า', 'แอมแปร์', 'A', 'หน่วยฐาน'], ['ปริมาณสาร', 'โมล', 'mol', 'หน่วยฐาน'], ['ความเข้มแสง', 'แคนเดลา', 'cd', 'หน่วยฐาน'],
+        ['พื้นที่', 'ตารางเมตร', 'm²', 'อนุพันธ์'], ['ความเร็ว', 'เมตรต่อวินาที', 'm/s', 'อนุพันธ์'], ['ความเร่ง', '', 'm/s²', 'อนุพันธ์'], ['แรง', 'นิวตัน', 'N = kg·m/s²', 'อนุพันธ์ ตั้งชื่อใหม่']
+      ] }
+    }
+  });
+})();
+</script>
+</body>
+</html>

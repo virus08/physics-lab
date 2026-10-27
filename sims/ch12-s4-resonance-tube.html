@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S12.4 การสั่นพ้องของอากาศในท่อ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S12.4 การสั่นพ้องของอากาศในท่อ · บท 12 เรื่อง 7
+   สูตร: ท่อปลายปิดด้านหนึ่ง L = (2n−1)λ/4 → f = (2n−1)v/4L (ฮาร์มอนิกคี่) · ท่อปลายเปิดสองด้าน L = nλ/2 → f = nv/2L
+   แอนิเมชันการกระจัดของอากาศใช้เฟสภาพช้า (ไม่ใช่ความถี่จริง) · เสียงจริงที่ความถี่ f ผ่าน Web Audio · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, Audio = PhysLab.Audio, audioOn = false;
+  function lam(p) { return p.mode === 'closed' ? 4 * p.L / (2 * p.n - 1) : 2 * p.L / p.n; }
+  function freq(p) { return p.v / lam(p); }
+  function amp(p, x) { var k = 2 * Math.PI / lam(p); return p.mode === 'closed' ? Math.sin(k * x) : Math.cos(k * x); }
+  PhysLab.createSim({
+    id: 'S12.4', chapter: 12, topics: [7], title: 'การสั่นพ้องของอากาศในท่อ', audio: true,
+    alt: 'ท่อแนวนอน ปลายซ้ายปิดหรือเปิดตามโหมด ภายในมีรูปคลื่นนิ่งของการกระจัดอากาศ บัพ N ที่ปลายปิด ปฏิบัพ A ที่ปลายเปิด มีส้อมเสียงอยู่ที่ปากท่อ',
+    lam: lam, freq: freq,
+    params: {
+      mode: { label: 'ชนิดท่อ', type: 'choice', options: [{ label: 'ปลายปิดด้านหนึ่ง', value: 'closed' }, { label: 'ปลายเปิดสองด้าน', value: 'open' }], default: 'closed' },
+      L: { label: 'ความยาวท่อ', symbol: 'L', unit: 'm', type: 'range', min: 0.2, max: 2, step: 0.01, default: 0.5, drag: true },
+      v: { label: 'อัตราเร็วเสียง', symbol: 'v', unit: 'm/s', type: 'range', min: 300, max: 400, step: 1, default: 343 },
+      n: { label: 'ลำดับการสั่นพ้อง', symbol: 'n', type: 'range', min: 1, max: 5, step: 1, default: 1 }
+    },
+    presets: [{ label: 'ท่อปิด L = 0.5 m มูลฐาน (L = λ/4)', values: { mode: 'closed', L: 0.5, n: 1 } }, { label: 'ท่อปิด ลำดับ 2 (L = 3λ/4)', values: { mode: 'closed', L: 0.5, n: 2 } }, { label: 'ท่อปิด ลำดับ 3 (L = 5λ/4)', values: { mode: 'closed', L: 0.5, n: 3 } }, { label: 'ท่อเปิด มูลฐาน (L = λ/2)', values: { mode: 'open', L: 0.5, n: 1 } }, { label: 'ท่อเปิด ฮาร์มอนิกที่ 2 (L = λ)', values: { mode: 'open', L: 0.5, n: 2 } }],
+    toggles: [{ key: 'env', label: 'ขอบเขตการสั่น' }, { key: 'marks', label: 'บัพ N และปฏิบัพ A' }],
+    speeds: [0.5, 1], dt: 1 / 120,
+    world: function (p) { return { xMin: -0.25 * p.L - 0.12, xMax: p.L * 1.12 + 0.05, yMin: -0.42 * p.L - 0.1, yMax: 0.42 * p.L + 0.12 }; },
+    init: function () { return { phase: 0 }; }, step: function (s, p, dt) { s.phase += 3 * dt; return s; },
+    timeLabel: function (t) { return 'ภาพเคลื่อนไหวช้ากว่าจริง'; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, H = 0.22 * p.L, l = lam(p), i, top = [], bot = [], eu = [], ed = [], cs = Math.cos(s.phase);
+      D.rect(0, -H, p.L, 2 * H, { fill: c.soft }); D.line(0, H, p.L, H, { color: c.muted, width: 3 }); D.line(0, -H, p.L, -H, { color: c.muted, width: 3 });
+      if (p.mode === 'closed') D.line(0, -H, 0, H, { color: c.muted, width: 5 });
+      for (i = 0; i <= 160; i++) { var x = p.L * i / 160, a = amp(p, x) * H * 0.85; top.push([x, a * cs]); bot.push([x, -a * cs]); eu.push([x, Math.abs(a)]); ed.push([x, -Math.abs(a)]); }
+      if (D.view.env) { D.polyline(eu, { color: c.primary, width: 1, dash: [3, 4] }); D.polyline(ed, { color: c.primary, width: 1, dash: [3, 4] }); }
+      D.polyline(top, { color: c.primary, width: 2.5 }); D.polyline(bot, { color: c.orange, width: 2.5 });
+      for (i = 0; i <= 40; i++) { var xx = p.L * i / 40, disp = amp(p, xx) * cs * 0.02 * p.L; D.dot(xx + disp, 0, 2.5, c.text, {}); }
+      if (D.view.marks) { var half = l / 2, start = p.mode === 'closed' ? 0 : l / 4; for (var xn = start; xn <= p.L + 1e-9; xn += half) { D.label('N', xn, -H, { dy: 14, align: 'center', color: c.red, bold: true }); } for (var xa = p.mode === 'closed' ? l / 4 : 0; xa <= p.L + 1e-9; xa += half) { D.label('A', xa, H, { dy: -8, align: 'center', color: c.green, bold: true }); } }
+      D.polyline([[-0.2 * p.L, 0.04 * p.L], [-0.08 * p.L, 0.04 * p.L], [-0.08 * p.L, -0.04 * p.L], [-0.2 * p.L, -0.04 * p.L]], { color: c.text, width: 3 }); D.line(-0.14 * p.L, 0.04 * p.L, -0.14 * p.L, -0.04 * p.L, { color: c.text, width: 3 }); D.label('ส้อมเสียง f = ' + fmt(freq(p)) + ' Hz', -0.14 * p.L, -0.06 * p.L, { dy: 10, align: 'center', color: c.text });
+      D.line(0, -H - 0.06 * p.L, p.L, -H - 0.06 * p.L, { color: c.text, width: 1.5 }); D.label('L = ' + p.L + ' m = ' + (p.mode === 'closed' ? (2 * p.n - 1) + 'λ/4' : (p.n === 1 ? 'λ/2' : p.n === 2 ? 'λ' : p.n + 'λ/2')), p.L / 2, -H - 0.06 * p.L, { dy: 14, align: 'center', color: c.text });
+      D.label((p.mode === 'closed' ? 'ท่อปลายปิด: L = (2n−1)λ/4 → λ = ' : 'ท่อปลายเปิด: L = nλ/2 → λ = ') + fmt(l) + ' m · f = v/λ = ' + fmt(freq(p)) + ' Hz', D.world.xMin + 0.02 * p.L, D.world.yMax - 0.03 * p.L, { color: c.text, bold: true });
+    },
+    dragHandles: function (s, p) { return [{ param: 'L', x: p.L, y: 0, r: 16, map: function (wx) { return PhysLab.clamp(wx, 0.2, 2); } }]; },
+    readouts: function (s, p) { var f1 = p.mode === 'closed' ? p.v / (4 * p.L) : p.v / (2 * p.L); return [{ label: 'λ', value: lam(p), unit: 'm', highlight: true }, { label: 'f = v/λ', value: freq(p), unit: 'Hz', highlight: true }, { label: 'ความถี่มูลฐาน f₁', value: f1, unit: 'Hz' }, { label: 'ฮาร์มอนิกที่', value: p.mode === 'closed' ? 2 * p.n - 1 : p.n }, { label: 'ความยาวสั่นพ้องถัดไป (เพิ่ม λ/2)', value: p.L + lam(p) / 2, unit: 'm' }, { label: 'ชุดฮาร์มอนิกที่เกิดได้', value: p.mode === 'closed' ? 'f₁, 3f₁, 5f₁, …' : 'f₁, 2f₁, 3f₁, …' }]; },
+    formulas: function (s, p) { return [p.mode === 'closed' ? { symbolic: 'L = (2n−1)λ/4', substituted: 'λ = 4 × ' + p.L + ' / ' + (2 * p.n - 1), result: '= ' + fmt(lam(p)) + ' m' } : { symbolic: 'L = nλ/2', substituted: 'λ = 2 × ' + p.L + ' / ' + p.n, result: '= ' + fmt(lam(p)) + ' m' }, { symbolic: 'f = v/λ', substituted: '= ' + p.v + ' / ' + fmt(lam(p)), result: '= ' + fmt(freq(p)) + ' Hz' }]; },
+    setup: function (api) { var btn = api.addButton('ฟังเสียง', function () { audioOn = !audioOn; if (audioOn) { Audio.tone('r', { freq: freq(api.params), gain: 0.12 }); btn.textContent = 'หยุดเสียง'; } else { Audio.stop('r'); btn.textContent = 'ฟังเสียง'; } }); },
+    onParam: function (k, v, p) { if (audioOn) Audio.set('r', { freq: freq(p) }); },
+    content: {
+      summary: '<b>การสั่นพ้องของอากาศในท่อ</b> ท่อปลายปิดด้านหนึ่งสั่นพ้องเมื่อ L = λ/4, 3λ/4, 5λ/4, … (เพิ่มทีละครึ่งคลื่น) ท่อปลายเปิดสองด้านเมื่อ L = λ/2, λ, 3λ/2, … ปลายปิดเป็นบัพของการกระจัด ปลายเปิดเป็นปฏิบัพ',
+      tryIt: ['ท่อปิด: เพิ่ม n จาก 1 เป็น 2 ดูว่าความถี่เป็น 3 เท่า (ไม่ใช่ 2 เท่า) เพราะมีเฉพาะฮาร์มอนิกคี่', 'ลากปลายท่อให้ยาวขึ้น ดูว่าความถี่สั่นพ้องลดลง', 'กด "ฟังเสียง" แล้วเปลี่ยนท่อปิดเป็นท่อเปิด ฟังว่าเสียงสูงขึ้นหนึ่งอ็อกเทฟ']
+    }
+  });
+})();
+</script>
+</body>
+</html>

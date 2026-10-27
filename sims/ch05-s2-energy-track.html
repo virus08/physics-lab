@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5.2 การอนุรักษ์พลังงานบนรางลอน · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S5.2 การอนุรักษ์พลังงานบนรางลอน · บท 5 เรื่อง 4, 5, 6, 7
+   สูตร: Ek = ½mv² · Ep = mgh · Eps = ½kx² · E₁ = E₂ (ไม่มีแรงภายนอก) · E₂ = E₁ − W เสียดทาน
+   รถเคลื่อนตามราง y(x): a ตามราง = −g sinφ − μ g cosφ sign(v) · สปริงที่ปลายราง · semi-implicit Euler dt 1/120 · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, g = 9.8, XS = 10;
+  function yAt(p, x) { if (x <= 5) return p.h1 * (1 + Math.cos(Math.PI * x / 5)) / 2; if (x <= 8) { var u = (x - 5) / 3; return p.h2 * Math.pow(Math.sin(Math.PI * u), 2); } return 0; }
+  function slope(p, x) { var d = 1e-3; return (yAt(p, x + d) - yAt(p, x - d)) / (2 * d); }
+  function energies(p, s) { var Ek = 0.5 * p.m * s.v * s.v, Ep = p.m * g * yAt(p, s.x), Eps = s.x > XS ? 0.5 * p.k * Math.pow(s.x - XS, 2) : 0; return { Ek: Ek, Ep: Ep, Eps: Eps, E: Ek + Ep + Eps }; }
+  function init(p) { return { x: 0.001, v: p.v0, Wf: 0, E0: 0.5 * p.m * p.v0 * p.v0 + p.m * g * yAt(p, 0.001) }; }
+  function step(s, p, dt) {
+    var m = slope(p, s.x), phi = Math.atan(m), cs = Math.cos(phi), sn = Math.sin(phi), a;
+    if (s.x > XS) a = -p.k * (s.x - XS) / p.m; else a = -g * sn - (Math.abs(s.v) > 1e-4 ? p.mu * g * cs * Math.sign(s.v) : 0);
+    var vN = s.v + a * dt; if (Math.abs(s.v) > 1e-4 && Math.sign(vN) !== Math.sign(s.v) && p.mu > 0 && s.x <= XS) vN = 0;
+    var ds = vN * dt; s.v = vN; var dx = ds * (s.x > XS ? 1 : cs); if (s.x > XS) { s.Wf += 0; } else s.Wf += p.mu * p.m * g * cs * Math.abs(ds);
+    s.x += dx; if (s.x < 0) { s.x = 0; s.v = 0; }
+    return s;
+  }
+  PhysLab.createSim({
+    id: 'S5.2', chapter: 5, topics: [4, 5, 6, 7], title: 'การอนุรักษ์พลังงานบนรางลอน',
+    alt: 'รถเล็กปล่อยจากยอดรางลอน วิ่งลงผ่านเนินแล้วชนสปริงที่ปลายราง มีแถบพลังงานจลน์ ศักย์โน้มถ่วง ศักย์ยืดหยุ่น และงานเสียดทาน',
+    yAt: yAt, energies: energies,
+    params: {
+      h1: { label: 'ความสูงจุดปล่อย', symbol: 'h₁', unit: 'm', type: 'range', min: 0.5, max: 8, step: 0.1, default: 5, drag: true },
+      h2: { label: 'ความสูงเนิน', symbol: 'h₂', unit: 'm', type: 'range', min: 0, max: 8, step: 0.1, default: 3, drag: true },
+      m: { label: 'มวลรถ', symbol: 'm', unit: 'kg', type: 'range', min: 0.5, max: 10, step: 0.5, default: 2 },
+      v0: { label: 'ความเร็วเริ่มต้น', symbol: 'v₀', unit: 'm/s', type: 'range', min: 0, max: 10, step: 0.5, default: 0 },
+      mu: { label: 'สัมประสิทธิ์เสียดทานของราง', symbol: 'μ', type: 'range', min: 0, max: 0.3, step: 0.01, default: 0 },
+      k: { label: 'สปริงปลายราง', symbol: 'k', unit: 'N/m', type: 'range', min: 50, max: 2000, step: 50, default: 400 }
+    },
+    presets: [{ label: 'ไม่มีเสียดทาน ข้ามเนินได้', values: { h1: 5, h2: 3, mu: 0, v0: 0 } }, { label: 'เนินสูงกว่าจุดปล่อย (กลับ)', values: { h1: 3, h2: 5, mu: 0, v0: 0 } }, { label: 'มีเสียดทาน μ = 0.1', values: { h1: 5, h2: 3, mu: 0.1, v0: 0 } }, { label: 'มีความเร็วต้น 5 m/s', values: { h1: 3, h2: 5, mu: 0, v0: 5 } }, { label: 'สปริงอ่อน 100 N/m', values: { k: 100, h1: 5, h2: 1 } }],
+    toggles: [{ key: 'bars', label: 'แถบพลังงาน' }],
+    world: function (p) { var top = Math.max(p.h1, p.h2, 2) + 1.5; return { xMin: -0.8, xMax: 14.2, yMin: -0.8, yMax: top, alignX: 'left' }; },
+    init: init, step: step,
+    draw: function (ctx, s, p, D) {
+      var c = D.color, pts = []; for (var i = 0; i <= 200; i++) { var x = XS * i / 200; pts.push([x, yAt(p, x)]); } pts.push([XS, 0]); pts.push([XS + 0.9, 0]);
+      D.ground(0); D.polyline(pts, { color: c.muted, width: 3 });
+      D.spring(XS + 1.6, 0.25, Math.max(XS + 0.05, Math.min(XS + 1.5, s.x + 0.05)), 0.25, { coils: 7, amp: 7, color: c.orange }); D.hatch(XS + 1.6, 0, XS + 1.6, 0.7, { n: 4, side: 1 });
+      var E = energies(p, s), m = slope(p, s.x), phi = Math.atan(m), cx = Math.min(s.x, XS + 1.5), cy = yAt(p, Math.min(s.x, XS)) + 0.25;
+      D.ctx.save(); D.ctx.translate(D.x(cx), D.y(cy)); D.ctx.rotate(-(s.x > XS ? 0 : phi)); D.ctx.fillStyle = c.primary; D.ctx.fillRect(-D.sx(0.3), -D.sx(0.2), D.sx(0.6), D.sx(0.4)); D.ctx.restore();
+      if (Math.abs(s.v) > 0.05) D.arrow(cx, cy + 0.45, s.v * 0.18 * Math.cos(phi), s.v * 0.18 * Math.sin(phi), { color: c.text, label: 'v ' + fmt(Math.abs(s.v)), width: 2.5 });
+      D.label('h = ' + fmt(yAt(p, Math.min(s.x, XS))) + ' m', cx, cy, { dy: -22, align: 'center' });
+      D.label('h₁ ' + p.h1 + ' m', -0.7, p.h1, { dy: -20 }); D.label('h₂ ' + p.h2 + ' m', 6.5, p.h2, { dy: -10, align: 'center' });
+      if (D.view.bars) {
+        var bx = 11.4, by = D.world.yMax - 0.5, bh = (D.world.yMax - 1.2) * 0.9, Emax = Math.max(s.E0 + 0.5 * p.m * 25, 1), items = [['Ek', E.Ek, c.orange], ['Ep', E.Ep, c.green], ['Eps', E.Eps, c.primary], ['Wf', s.Wf, c.red]];
+        items.forEach(function (it, i) { var x = bx + i * 0.65, h = bh * PhysLab.clamp(it[1] / Emax, 0, 1); D.rect(x, by - bh, 0.5, bh, { fill: c.soft }); D.rect(x, by - bh, 0.5, h, { fill: it[2] }); D.label(it[0], x + 0.25, by - bh, { dy: 12, align: 'center' }); D.label(fmt(Math.abs(it[1]) < 0.05 ? 0 : it[1]), x + 0.25, by - bh + h, { dy: -8, align: 'center', color: it[2] }); });
+        D.label('E รวม ' + fmt(E.E) + ' J + งานเสียดทาน ' + fmt(s.Wf) + ' J = ' + fmt(E.E + s.Wf) + ' J (เริ่มต้น ' + fmt(s.E0) + ' J)', 0.2, D.world.yMax - 0.3, { color: c.text });
+      }
+    },
+    dragHandles: function (s, p) { return [{ param: 'h1', x: 0, y: p.h1, r: 12, map: function (wx, wy) { return PhysLab.clamp(wy, 0.5, 8); } }, { param: 'h2', x: 6.5, y: p.h2, r: 12, map: function (wx, wy) { return PhysLab.clamp(wy, 0, 8); } }]; },
+    readouts: function (s, p) { var E = energies(p, s); return [{ label: 'Ek = ½mv²', value: E.Ek, unit: 'J', color: '#E07A1F' }, { label: 'Ep = mgh', value: E.Ep, unit: 'J', color: '#0E6B57' }, { label: 'Eps = ½kx²', value: E.Eps, unit: 'J' }, { label: 'งานเสียดทานสะสม', value: s.Wf, unit: 'J', color: '#B42318' }, { label: 'E กล ขณะนี้', value: E.E, unit: 'J', highlight: true }, { label: 'E เริ่มต้น E₁', value: s.E0, unit: 'J', highlight: true }]; },
+    formulas: function (s, p) { var E = energies(p, s); return [{ symbolic: 'Ek = ½mv²', substituted: '= ½(' + p.m + ')(' + fmt(Math.abs(s.v)) + ')²', result: '= ' + fmt(E.Ek) + ' J' }, { symbolic: 'Ep = mgh', substituted: '= ' + p.m + '(9.8)(' + fmt(yAt(p, Math.min(s.x, XS))) + ')', result: '= ' + fmt(E.Ep) + ' J' }, { symbolic: 'E₂ = E₁ − W เสียดทาน', substituted: '= ' + fmt(s.E0) + ' − ' + fmt(s.Wf), result: '= ' + fmt(s.E0 - s.Wf) + ' J (จำลองได้ ' + fmt(E.E) + ')' }]; },
+    conserved: function (s, p) { var E = energies(p, s); return [{ label: 'พลังงานกล + งานเสียดทาน', before: s.E0, after: E.E + s.Wf, unit: 'J' }]; },
+    sample: function (s, p) { var E = energies(p, s); return { Ek: E.Ek, Ep: E.Ep, E: E.E }; },
+    graphs: [{ title: 'พลังงานกับเวลา', x: 't', series: [{ key: 'Ek', label: 'Ek', color: '#E07A1F' }, { key: 'Ep', label: 'Ep', color: '#0E6B57' }, { key: 'E', label: 'E รวม' }], window: 10 }],
+    content: {
+      summary: '<b>พลังงานจลน์</b> Ek = ½mv² ความเร็วเพิ่ม 2 เท่า พลังงานเพิ่ม 4 เท่า <b>พลังงานศักย์โน้มถ่วง</b> Ep = mgh <b>พลังงานศักย์ยืดหยุ่น</b> Eps = ½kx² <b>กฎอนุรักษ์พลังงาน</b> ถ้าไม่มีแรงภายนอกทำงาน พลังงานกลก่อนเท่ากับหลัง E₁ = E₂ ถ้ามีงานเสริม E₂ = E₁ + W ถ้ามีงานต้าน (เสียดทาน) E₂ = E₁ − W',
+      tryIt: ['ลากเนินให้สูงกว่าจุดปล่อย ดูว่ารถขึ้นไม่ถึงยอดและไหลกลับ เพราะ Ep ที่ต้องใช้เกิน E₁', 'เปิดเสียดทาน ดูว่า E รวมลดลงเท่ากับงานเสียดทานที่สะสมพอดี', 'ลดสปริงเหลือ 100 N/m ดูว่าหดได้ไกลขึ้นแต่ Eps สูงสุดเท่าเดิม']
+    }
+  });
+})();
+</script>
+</body>
+</html>

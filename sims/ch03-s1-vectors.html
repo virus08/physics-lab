@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S3.1 การรวมและแตกเวกเตอร์ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S3.1 การรวมและแตกเวกเตอร์ · บท 3 เรื่อง 1, 2, 3
+   สูตร: มุมฉาก R² = A² + B² · มุมใด ๆ R² = A² + B² + 2AB cosθ · tanα = B sinθ / (A + B cosθ)
+   แตกเวกเตอร์: ใกล้มุมใช้ cos ไกลมุมใช้ sin → Fx = F cosφ, Fy = F sinφ · แบบนิ่ง ลากปลายลูกศรได้ · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad, deg = PhysLab.deg;
+  function resultant(A, B, th) { var t = rad(th), R = Math.sqrt(A * A + B * B + 2 * A * B * Math.cos(t)), alpha = deg(Math.atan2(B * Math.sin(t), A + B * Math.cos(t))); return { R: R, alpha: alpha, Rx: A + B * Math.cos(t), Ry: B * Math.sin(t) }; }
+  function components(F, phi) { return { Fx: F * Math.cos(rad(phi)), Fy: F * Math.sin(rad(phi)) }; }
+  PhysLab.createSim({
+    id: 'S3.1', chapter: 3, topics: [1, 2, 3], title: 'การรวมและแตกเวกเตอร์', static: true,
+    alt: 'ซ้าย ลูกศรแรง A และ B ทำมุมกัน มีสี่เหลี่ยมด้านขนานและลูกศรลัพธ์ R ขวา ลูกศรแรง F เฉียงถูกแยกเป็นองค์ประกอบแนวนอนและแนวดิ่ง',
+    resultant: resultant, components: components,
+    params: {
+      A: { label: 'ขนาดแรง A', symbol: 'A', unit: 'N', type: 'range', min: 0, max: 20, step: 0.5, default: 8 },
+      B: { label: 'ขนาดแรง B', symbol: 'B', unit: 'N', type: 'range', min: 0, max: 20, step: 0.5, default: 6, drag: true },
+      theta: { label: 'มุมระหว่าง A กับ B', symbol: 'θ', unit: '°', type: 'range', min: 0, max: 180, step: 1, default: 60, drag: true },
+      F: { label: 'แรงเฉียง F (ฝั่งขวา)', symbol: 'F', unit: 'N', type: 'range', min: 0, max: 20, step: 0.5, default: 10, drag: true },
+      phi: { label: 'มุมของ F กับแนวนอน', symbol: 'φ', unit: '°', type: 'range', min: 0, max: 90, step: 1, default: 30, drag: true }
+    },
+    presets: [
+      { label: 'มุมฉาก 3-4-5', values: { A: 4, B: 3, theta: 90 } }, { label: 'มุม 60°', values: { A: 8, B: 6, theta: 60 } },
+      { label: 'ทิศเดียวกัน (บวกกัน)', values: { A: 8, B: 6, theta: 0 } }, { label: 'สวนทาง (ลบกัน)', values: { A: 8, B: 6, theta: 180 } }, { label: 'F 10 N ที่ 30°', values: { F: 10, phi: 30 } }
+    ],
+    toggles: [{ key: 'para', label: 'สี่เหลี่ยมด้านขนาน' }, { key: 'comp', label: 'องค์ประกอบของ R' }],
+    world: { xMin: -4, xMax: 48, yMin: -6, yMax: 22 },
+    init: function (p) { return Object.assign({}, resultant(p.A, p.B, p.theta), components(p.F, p.phi)); }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, t = rad(p.theta), ox = 2, oy = 2;
+      D.textPx('รวมเวกเตอร์', D.x(ox), D.y(21), { size: 13, color: c.muted, bold: true });
+      var bx = ox + p.B * Math.cos(t), by = oy + p.B * Math.sin(t), rx = ox + s.Rx, ry = oy + s.Ry;
+      if (D.view.para) { D.polyline([[ox + p.A, oy], [rx, ry], [bx, by]], { color: c.line, dash: [4, 3], width: 1 }); }
+      D.arrow(ox, oy, p.A, 0, { color: c.orange, label: 'A = ' + p.A + ' N', width: 3 });
+      D.arrow(ox, oy, p.B * Math.cos(t), p.B * Math.sin(t), { color: c.green, label: 'B = ' + p.B + ' N', width: 3 });
+      if (s.R > 0.05) D.arrow(ox, oy, s.Rx, s.Ry, { color: c.primary, label: 'R = ' + fmt(s.R) + ' N', width: 3.5 });
+      D.angle(ox, oy, 34, 0, t, { label: 'θ ' + p.theta + '°' });
+      if (s.R > 0.05 && Math.abs(s.alpha) > 2) D.angle(ox, oy, 60, 0, rad(s.alpha), { label: 'α ' + fmt(s.alpha) + '°', color: c.primary });
+      if (D.view.comp) { D.line(rx, oy, rx, ry, { color: c.primary, dash: [3, 3], width: 1 }); D.line(ox, oy, rx, oy, { color: c.primary, dash: [3, 3], width: 1 }); D.label('Rx = ' + fmt(s.Rx), rx, oy, { dy: 16, align: 'center', color: c.primary }); }
+      var fx0 = 28, fy0 = 2, cm = components(p.F, p.phi);
+      D.textPx('แตกเวกเตอร์', D.x(fx0), D.y(21), { size: 13, color: c.muted, bold: true });
+      D.line(fx0, fy0, fx0 + 18, fy0, { color: c.line, width: 1 }); D.line(fx0, fy0, fx0, fy0 + 18, { color: c.line, width: 1 });
+      D.line(fx0 + cm.Fx, fy0, fx0 + cm.Fx, fy0 + cm.Fy, { color: c.line, dash: [3, 3], width: 1 }); D.line(fx0, fy0 + cm.Fy, fx0 + cm.Fx, fy0 + cm.Fy, { color: c.line, dash: [3, 3], width: 1 });
+      D.arrow(fx0, fy0, cm.Fx, cm.Fy, { color: c.primary, label: 'F = ' + p.F + ' N', width: 3.5 });
+      D.arrow(fx0, fy0, cm.Fx, 0, { color: c.orange, label: 'Fx = F cosφ = ' + fmt(cm.Fx), width: 3, dy: 14 });
+      D.arrow(fx0, fy0, 0, cm.Fy, { color: c.green, label: 'Fy = F sinφ = ' + fmt(cm.Fy), width: 3, dx: -4, dy: -10 });
+      D.angle(fx0, fy0, 40, 0, rad(p.phi), { label: 'φ ' + p.phi + '°' });
+      D.textPx('ใกล้มุม φ ใช้ cos · ไกลมุมใช้ sin', D.x(fx0), D.y(-4), { size: 12, color: c.muted });
+    },
+    dragHandles: function (s, p, D) {
+      var t = rad(p.theta);
+      return [
+        { param: 'theta', x: 2 + p.B * Math.cos(t), y: 2 + p.B * Math.sin(t), r: 12, map: function (wx, wy) { return PhysLab.clamp(deg(Math.atan2(wy - 2, wx - 2)), 0, 180); } },
+        { param: 'phi', x: 28 + p.F * Math.cos(rad(p.phi)), y: 2 + p.F * Math.sin(rad(p.phi)), r: 12, map: function (wx, wy) { return PhysLab.clamp(deg(Math.atan2(wy - 2, wx - 28)), 0, 90); } }
+      ];
+    },
+    readouts: function (s, p) {
+      return [
+        { label: 'R (มุมใด ๆ)', value: s.R, unit: 'N', highlight: true }, { label: 'มุม α ของ R จาก A', value: s.alpha, unit: '°' },
+        { label: 'ถ้ามุมฉาก √(A² + B²)', value: Math.sqrt(p.A * p.A + p.B * p.B), unit: 'N' }, { label: 'ช่วงที่เป็นไปได้ |A−B| ถึง A+B', value: fmt(Math.abs(p.A - p.B)) + ' ถึง ' + fmt(p.A + p.B), unit: 'N' },
+        { label: 'Fx = F cosφ', value: s.Fx, unit: 'N', color: '#E07A1F', highlight: true }, { label: 'Fy = F sinφ', value: s.Fy, unit: 'N', color: '#0E6B57', highlight: true }
+      ];
+    },
+    formulas: function (s, p) {
+      return [
+        { symbolic: 'R² = A² + B² + 2AB cosθ', substituted: '= ' + p.A + '² + ' + p.B + '² + 2(' + p.A + ')(' + p.B + ') cos ' + p.theta + '°', result: '→ R = ' + fmt(s.R) + ' N' },
+        { symbolic: 'tanα = B sinθ / (A + B cosθ)', substituted: '= ' + fmt(p.B * Math.sin(rad(p.theta))) + ' / ' + fmt(p.A + p.B * Math.cos(rad(p.theta))), result: '→ α = ' + fmt(s.alpha) + '°' },
+        { symbolic: 'Fx = F cosφ · Fy = F sinφ', substituted: '= ' + p.F + ' cos ' + p.phi + '° · ' + p.F + ' sin ' + p.phi + '°', result: '= ' + fmt(s.Fx) + ' N · ' + fmt(s.Fy) + ' N' }
+      ];
+    },
+    content: {
+      summary: '<b>รวมเวกเตอร์มุมฉาก</b> แรงสองแรงตั้งฉากกัน ขนาดแรงลัพธ์หาจากพีทาโกรัส R² = A² + B² <b>รวมเวกเตอร์มุมใด ๆ</b> ถ้าแรงสองแรงทำมุม θ กัน R² = A² + B² + 2AB cosθ <b>การแตกเวกเตอร์</b> แยกแรงเฉียงออกเป็นแนวตั้งกับแนวนอน จำง่าย ๆ ว่า "ใกล้มุมใช้ cos ไกลมุมใช้ sin"',
+      tryIt: ['ลากปลาย B ให้ θ = 90° แล้วตรวจว่า R = √(A² + B²)', 'ลาก θ ไป 0° และ 180° ดูว่า R เท่ากับผลบวกและผลต่างของ A กับ B', 'ลากปลาย F ให้ φ = 60° สังเกตว่า Fy ใหญ่กว่า Fx เพราะไกลมุมใช้ sin']
+    }
+  });
+})();
+</script>
+</body>
+</html>

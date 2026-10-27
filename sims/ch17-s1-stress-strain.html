@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S17.1 ความเค้น ความเครียด และมอดุลัสของยัง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S17.1 ความเค้น ความเครียด และมอดุลัสของยัง · บท 17 เรื่อง 1
+   สูตร: σ = F/A · ε = ΔL/L₀ · Y = σ/ε · ΔL = FL₀/(AY) · เกินขีดจำกัดยืดหยุ่นแล้วไม่คืนรูป
+   แบบจำลองนิ่ง (ลากตุ้มน้ำหนักเพื่อเปลี่ยน F) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  var MAT = [{ label: 'เหล็กกล้า Y = 200 GPa', value: 'steel' }, { label: 'ทองแดง 110 GPa', value: 'copper' }, { label: 'อะลูมิเนียม 70 GPa', value: 'al' }, { label: 'ไนลอน 3 GPa', value: 'nylon' }];
+  var PROP = { steel: { Y: 200e9, el: 250e6 }, copper: { Y: 110e9, el: 70e6 }, al: { Y: 70e9, el: 95e6 }, nylon: { Y: 3e9, el: 45e6 } };
+  function calc(p) { var m = PROP[p.mat], A = p.A * 1e-6, F = p.F, s = F / A, e = s / m.Y, dL = e * p.L0; return { Y: m.Y, el: m.el, A: A, stress: s, strain: e, dL: dL, over: s > m.el, Fel: m.el * A }; }
+  PhysLab.createSim({
+    id: 'S17.1', chapter: 17, topics: [1], title: 'ความเค้น ความเครียด และมอดุลัสของยัง', static: true,
+    alt: 'ลวดแขวนจากเพดาน มีตุ้มน้ำหนักลากได้ที่ปลาย ลวดยืดออก ΔL ตามแรง ด้านขวาเป็นกราฟความเค้น-ความเครียด เส้นตรงช่วงยืดหยุ่นและจุดขีดจำกัดยืดหยุ่น',
+    calc: calc,
+    params: {
+      mat: { label: 'วัสดุ', type: 'choice', options: MAT, default: 'steel' },
+      F: { label: 'แรงดึง (ลากตุ้มได้)', symbol: 'F', unit: 'N', type: 'range', min: 0, max: 5000, step: 10, default: 1000, drag: true },
+      A: { label: 'พื้นที่หน้าตัด', symbol: 'A', unit: 'mm²', type: 'range', min: 0.5, max: 20, step: 0.5, default: 5 },
+      L0: { label: 'ความยาวเดิม', symbol: 'L₀', unit: 'm', type: 'range', min: 0.5, max: 5, step: 0.1, default: 2 }
+    },
+    presets: [{ label: 'เหล็ก 5 mm² ยาว 2 m ดึง 1000 N', values: { mat: 'steel', F: 1000, A: 5, L0: 2 } }, { label: 'ลวดบางลง (ยืดมากขึ้น)', values: { A: 1 } }, { label: 'ไนลอน (Y ต่ำ ยืดง่าย)', values: { mat: 'nylon', A: 5, F: 200 } }, { label: 'ดึงเกินขีดจำกัดยืดหยุ่น', values: { mat: 'al', A: 2, F: 400 } }],
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p), top = 4.7, L0w = 2.2, ext = PhysLab.clamp(C.strain * 300, 0, 1.6), xw = 1.8;
+      D.rect(0.6, top, 2.4, 0.2, { fill: c.muted }); D.hatch(0.6, top + 0.2, 3.0, top + 0.2, { n: 8, side: 1 });
+      D.line(xw, top, xw, top - L0w, { color: c.line, width: 1, dash: [3, 3] }); D.line(xw, top, xw, top - L0w - ext, { color: C.over ? c.red : c.primary, width: PhysLab.clamp(2 + p.A * 0.3, 2, 8) });
+      D.rect(xw - 0.45, top - L0w - ext - 0.8, 0.9, 0.8, { fill: c.orange }); D.label('F = ' + p.F + ' N', xw, top - L0w - ext - 0.4, { align: 'center', color: '#fff', bold: true });
+      D.line(xw + 0.6, top, xw + 0.6, top - L0w, { color: c.text, width: 1 }); D.label('L₀ = ' + p.L0 + ' m', xw + 0.7, top - L0w / 2, { color: c.text });
+      if (ext > 0.02) { D.line(xw + 0.6, top - L0w, xw + 0.6, top - L0w - ext, { color: c.red, width: 2 }); D.label('ΔL = ' + fmt(C.dL * 1000) + ' mm (ขยายภาพ)', xw + 0.7, top - L0w - ext / 2, { color: c.red }); }
+      D.label(MAT.filter(function (m) { return m.value === p.mat; })[0].label + ' · A = ' + p.A + ' mm²', 0.3, 0.6, { color: c.text });
+      D.label(C.over ? 'เกินขีดจำกัดยืดหยุ่น: ลวดยืดถาวร ไม่คืนรูป' : 'ยังอยู่ในช่วงยืดหยุ่น: ปล่อยแรงแล้วคืนรูป', 0.3, 0.3, { color: C.over ? c.red : c.green, bold: true });
+      var gx0 = 4.8, gx1 = 9.6, gy0 = 0.9, gy1 = 4.6, smax = C.el * 1.6, emax = smax / C.Y * 1.3, X = function (e) { return gx0 + (gx1 - gx0) * PhysLab.clamp(e / emax, 0, 1); }, Y = function (sg) { return gy0 + (gy1 - gy0) * PhysLab.clamp(sg / smax, 0, 1); };
+      D.rect(gx0, gy0, gx1 - gx0, gy1 - gy0, { fill: c.card, stroke: c.line }); D.label('ความเครียด ε', gx1, gy0, { dy: 12, align: 'right', color: c.muted }); D.label('ความเค้น σ (MPa)', gx0, gy1, { dy: -4, color: c.muted });
+      var eel = C.el / C.Y, pts = [[X(0), Y(0)], [X(eel), Y(C.el)]]; for (var i = 1; i <= 10; i++) { var e2 = eel + (emax - eel) * i / 10, s2 = C.el + (smax * 0.95 - C.el) * Math.sqrt(i / 10); pts.push([X(e2), Y(s2)]); } D.polyline(pts, { color: c.line, width: 2 });
+      D.dot(X(eel), Y(C.el), 5, c.red, {}); D.label('ขีดจำกัดยืดหยุ่น ' + fmt(C.el / 1e6) + ' MPa', X(eel) + 0.05, Y(C.el) + 0.18, { color: c.red });
+      D.label('ความชัน = Y = ' + fmt(C.Y / 1e9) + ' GPa', X(eel * 0.5) + 0.1, Y(C.el * 0.5) - 0.15, { color: c.muted });
+      D.dot(X(C.strain), Y(Math.min(C.stress, smax)), 7, C.over ? c.red : c.primary, { stroke: c.card, width: 2 }); D.label('σ = ' + fmt(C.stress / 1e6) + ' MPa · ε = ' + fmt(C.strain), X(C.strain) + 0.1, Y(Math.min(C.stress, smax)) - 0.2, { color: c.primary, bg: c.card });
+    },
+    dragHandles: function (s, p) { var C = calc(p), ext = PhysLab.clamp(C.strain * 300, 0, 1.6); return [{ param: 'F', x: 1.8, y: 4.7 - 2.2 - ext - 0.4, r: 20, map: function (wx, wy) { var e = PhysLab.clamp((4.7 - 2.2 - 0.4 - wy) / 300, 0, 1.6 / 300); return PhysLab.clamp(e * PROP[p.mat].Y * p.A * 1e-6, 0, 5000); } }]; },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'σ = F/A', value: C.stress, unit: 'Pa', highlight: true }, { label: 'ε = ΔL/L₀', value: C.strain, highlight: true }, { label: 'ΔL = FL₀/AY', value: C.dL * 1000, unit: 'mm' }, { label: 'Y = σ/ε', value: C.Y, unit: 'Pa' }, { label: 'แรงที่ถึงขีดจำกัดยืดหยุ่น', value: C.Fel, unit: 'N' }, { label: 'สภาพ', value: C.over ? 'ยืดถาวร' : 'ยืดหยุ่น' }]; },
+    formulas: function (s, p) { var C = calc(p); return [{ symbolic: 'σ = F/A', substituted: '= ' + p.F + ' / ' + p.A + '×10⁻⁶', result: '= ' + fmt(C.stress) + ' Pa' }, { symbolic: 'ε = σ/Y', substituted: '= ' + fmt(C.stress) + ' / ' + fmt(C.Y), result: '= ' + fmt(C.strain) }, { symbolic: 'ΔL = εL₀', substituted: '= ' + fmt(C.strain) + ' × ' + p.L0, result: '= ' + fmt(C.dL * 1000) + ' mm' }]; },
+    content: {
+      summary: '<b>ความเค้น ความเครียด มอดุลัสของยัง</b> ความเค้น σ = F/A คือแรงต่อพื้นที่ ความเครียด ε = ΔL/L₀ คือสัดส่วนที่ยืด มอดุลัสของยัง Y = σ/ε บอกความแข็งของวัสดุ (ความชันของกราฟ σ-ε ช่วงเส้นตรง) ยืดเกินขีดจำกัดยืดหยุ่นแล้วไม่คืนรูป',
+      tryIt: ['ลดพื้นที่หน้าตัดลงครึ่งหนึ่ง ดูว่าความเค้นเพิ่ม 2 เท่า และยืดมากขึ้น 2 เท่า', 'เปลี่ยนเป็นไนลอน ดูว่ายืดมากกว่าเหล็กหลายสิบเท่าที่แรงเท่ากัน', 'ลากตุ้มลงจนจุดบนกราฟพ้นขีดจำกัดยืดหยุ่น']
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S11.2 ภาพจากเลนส์และกระจกโค้ง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S11.2 ภาพจากเลนส์และกระจกโค้ง · บท 11 เรื่อง 5, 6, 7, 8, 9
+   สูตร: 1/f = 1/s + 1/s′ · m = y′/y = −s′/s · f บวกสำหรับเลนส์นูนและกระจกเว้า ลบสำหรับเลนส์เว้าและกระจกนูน · s′ บวก = ภาพจริง ลบ = ภาพเสมือน
+   แบบจำลองนิ่ง วาดรังสีหลัก 3 เส้น (เลนส์บาง / กระจกโค้งแบบประมาณระนาบ) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function calc(p) { var lens = p.kind.indexOf('lens') >= 0, f = (p.kind === 'convex-lens' || p.kind === 'concave-mirror') ? p.f : -p.f, inv = 1 / f - 1 / p.s, sp = Math.abs(inv) < 1e-9 ? Infinity : 1 / inv, m = isFinite(sp) ? -sp / p.s : Infinity; return { lens: lens, f: f, sp: sp, m: m, hp: isFinite(m) ? m * p.h : NaN, real: isFinite(sp) && sp > 0, xi: isFinite(sp) ? (lens ? sp : -sp) : NaN }; }
+  function describe(C) { if (!isFinite(C.sp)) return 'ภาพอยู่ที่อนันต์ (วัตถุที่ F)'; var sz = Math.abs(C.m) > 1.02 ? 'ขยาย' : Math.abs(C.m) < 0.98 ? 'ย่อ' : 'เท่าวัตถุ'; return (C.real ? 'ภาพจริง' : 'ภาพเสมือน') + ' ' + (C.m < 0 ? 'หัวกลับ' : 'หัวตั้ง') + ' ' + sz; }
+  PhysLab.createSim({
+    id: 'S11.2', chapter: 11, topics: [5, 6, 7, 8, 9], title: 'ภาพจากเลนส์และกระจกโค้ง', static: true,
+    alt: 'แกนมุขสำคัญกับเลนส์หรือกระจกโค้งตรงกลาง วัตถุลูกศรสีส้มทางซ้าย รังสีหลักสามเส้นไปตัดกันเป็นภาพลูกศรสีน้ำเงิน ภาพเสมือนวาดจางและใช้เส้นประต่อแนวรังสี',
+    calc: calc,
+    params: {
+      kind: { label: 'อุปกรณ์', type: 'choice', options: [{ label: 'เลนส์นูน', value: 'convex-lens' }, { label: 'เลนส์เว้า', value: 'concave-lens' }, { label: 'กระจกเว้า', value: 'concave-mirror' }, { label: 'กระจกนูน', value: 'convex-mirror' }], default: 'convex-lens' },
+      f: { label: 'ความยาวโฟกัส (ขนาด)', symbol: '|f|', unit: 'cm', type: 'range', min: 5, max: 40, step: 1, default: 20 },
+      s: { label: 'ระยะวัตถุ (ลากได้)', symbol: 's', unit: 'cm', type: 'range', min: 2, max: 120, step: 1, default: 50, drag: true },
+      h: { label: 'ความสูงวัตถุ', symbol: 'y', unit: 'cm', type: 'range', min: 2, max: 20, step: 1, default: 8, drag: true }
+    },
+    presets: [{ label: 'เลนส์นูน วัตถุไกลกว่า 2F', values: { kind: 'convex-lens', f: 20, s: 60 } }, { label: 'เลนส์นูน วัตถุที่ 2F (เท่า)', values: { kind: 'convex-lens', f: 20, s: 40 } }, { label: 'เลนส์นูน ระหว่าง F กับ 2F', values: { kind: 'convex-lens', f: 20, s: 30 } }, { label: 'เลนส์นูน ใกล้กว่า F (แว่นขยาย)', values: { kind: 'convex-lens', f: 20, s: 12 } }, { label: 'เลนส์เว้า', values: { kind: 'concave-lens', f: 20, s: 40 } }, { label: 'กระจกเว้า ระหว่าง F กับ 2F', values: { kind: 'concave-mirror', f: 20, s: 30 } }, { label: 'กระจกนูน', values: { kind: 'convex-mirror', f: 20, s: 40 } }],
+    toggles: [{ key: 'rays', label: 'รังสีหลัก 3 เส้น' }, { key: 'marks', label: 'จุด F และ 2F' }],
+    world: function (p) { var C = calc(p), X = PhysLab.clamp(Math.max(p.s, isFinite(C.xi) ? Math.abs(C.xi) : 0, 2 * p.f), 20, 160) * 1.12 + 8, Y = PhysLab.clamp(Math.max(p.h, isFinite(C.hp) ? Math.abs(C.hp) : 0), 8, 50) * 1.4 + 4; return { xMin: -X, xMax: X, yMin: -Y, yMax: Y }; },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = D.world, C = calc(p), f = C.f, hgt = Math.min(W.yMax * 0.85, Math.max(p.h, isFinite(C.hp) ? Math.abs(C.hp) : 0) * 1.25 + 6);
+      function ray(x0, y0, dx, dy, color, dash) { var t = ((dx > 0 ? W.xMax : W.xMin) - x0) / dx; D.line(x0, y0, x0 + dx * t, y0 + dy * t, { color: color, width: 1.5, dash: dash }); }
+      D.line(W.xMin, 0, W.xMax, 0, { color: c.line, width: 1 });
+      if (C.lens) { var bul = p.kind === 'convex-lens' ? 1 : -1, L = [], R = []; for (var i = 0; i <= 24; i++) { var yy = -hgt + 2 * hgt * i / 24, w = bul > 0 ? 4 * (1 - yy * yy / (hgt * hgt)) + 0.6 : 1.4 + 3 * yy * yy / (hgt * hgt); L.push([-w, yy]); R.push([w, yy]); } D.polyline(L.concat(R.reverse()), { color: c.primary, width: 2, close: true, fill: c.accentSoft }); D.label(p.kind === 'convex-lens' ? 'เลนส์นูน' : 'เลนส์เว้า', 0, hgt, { dy: -10, align: 'center', color: c.primary, bold: true }); }
+      else { var conc = p.kind === 'concave-mirror', M = []; for (var j = 0; j <= 24; j++) { var ym = -hgt + 2 * hgt * j / 24; M.push([(conc ? 1 : -1) * 0.012 * ym * ym / hgt * 8, ym]); } D.polyline(M, { color: c.primary, width: 4 }); D.hatch(M[0][0], -hgt, M[24][0], hgt, { n: 16, side: -1 }); D.label(conc ? 'กระจกเว้า' : 'กระจกนูน', 0, hgt, { dy: -10, align: 'center', color: c.primary, bold: true }); }
+      if (D.view.marks) { var Fs = C.lens ? [-Math.abs(f), Math.abs(f)] : [-f]; Fs.forEach(function (xf) { D.dot(xf, 0, 4, c.text, {}); D.label('F', xf, 0, { dy: 14, align: 'center' }); D.dot(2 * xf, 0, 4, c.text, {}); D.label(C.lens ? '2F' : 'C', 2 * xf, 0, { dy: 14, align: 'center' }); }); }
+      D.arrow(-p.s, 0, 0, p.h, { color: c.orange, width: 3 }); D.label('วัตถุ', -p.s, p.h, { dy: -10, align: 'center', color: c.orange });
+      if (isFinite(C.xi)) { ctx.save(); if (!C.real) ctx.globalAlpha = 0.5; D.arrow(C.xi, 0, 0, C.hp, { color: c.primary, width: 3 }); ctx.restore(); D.label(C.real ? 'ภาพจริง' : 'ภาพเสมือน', C.xi, C.hp, { dy: C.hp >= 0 ? -10 : 14, align: 'center', color: c.primary }); }
+      if (D.view.rays) {
+        var y3 = -p.h * f / (p.s - f), dirIn = C.lens ? 1 : -1;
+        D.line(-p.s, p.h, 0, p.h, { color: c.green, width: 1.5 }); D.line(-p.s, p.h, 0, 0, { color: c.red, width: 1.5 }); if (Math.abs(y3) < W.yMax) D.line(-p.s, p.h, 0, y3, { color: c.orange, width: 1.5 });
+        ray(0, p.h, dirIn, -p.h / f, c.green, null);
+        ray(0, 0, dirIn, -p.h / p.s, c.red, null);
+        if (Math.abs(y3) < W.yMax) ray(0, y3, dirIn, 0, c.orange, null);
+        if (isFinite(C.xi) && !C.real) { D.line(0, p.h, C.xi, C.hp, { color: c.green, dash: [4, 4], width: 1 }); D.line(0, 0, C.xi, C.hp, { color: c.red, dash: [4, 4], width: 1 }); if (Math.abs(y3) < W.yMax) D.line(0, y3, C.xi, C.hp, { color: c.orange, dash: [4, 4], width: 1 }); }
+      }
+      D.line(-p.s, -W.yMax * 0.55, 0, -W.yMax * 0.55, { color: c.orange, width: 1.5 }); D.label('s = ' + p.s + ' cm', -p.s / 2, -W.yMax * 0.55, { dy: 14, align: 'center', color: c.orange });
+      if (isFinite(C.xi)) { D.line(0, -W.yMax * 0.75, C.xi, -W.yMax * 0.75, { color: c.primary, width: 1.5 }); D.label("s′ = " + fmt(C.sp) + ' cm', C.xi / 2, -W.yMax * 0.75, { dy: 14, align: 'center', color: c.primary }); }
+      D.label(describe(C) + (isFinite(C.m) ? ' · m = ' + fmt(C.m) : ''), W.xMin + 2, W.yMax - 2, { color: c.text, bold: true, bg: c.card });
+    },
+    dragHandles: function (s, p) { return [{ param: 's', x: -p.s, y: p.h, r: 18, map: function (wx, wy) { return { s: PhysLab.clamp(-wx, 2, 120), h: PhysLab.clamp(wy, 2, 20) }; } }]; },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'f (ตามเครื่องหมาย)', value: C.f, unit: 'cm' }, { label: 's', value: p.s, unit: 'cm' }, { label: "s′", value: C.sp, unit: 'cm', highlight: true }, { label: "m = −s′/s", value: C.m, highlight: true }, { label: "y′ = m·y", value: C.hp, unit: 'cm' }, { label: 'ชนิดภาพ', value: describe(C) }]; },
+    formulas: function (s, p) { var C = calc(p); return [{ symbolic: '1/f = 1/s + 1/s′', substituted: '1/s′ = 1/' + C.f + ' − 1/' + p.s, result: isFinite(C.sp) ? "s′ = " + fmt(C.sp) + ' cm' : "s′ → ∞" }, { symbolic: "m = −s′/s", substituted: '= −(' + fmt(C.sp) + ')/' + p.s, result: '= ' + fmt(C.m) + (C.m < 0 ? ' (หัวกลับ)' : ' (หัวตั้ง)') }, { symbolic: "y′ = m y", substituted: '= ' + fmt(C.m) + ' × ' + p.h, result: '= ' + fmt(C.hp) + ' cm' }]; },
+    content: {
+      summary: '<b>ภาพจากเลนส์นูน (คล้ายกระจกเว้า)</b> วัตถุไกลกว่า 2F ได้ภาพจริงเล็ก ที่ 2F ได้ภาพจริงเท่า ระหว่าง F กับ 2F ได้ภาพจริงใหญ่ ใกล้กว่า F ได้ภาพเสมือนใหญ่ (แว่นขยาย) <b>ภาพจากเลนส์เว้า (คล้ายกระจกนูน)</b> ได้ภาพเสมือนขนาดเล็กหัวตั้งเสมอ <b>สูตรระยะโฟกัส</b> 1/f = 1/s + 1/s′ <b>สูตรกำลังขยาย</b> m = y′/y = −s′/s ค่าลบแปลว่าภาพหัวกลับ <b>ตารางเครื่องหมาย</b> f บวกสำหรับเลนส์นูนและกระจกเว้า ลบสำหรับเลนส์เว้าและกระจกนูน s′ บวกเมื่อภาพจริง ลบเมื่อภาพเสมือน m บวกเมื่อภาพเสมือน ลบเมื่อภาพจริง',
+      tryIt: ['ลากวัตถุจากไกลเข้ามาใกล้เลนส์นูน ดูภาพจริงใหญ่ขึ้นและไกลออกไป จนผ่าน F แล้วกลายเป็นภาพเสมือน', 'ตั้ง s = 2f ดูว่า m = −1 พอดี', 'เปลี่ยนเป็นเลนส์เว้าหรือกระจกนูน ดูว่าได้ภาพเสมือนเล็กหัวตั้งเสมอไม่ว่าวัตถุอยู่ที่ใด'],
+      reference: { title: 'ตารางเครื่องหมาย', columns: ['ปริมาณ', 'บวก', 'ลบ'], rows: [['f', 'เลนส์นูน กระจกเว้า', 'เลนส์เว้า กระจกนูน'], ["s′", 'ภาพจริง', 'ภาพเสมือน'], ['m', 'ภาพเสมือน (หัวตั้ง)', 'ภาพจริง (หัวกลับ)']] }
+    }
+  });
+})();
+</script>
+</body>
+</html>

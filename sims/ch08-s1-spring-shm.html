@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S8.1 SHM ของมวลติดสปริง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S8.1 SHM ของมวลติดสปริง · บท 8 เรื่อง 1, 2, 3, 4, 5
+   สูตร: x = A cos(ωt) หรือ A sin(ωt) · v = ω√(A² − x²), v max = ωA · a = −ω²x, a max = ω²A · ω = √(k/m), T = 2π√(m/k)
+   อินทิเกรต semi-implicit Euler dt 1/120 (รักษาพลังงานได้ดีสำหรับ SHM) · ความหน่วงเป็นส่วนขยาย · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function omega(p) { return Math.sqrt(p.k / p.m); }
+  function init(p) { return p.start === 'cos' ? { x: p.A, v: 0 } : { x: 0, v: omega(p) * p.A }; }
+  function step(s, p, dt) { var a = -p.k / p.m * s.x - p.c * s.v; s.v += a * dt; s.x += s.v * dt; return s; }
+  PhysLab.createSim({
+    id: 'S8.1', chapter: 8, topics: [1, 2, 3, 4, 5], title: 'SHM ของมวลติดสปริง',
+    alt: 'มวลติดสปริงบนพื้นลื่นสั่นกลับไปกลับมา มีเครื่องหมาย −A 0 +A ลูกศรความเร็วและความเร่ง แถบพลังงานจลน์และศักย์',
+    omega: omega,
+    params: {
+      m: { label: 'มวล', symbol: 'm', unit: 'kg', type: 'range', min: 0.1, max: 5, step: 0.1, default: 1 },
+      k: { label: 'ค่าคงตัวสปริง', symbol: 'k', unit: 'N/m', type: 'range', min: 1, max: 200, step: 1, default: 100 },
+      A: { label: 'แอมพลิจูด', symbol: 'A', unit: 'm', type: 'range', min: 0.05, max: 1, step: 0.01, default: 0.2, drag: true },
+      start: { label: 'จุดเริ่ม', type: 'choice', options: [{ label: 'ที่ +A (cos)', value: 'cos' }, { label: 'ที่สมดุล (sin)', value: 'sin' }], default: 'cos' },
+      c: { label: 'ความหน่วง (ส่วนขยาย)', symbol: 'c', type: 'range', min: 0, max: 2, step: 0.05, default: 0 }
+    },
+    presets: [{ label: 'สปริง 100 N/m มวล 1 kg', values: { m: 1, k: 100, A: 0.2, c: 0, start: 'cos' } }, { label: 'สปริงแข็ง 4 เท่า (T ครึ่งเดียว)', values: { m: 1, k: 400, A: 0.2, c: 0 } }, { label: 'มวลหนัก 4 kg', values: { m: 4, k: 100, A: 0.2, c: 0 } }, { label: 'เริ่มที่จุดสมดุล', values: { start: 'sin' } }, { label: 'มีความหน่วง', values: { c: 0.6 } }],
+    toggles: [{ key: 'vec', label: 'ลูกศร v และ a' }, { key: 'energy', label: 'แถบพลังงาน' }],
+    speeds: [0.1, 0.25, 0.5, 1],
+    world: function (p) { var r = Math.max(p.A * 1.6, 0.4); return { xMin: -r - 0.9, xMax: r + 0.9, yMin: -r * 0.9, yMax: r * 1.3 }; },
+    init: init, step: step,
+    draw: function (ctx, s, p, D) {
+      var c = D.color, w = omega(p), wallX = D.world.xMin + 0.1, boxW = 0.14 + p.m * 0.02;
+      D.line(wallX + 0.3, -0.12, D.world.xMax, -0.12, { color: c.line, width: 2 }); D.hatch(wallX, -0.5, wallX, 0.5, { n: 6, side: -1 });
+      [-p.A, 0, p.A].forEach(function (xx, i) { D.line(xx, -0.3, xx, 0.3, { color: c.line, dash: [3, 3], width: 1 }); D.label(['−A', '0', '+A'][i], xx, -0.3, { dy: 12, align: 'center' }); });
+      D.spring(wallX, 0, s.x - boxW / 2, 0, { coils: 12, amp: 9, color: c.muted });
+      D.rect(s.x - boxW / 2, -boxW / 2, boxW, boxW, { fill: c.primary }); D.label(p.m + ' kg', s.x, 0, { align: 'center', color: c.card });
+      var kv = 0.5 / Math.max(w * p.A, 0.1), ka = 0.5 / Math.max(w * w * p.A, 0.1);
+      if (D.view.vec) { if (Math.abs(s.v) > 0.01) D.arrow(s.x, boxW / 2 + 0.05, s.v * kv, 0, { color: c.orange, label: 'v ' + fmt(s.v), width: 3, dy: -12 }); var a = -w * w * s.x; if (Math.abs(a) > 0.01) D.arrow(s.x, boxW / 2 + 0.2, a * ka, 0, { color: c.green, label: 'a ' + fmt(a), width: 2.5, dy: -12 }); }
+      D.label('x = ' + fmt(s.x) + ' m', s.x, -boxW / 2 - 0.02, { dy: 12, align: 'center', color: c.primary });
+      var Ek = 0.5 * p.m * s.v * s.v, Ep = 0.5 * p.k * s.x * s.x, E = 0.5 * p.k * p.A * p.A;
+      if (D.view.energy) { var bx = D.world.xMax - 0.75, by = D.world.yMax - 0.08, bw = 0.6, bh = 0.09; [['Ek', Ek, c.orange], ['Ep', Ep, c.green], ['E', Ek + Ep, c.primary]].forEach(function (it, i) { var y = by - i * (bh + 0.05); D.rect(bx, y - bh, bw, bh, { fill: c.soft }); D.rect(bx, y - bh, bw * PhysLab.clamp(it[1] / Math.max(E, 1e-9), 0, 1), bh, { fill: it[2] }); D.label(it[0] + ' ' + fmt(it[1]) + ' J', bx - 0.04, y - bh / 2, { align: 'right', color: it[2] }); }); }
+      D.label('ω = √(k/m) = ' + fmt(w) + ' rad/s · T = ' + fmt(2 * Math.PI / w) + ' s · f = ' + fmt(w / (2 * Math.PI)) + ' Hz', D.world.xMin + 0.1, D.world.yMax - 0.05, { color: c.text });
+    },
+    dragHandles: function (s, p, D) { return D.running ? [] : [{ param: 'A', x: s.x, y: 0, r: 16, map: function (wx) { return PhysLab.clamp(Math.abs(wx), 0.05, 1); } }]; },
+    readouts: function (s, p) { var w = omega(p), a = -w * w * s.x; return [{ label: 'x', value: s.x, unit: 'm', color: '#1F5FBF' }, { label: 'v', value: s.v, unit: 'm/s', color: '#E07A1F' }, { label: 'a = −ω²x', value: a, unit: 'm/s²', color: '#0E6B57' }, { label: 'ω · T · f', value: fmt(w) + ' · ' + fmt(2 * Math.PI / w) + ' · ' + fmt(w / (2 * Math.PI)) }, { label: 'v max = ωA', value: w * p.A, unit: 'm/s', highlight: true }, { label: 'a max = ω²A', value: w * w * p.A, unit: 'm/s²', highlight: true }, { label: 'Ek · Ep', value: fmt(0.5 * p.m * s.v * s.v) + ' · ' + fmt(0.5 * p.k * s.x * s.x), unit: 'J' }, { label: 'E = ½kA²', value: 0.5 * p.k * p.A * p.A, unit: 'J' }]; },
+    formulas: function (s, p, t) { var w = omega(p); return [{ symbolic: 'ω = √(k/m) · T = 2π/ω', substituted: '= √(' + p.k + '/' + p.m + ')', result: '= ' + fmt(w) + ' rad/s · T = ' + fmt(2 * Math.PI / w) + ' s' }, { symbolic: p.start === 'cos' ? 'x = A cos(ωt)' : 'x = A sin(ωt)', substituted: '= ' + p.A + ' ' + (p.start === 'cos' ? 'cos' : 'sin') + '(' + fmt(w) + ' × ' + fmt(t) + ')', result: '= ' + fmt(p.A * (p.start === 'cos' ? Math.cos(w * t) : Math.sin(w * t))) + ' m' + (p.c > 0 ? ' (ไม่มีหน่วง)' : '') }, { symbolic: 'v = ω√(A² − x²)', substituted: '= ' + fmt(w) + '√(' + p.A + '² − ' + fmt(s.x) + '²)', result: '= ' + fmt(w * Math.sqrt(Math.max(0, p.A * p.A - s.x * s.x))) + ' m/s' }, { symbolic: 'a = −ω²x', substituted: '= −' + fmt(w * w) + '(' + fmt(s.x) + ')', result: '= ' + fmt(-w * w * s.x) + ' m/s²' }]; },
+    sample: function (s, p) { var w = omega(p); return { x: s.x, v: s.v, a: -w * w * s.x, Ek: 0.5 * p.m * s.v * s.v, Ep: 0.5 * p.k * s.x * s.x }; },
+    graphs: [{ title: 'x และ v กับเวลา', x: 't', series: [{ key: 'x', label: 'x (m)' }, { key: 'v', label: 'v (m/s)', color: '#E07A1F' }], window: 3 }, { title: 'a = −ω²x กับเวลา', x: 't', series: [{ key: 'a', label: 'a (m/s²)', color: '#0E6B57' }], window: 3 }, { title: 'Ek และ Ep กับเวลา', x: 't', series: [{ key: 'Ek', label: 'Ek', color: '#E07A1F' }, { key: 'Ep', label: 'Ep', color: '#0E6B57' }], window: 3 }],
+    content: {
+      summary: '<b>กราฟ sine และ cosine</b> x = A sin(ωt) ถ้าเริ่มที่จุดสมดุล หรือ x = A cos(ωt) ถ้าเริ่มที่จุดไกลสุด <b>การกระจัด ความเร็ว ความเร่งตามเวลา</b> x = A sin(ωt + φ), v = ωA cos(ωt + φ), a = −ω²A sin(ωt + φ) ความเร่งชี้กลับหาจุดสมดุลเสมอ <b>ความเร็วตามตำแหน่ง</b> v = ω√(A² − x²) เร็วสุดที่จุดสมดุล v max = ωA <b>ความเร่งตามตำแหน่ง</b> a = −ω²x มากสุดที่ปลาย a max = ω²A <b>วัตถุติดสปริง</b> ω = √(k/m), T = 2π√(m/k)',
+      tryIt: ['เพิ่ม A เป็น 2 เท่า ดูว่าคาบไม่เปลี่ยนแต่ v max เพิ่ม 2 เท่า', 'เพิ่ม k เป็น 4 เท่า ดูว่าคาบลดเหลือครึ่งเดียว', 'สังเกตกราฟ Ek กับ Ep สลับกันด้วยความถี่สองเท่าของการสั่น และผลรวมคงที่']
+    }
+  });
+})();
+</script>
+</body>
+</html>

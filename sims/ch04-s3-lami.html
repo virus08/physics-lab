@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S4.3 ทฤษฎีของลามี · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S4.3 ทฤษฎีของลามี · บท 4 เรื่อง 6
+   สูตร: F₁/sinα = F₂/sinβ = F₃/sinγ โดย α, β, γ คือมุมตรงข้ามแรงนั้น (α + β + γ = 360°) · แบบนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad;
+  function lami(p) { var gamma = 360 - p.alpha - p.beta; var ok = gamma > 0 && gamma < 180 && p.alpha < 180 && p.beta < 180; var k = p.F1 / Math.sin(rad(p.alpha)); return { gamma: gamma, ok: ok, F2: k * Math.sin(rad(p.beta)), F3: k * Math.sin(rad(gamma)), k: k }; }
+  PhysLab.createSim({
+    id: 'S4.3', chapter: 4, topics: [6], title: 'ทฤษฎีของลามี', static: true,
+    alt: 'แรงสามแรงกระทำที่จุดเดียวและสมดุล มีมุมระหว่างแรงกำกับ และสามเหลี่ยมแรงปิดทางขวา',
+    lami: lami,
+    params: {
+      F1: { label: 'แรงที่ 1 (เช่น น้ำหนัก)', symbol: 'F₁', unit: 'N', type: 'range', min: 1, max: 100, step: 1, default: 40 },
+      alpha: { label: 'มุมตรงข้าม F₁ (ระหว่าง F₂ กับ F₃)', symbol: 'α', unit: '°', type: 'range', min: 20, max: 170, step: 1, default: 120 },
+      beta: { label: 'มุมตรงข้าม F₂ (ระหว่าง F₁ กับ F₃)', symbol: 'β', unit: '°', type: 'range', min: 20, max: 170, step: 1, default: 150 }
+    },
+    presets: [{ label: 'เชือกสองเส้นสมมาตร 120°', values: { F1: 40, alpha: 120, beta: 120 } }, { label: 'เชือกเอียงไม่เท่ากัน', values: { F1: 40, alpha: 120, beta: 150 } }, { label: 'เกือบขนาน (แรงดึงพุ่ง)', values: { F1: 40, alpha: 170, beta: 95 } }, { label: 'สามแรงเท่ากัน', values: { F1: 30, alpha: 120, beta: 120 } }],
+    world: { xMin: -3.2, xMax: 7.6, yMin: -3.2, yMax: 3.2 },
+    init: function (p) { return lami(p); }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, a1 = -90, a3 = a1 + p.beta, a2 = a3 + s.gamma;
+      var k = 2.4 / Math.max(p.F1, s.F2, s.F3, 1);
+      function arrowAt(ang, F, col, name) { var r = rad(ang); D.arrow(0, 0, F * k * Math.cos(r), F * k * Math.sin(r), { color: col, label: name + ' = ' + fmt(F) + ' N', width: 3.5 }); }
+      if (!s.ok) { D.textPx('มุมรวมต้องเป็น 360° และแต่ละมุมน้อยกว่า 180°', D.x(0), D.y(0), { align: 'center', color: c.red, size: 14 }); return; }
+      D.line(-2.8, 2.6, 2.8, 2.6, { color: c.line, width: 3 });
+      var r2 = rad(a2), r3 = rad(a3);
+      D.line(0, 0, Math.cos(r2) * 3.5, Math.sin(r2) * 3.5, { color: c.muted, width: 1.5 }); D.line(0, 0, Math.cos(r3) * 3.5, Math.sin(r3) * 3.5, { color: c.muted, width: 1.5 });
+      D.rect(-0.25, -0.9, 0.5, 0.5, { fill: c.orange }); D.line(0, 0, 0, -0.4, { color: c.muted, width: 1.5 });
+      arrowAt(a1, p.F1, c.red, 'F₁'); arrowAt(a2, s.F2, c.green, 'F₂'); arrowAt(a3, s.F3, c.primary, 'F₃');
+      D.angle(0, 0, 50, rad(a3), rad(a2), { label: 'α ' + p.alpha + '°' });
+      D.angle(0, 0, 36, rad(a1), rad(a3), { label: 'β ' + p.beta + '°' });
+      D.angle(0, 0, 64, rad(a2), rad(a1 + 360), { label: 'γ ' + fmt(s.gamma) + '°' });
+      D.dot(0, 0, 5, c.text);
+      var ox = 4.2, oy = -1.6, ks = 2.6 / Math.max(p.F1, s.F2, s.F3);
+      D.label('สามเหลี่ยมแรง (ต่อหัวต่อหาง แล้วปิดพอดี)', 3.2, 2.9, {});
+      var p1 = [ox, oy], p2 = [ox + p.F1 * ks * Math.cos(rad(a1)), oy + p.F1 * ks * Math.sin(rad(a1))], p3 = [p2[0] + s.F2 * ks * Math.cos(rad(a2)), p2[1] + s.F2 * ks * Math.sin(rad(a2))];
+      D.arrow(p1[0], p1[1] + 2.6, 0, -2.6 * 0 - p.F1 * ks, { color: c.red, label: 'F₁', width: 3 });
+      D.arrow(p1[0], p1[1] + 2.6 - p.F1 * ks, s.F2 * ks * Math.cos(rad(a2)), s.F2 * ks * Math.sin(rad(a2)), { color: c.green, label: 'F₂', width: 3 });
+      var q = [p1[0] + s.F2 * ks * Math.cos(rad(a2)), p1[1] + 2.6 - p.F1 * ks + s.F2 * ks * Math.sin(rad(a2))];
+      D.arrow(q[0], q[1], s.F3 * ks * Math.cos(rad(a3)), s.F3 * ks * Math.sin(rad(a3)), { color: c.primary, label: 'F₃', width: 3 });
+      D.label('มุมภายในสามเหลี่ยม = 180° − มุมลามี', 3.2, -2.9, {});
+    },
+    readouts: function (s, p) {
+      if (!s.ok) return [{ label: 'สถานะ', value: 'มุมไม่ถูกต้อง' }];
+      return [
+        { label: 'γ = 360° − α − β', value: s.gamma, unit: '°' }, { label: 'F₁/sinα', value: s.k, unit: 'N' },
+        { label: 'F₂', value: s.F2, unit: 'N', highlight: true }, { label: 'F₃', value: s.F3, unit: 'N', highlight: true },
+        { label: 'F₂/sinβ', value: s.F2 / Math.sin(rad(p.beta)), unit: 'N (เท่ากัน)' }, { label: 'F₃/sinγ', value: s.F3 / Math.sin(rad(s.gamma)), unit: 'N (เท่ากัน)' }
+      ];
+    },
+    formulas: function (s, p) { return [{ symbolic: 'F₁/sinα = F₂/sinβ = F₃/sinγ', substituted: p.F1 + '/sin' + p.alpha + '° = F₂/sin' + p.beta + '° = F₃/sin' + fmt(s.gamma) + '°', result: '→ F₂ = ' + fmt(s.F2) + ' N, F₃ = ' + fmt(s.F3) + ' N' }]; },
+    content: {
+      summary: '<b>ทฤษฎีของลามี</b> แรง 3 แรงที่สมดุลกันที่จุดเดียว ขนาดของแต่ละแรงหารด้วย sin ของมุมตรงข้ามจะเท่ากันหมด F₁/sinα = F₂/sinβ = F₃/sinγ ใช้บ่อยกับตุ้มน้ำหนักที่แขวนด้วยเชือกสองเส้น',
+      tryIt: ['ตั้ง α = β = 120° ดูว่าแรงทั้งสามเท่ากัน', 'ลด α ให้เชือกสองเส้นเกือบขนานกัน ดูว่าแรงตึงเชือกพุ่งสูงมากกว่าน้ำหนัก', 'เทียบว่าสามเหลี่ยมแรงทางขวาปิดพอดีเสมอเมื่อสมดุล']
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S20.2 กัมมันตภาพ การสลายตัว และครึ่งชีวิต · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S20.2 กัมมันตภาพ การสลายตัว และครึ่งชีวิต · บท 20 เรื่อง 4, 5, 6
+   สูตร: A = λN · N = N₀e^(−λt) = N₀(½)^(t/T½) · λ = 0.693/T½
+   นิวเคลียสแต่ละตัวสลายแบบสุ่มด้วยความน่าจะเป็น 1 − 2^(−dt/T½) ต่อก้าว (ใช้ rng มีเมล็ด) เทียบกับเส้นทฤษฎี · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function lam(p) { return Math.LN2 / p.T; }
+  function init(p, ctx) { var alive = []; for (var i = 0; i < 400; i++) alive.push(i < p.N0); return { alive: alive, N: p.N0, rng: ctx.rng, decays: 0 }; }
+  function step(s, p, dt) { var pr = 1 - Math.pow(0.5, dt / p.T), n = 0; for (var i = 0; i < 400; i++) { if (s.alive[i]) { if (s.rng() < pr) { s.alive[i] = false; s.decays++; } else n++; } } s.N = n; return s; }
+  PhysLab.createSim({
+    id: 'S20.2', chapter: 20, topics: [4, 5, 6], title: 'กัมมันตภาพ การสลายตัว และครึ่งชีวิต',
+    alt: 'ตารางจุด 400 จุดแทนนิวเคลียส จุดสีน้ำเงินยังไม่สลาย เปลี่ยนเป็นเทาเมื่อสลายแบบสุ่ม ด้านขวาเป็นกราฟจำนวนที่เหลือกับเวลา เทียบกับเส้นโค้งเอกซ์โพเนนเชียลตามทฤษฎี มีเครื่องหมายทุกครึ่งชีวิต',
+    lam: lam,
+    params: {
+      N0: { label: 'จำนวนนิวเคลียสเริ่มต้น', symbol: 'N₀', type: 'range', min: 50, max: 400, step: 10, default: 400 },
+      T: { label: 'ครึ่งชีวิต', symbol: 'T½', unit: 's', type: 'range', min: 1, max: 60, step: 1, default: 10 }
+    },
+    presets: [{ label: '400 ตัว ครึ่งชีวิต 10 s', values: { N0: 400, T: 10 } }, { label: 'ครึ่งชีวิตสั้น 3 s', values: { N0: 400, T: 3 } }, { label: 'ครึ่งชีวิตยาว 40 s', values: { N0: 400, T: 40 } }, { label: 'เริ่มน้อย 50 ตัว (สุ่มเห็นชัด)', values: { N0: 50, T: 10 } }],
+    speeds: [0.5, 1, 2, 5], dt: 1 / 60,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: init, step: step,
+    timeLabel: function (t, s, p) { return 't = ' + fmt(t) + ' s = ' + fmt(t / p.T) + ' T½ · เหลือ ' + s.N; },
+    done: function (s) { return s.N === 0; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i, t = D.t, L = lam(p);
+      for (i = 0; i < 400; i++) { var r = Math.floor(i / 20), col = i % 20; if (i >= p.N0) continue; D.dot(0.55 + col * 0.19, 4.55 - r * 0.19, 3.2, s.alive[i] ? c.primary : c.line, {}); }
+      D.label('N = ' + s.N + ' จาก N₀ = ' + p.N0 + ' · สลายแล้ว ' + s.decays, 0.5, 4.95, { color: c.text, bold: true });
+      var gx0 = 4.9, gx1 = 9.7, gy0 = 0.9, gy1 = 4.6, tmax = 5 * p.T, X = function (tt) { return gx0 + (gx1 - gx0) * tt / tmax; }, Y = function (N) { return gy0 + (gy1 - gy0) * N / p.N0; };
+      D.rect(gx0, gy0, gx1 - gx0, gy1 - gy0, { fill: c.card, stroke: c.line }); D.label('t (s)', gx1, gy0, { dy: 12, align: 'right', color: c.muted }); D.label('N', gx0, gy1 + 0.05, { dy: -2, color: c.muted });
+      var pts = []; for (i = 0; i <= 100; i++) { var tt = tmax * i / 100; pts.push([X(tt), Y(p.N0 * Math.pow(0.5, tt / p.T))]); } D.polyline(pts, { color: c.line, width: 1.5, dash: [4, 3] });
+      for (i = 1; i <= 4; i++) { D.line(X(i * p.T), gy0, X(i * p.T), Y(p.N0 / Math.pow(2, i)), { color: c.orange, dash: [2, 3], width: 1 }); D.line(gx0, Y(p.N0 / Math.pow(2, i)), X(i * p.T), Y(p.N0 / Math.pow(2, i)), { color: c.orange, dash: [2, 3], width: 1 }); D.label(i + 'T½', X(i * p.T), gy0, { dy: 12, align: 'center', color: c.orange }); D.label('N₀/' + Math.pow(2, i), gx0, Y(p.N0 / Math.pow(2, i)), { dx: -4, align: 'right', color: c.orange }); }
+      D.label('N₀', gx0, Y(p.N0), { dx: -4, align: 'right', color: c.muted });
+      if (!s.hist) s.hist = []; if (!s.hist.length || t - s.hist[s.hist.length - 1][0] > 0.1) s.hist.push([t, s.N]); var hp = s.hist.filter(function (q) { return q[0] <= tmax; }).map(function (q) { return [X(q[0]), Y(q[1])]; }); if (hp.length > 1) D.polyline(hp, { color: c.primary, width: 2 });
+      if (t <= tmax) D.dot(X(t), Y(s.N), 5, c.red, { stroke: c.card, width: 1.5 });
+      D.label('เส้นประ = ทฤษฎี N = N₀(½)^(t/T½) · เส้นทึบ = การสุ่มจริง', gx0 + 0.1, gy1 - 0.12, { color: c.text });
+      D.label('λ = 0.693/T½ = ' + fmt(L) + ' s⁻¹ · กัมมันตภาพ A = λN = ' + fmt(L * s.N) + ' ตัว/s (ยิ่งเหลือมากยิ่งสลายเร็ว)', 0.5, 0.35, { color: c.primary, bold: true });
+    },
+    readouts: function (s, p, t) { var L = lam(p); return [{ label: 'N (สุ่มจริง)', value: s.N, highlight: true }, { label: 'N ทฤษฎี = N₀(½)^(t/T½)', value: p.N0 * Math.pow(0.5, t / p.T) }, { label: 'จำนวนครึ่งชีวิตที่ผ่านไป', value: t / p.T }, { label: 'λ = 0.693/T½', value: L, unit: 's⁻¹' }, { label: 'A = λN', value: L * s.N, unit: 'Bq (ตัว/s)', highlight: true }, { label: 'เศษส่วนที่เหลือ', value: s.N / p.N0 * 100, unit: '%' }]; },
+    formulas: function (s, p, t) { var L = lam(p); return [{ symbolic: 'λ = 0.693/T½', substituted: '= 0.693/' + p.T, result: '= ' + fmt(L) + ' s⁻¹' }, { symbolic: 'N = N₀(½)^(t/T½)', substituted: '= ' + p.N0 + ' × (½)^(' + fmt(t) + '/' + p.T + ')', result: '= ' + fmt(p.N0 * Math.pow(0.5, t / p.T)) }, { symbolic: 'A = λN', substituted: '= ' + fmt(L) + ' × ' + s.N, result: '= ' + fmt(L * s.N) + ' ตัว/s' }]; },
+    sample: function (s) { return { N: s.N }; },
+    graphs: [{ title: 'N กับเวลา', x: 't', series: [{ key: 'N', label: 'N' }], window: 60 }],
+    content: {
+      summary: '<b>ค่ากัมมันตภาพ</b> อัตราการสลายตัวต่อวินาที A = λN ยิ่งมีนิวเคลียสมากยิ่งสลายเร็ว <b>สมการการสลายตัว</b> จำนวนนิวเคลียสลดแบบเอกซ์โพเนนเชียล N = N₀e^(−λt) หรือคิดเป็นครึ่ง ๆ N = N₀(½)^(t/T½) <b>ครึ่งชีวิต</b> เวลาที่สารเหลือครึ่งหนึ่ง สัมพันธ์กับค่าคงตัวการสลาย λ = 0.693/T½ การสลายของแต่ละนิวเคลียสเป็นเรื่องสุ่ม แต่เมื่อมีจำนวนมากค่าเฉลี่ยจะตามสูตร',
+      tryIt: ['กดเล่นแล้วดูว่าเมื่อครบ 1 T½ เหลือประมาณครึ่ง ครบ 2 T½ เหลือประมาณ 1/4', 'ลด N₀ เหลือ 50 ดูว่าเส้นจริงเบี่ยงจากทฤษฎีมากขึ้น (ความสุ่ม)', 'สังเกตว่ากัมมันตภาพ A ลดลงพร้อมกับ N ด้วยครึ่งชีวิตเดียวกัน']
+    }
+  });
+})();
+</script>
+</body>
+</html>

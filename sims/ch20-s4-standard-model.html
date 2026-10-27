@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S20.4 แบบจำลองมาตรฐานและการรวมตัวของควาร์ก · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S20.4 แบบจำลองมาตรฐานและการรวมตัวของควาร์ก · บท 20 เรื่อง 9, 10, 11, 12, 13, 15
+   หลัก: ควาร์ก 6 (u c t +2/3 · d s b −1/3) เลปตอน 6 (e μ τ −1 · ν 0) เกจโบซอน 4 (g γ Z W) ฮิกส์ 1 · แบริออน = 3 ควาร์ก มีซอน = ควาร์ก + ปฏิควาร์ก · แรง 4 แรง
+   แบบจำลองนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  var Q = { u: { n: 'อัป u', q: 2 / 3 }, d: { n: 'ดาวน์ d', q: -1 / 3 }, s: { n: 'สเตรนจ์ s', q: -1 / 3 }, c: { n: 'ชาร์ม c', q: 2 / 3 }, au: { n: 'แอนติอัป ū', q: -2 / 3 }, ad: { n: 'แอนติดาวน์ d̄', q: 1 / 3 }, as: { n: 'แอนติสเตรนจ์ s̄', q: 1 / 3 } };
+  var TABLE = [
+    { x: 0, y: 0, s: 'u', n: 'อัป', q: '+2/3', k: 'quark' }, { x: 1, y: 0, s: 'c', n: 'ชาร์ม', q: '+2/3', k: 'quark' }, { x: 2, y: 0, s: 't', n: 'ท็อป', q: '+2/3', k: 'quark' },
+    { x: 0, y: 1, s: 'd', n: 'ดาวน์', q: '−1/3', k: 'quark' }, { x: 1, y: 1, s: 's', n: 'สเตรนจ์', q: '−1/3', k: 'quark' }, { x: 2, y: 1, s: 'b', n: 'บอตทอม', q: '−1/3', k: 'quark' },
+    { x: 0, y: 2, s: 'e', n: 'อิเล็กตรอน', q: '−1', k: 'lepton' }, { x: 1, y: 2, s: 'μ', n: 'มิวออน', q: '−1', k: 'lepton' }, { x: 2, y: 2, s: 'τ', n: 'เทา', q: '−1', k: 'lepton' },
+    { x: 0, y: 3, s: 'νe', n: 'นิวทริโน e', q: '0', k: 'lepton' }, { x: 1, y: 3, s: 'νμ', n: 'นิวทริโน μ', q: '0', k: 'lepton' }, { x: 2, y: 3, s: 'ντ', n: 'นิวทริโน τ', q: '0', k: 'lepton' },
+    { x: 3, y: 0, s: 'g', n: 'กลูออน (แรงเข้ม)', q: '0', k: 'boson' }, { x: 3, y: 1, s: 'γ', n: 'โฟตอน (แม่เหล็กไฟฟ้า)', q: '0', k: 'boson' }, { x: 3, y: 2, s: 'Z', n: 'Z โบซอน (แรงอ่อน)', q: '0', k: 'boson' }, { x: 3, y: 3, s: 'W', n: 'W โบซอน (แรงอ่อน)', q: '±1', k: 'boson' },
+    { x: 4, y: 0, s: 'H', n: 'ฮิกส์ (ให้มวล)', q: '0', k: 'higgs' }
+  ];
+  var KNOWN = { 'uud': 'โปรตอน p', 'udd': 'นิวตรอน n', 'uds': 'แลมบ์ดา Λ⁰', 'uus': 'ซิกมา Σ⁺', 'dds': 'ซิกมา Σ⁻', 'uuu': 'เดลตา Δ⁺⁺', 'ddd': 'เดลตา Δ⁻', 'sss': 'โอเมกา Ω⁻', 'uad': 'ไพออน π⁺', 'dau': 'ไพออน π⁻', 'uau': 'ไพออน π⁰', 'dad': 'ไพออน π⁰', 'uas': 'เคออน K⁺', 'sau': 'เคออน K⁻', 'das': 'เคออน K⁰', 'sad': 'แอนติเคออน K̄⁰' };
+  function combo(p) { var qs = [p.q1, p.q2]; if (p.q3 !== 'none') qs.push(p.q3); var anti = qs.filter(function (k) { return k[0] === 'a'; }).length, charge = qs.reduce(function (a, k) { return a + Q[k].q; }, 0), key = qs.slice().sort().join(''), kind = qs.length === 3 && anti === 0 ? 'แบริออน (3 ควาร์ก)' : qs.length === 2 && anti === 1 ? 'มีซอน (ควาร์ก + ปฏิควาร์ก)' : qs.length === 3 && anti === 3 ? 'แอนติแบริออน' : 'ไม่ใช่การรวมที่พบในธรรมชาติ'; var name = KNOWN[key] || KNOWN[qs.slice().sort().reverse().join('')] || (kind.indexOf('ไม่ใช่') === 0 ? '—' : 'ฮาดรอนอื่น'); return { qs: qs, charge: charge, kind: kind, name: name }; }
+  PhysLab.createSim({
+    id: 'S20.4', chapter: 20, topics: [9, 10, 11, 12, 13, 15], title: 'แบบจำลองมาตรฐานและการรวมตัวของควาร์ก', static: true,
+    alt: 'ตารางแบบจำลองมาตรฐาน ควาร์กสองแถว เลปตอนสองแถว เกจโบซอนหนึ่งคอลัมน์ และฮิกส์ อนุภาคที่เลือกถูกเน้นพร้อมคำอธิบาย ด้านขวาเป็นเครื่องประกอบควาร์ก แสดงลูกบอลควาร์กที่เลือกรวมกันเป็นโปรตอน นิวตรอน หรือมีซอน พร้อมประจุรวม',
+    combo: combo,
+    params: {
+      sel: { label: 'เลือกอนุภาคในตาราง', type: 'choice', options: TABLE.map(function (t) { return { label: t.s, value: t.s }; }), default: 'u' },
+      q1: { label: 'ควาร์กตัวที่ 1', type: 'choice', options: Object.keys(Q).map(function (k) { return { label: Q[k].n, value: k }; }), default: 'u' },
+      q2: { label: 'ควาร์กตัวที่ 2', type: 'choice', options: Object.keys(Q).map(function (k) { return { label: Q[k].n, value: k }; }), default: 'u' },
+      q3: { label: 'ควาร์กตัวที่ 3', type: 'choice', options: [{ label: 'ไม่มี (มีซอน)', value: 'none' }].concat(Object.keys(Q).map(function (k) { return { label: Q[k].n, value: k }; })), default: 'd' }
+    },
+    presets: [{ label: 'โปรตอน = uud', values: { q1: 'u', q2: 'u', q3: 'd' } }, { label: 'นิวตรอน = udd', values: { q1: 'u', q2: 'd', q3: 'd' } }, { label: 'ไพออน π⁺ = u d̄', values: { q1: 'u', q2: 'ad', q3: 'none' } }, { label: 'แลมบ์ดา = uds', values: { q1: 'u', q2: 'd', q3: 's' } }, { label: 'ดูโฟตอน', values: { sel: 'γ' } }],
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, cw = 0.95, ch = 0.82, x0 = 0.4, y0 = 4.5, COL = { quark: '#C9B3F2', lepton: '#B7E1C6', boson: '#F9D29B', higgs: '#F5B5B5' }, selT = null;
+      TABLE.forEach(function (t) { var x = x0 + t.x * cw, y = y0 - t.y * ch, on = t.s === p.sel; if (on) selT = t; D.rect(x, y - ch + 0.06, cw - 0.06, ch - 0.06, { fill: COL[t.k], stroke: on ? c.text : c.card, width: on ? 3 : 1 }); D.label(t.s, x + cw / 2 - 0.03, y - ch / 2 + 0.12, { align: 'center', color: c.text, bold: true, size: 18 }); D.label(t.q, x + cw / 2 - 0.03, y - ch / 2 - 0.18, { align: 'center', color: c.text }); });
+      D.label('ควาร์ก', x0, 4.65, { color: '#6B3FA0', bold: true }); D.label('เลปตอน', x0, y0 - 2 * ch + 0.12, { color: '#0E6B57', bold: true }); D.label('เกจโบซอน', x0 + 3 * cw, 4.65, { color: '#B4600F', bold: true }); D.label('ฮิกส์', x0 + 4 * cw, 4.65, { color: '#B42318', bold: true });
+      if (selT) D.label(selT.s + ' = ' + selT.n + ' · ประจุ ' + selT.q + ' · ' + (selT.k === 'quark' ? 'รับรู้แรงเข้ม ยึดกันด้วยกลูออน' : selT.k === 'lepton' ? 'ไม่รับรู้แรงเข้ม' : selT.k === 'boson' ? 'อนุภาคนำพาแรง' : 'สเกลาร์โบซอน ทำให้อนุภาคมีมวล'), 0.4, 0.75, { color: c.text, bold: true });
+      D.label('ควาร์ก 6 · เลปตอน 6 · เกจโบซอน 4 · ฮิกส์ 1 = อนุภาคมูลฐานทั้งหมด', 0.4, 0.4, { color: c.muted });
+      var C = combo(p), bx = 7.6, by = 3.2; D.circle(bx, by, 1.05, { fill: c.soft, stroke: c.line, width: 1.5 });
+      C.qs.forEach(function (k, i) { var a = -Math.PI / 2 + i * 2 * Math.PI / C.qs.length, r = C.qs.length === 2 ? 0.42 : 0.5, x = bx + r * Math.cos(a), y = by + r * Math.sin(a), col = k[0] === 'a' ? c.red : (Q[k].q > 0 ? c.primary : c.green); D.circle(x, y, 0.3, { fill: col }); D.label(Q[k].n.split(' ')[1], x, y, { align: 'center', color: '#fff', bold: true }); });
+      for (var i = 0; i < C.qs.length; i++) for (var j = i + 1; j < C.qs.length; j++) { var a1 = -Math.PI / 2 + i * 2 * Math.PI / C.qs.length, a2 = -Math.PI / 2 + j * 2 * Math.PI / C.qs.length, r2 = C.qs.length === 2 ? 0.42 : 0.5; D.line(bx + r2 * 0.4 * Math.cos(a1), by + r2 * 0.4 * Math.sin(a1), bx + r2 * 0.4 * Math.cos(a2), by + r2 * 0.4 * Math.sin(a2), { color: c.muted, width: 1.5, dash: [2, 2] }); }
+      D.label('ประกอบควาร์ก', bx, 4.6, { align: 'center', color: c.text, bold: true });
+      D.label(C.kind, bx, 1.85, { align: 'center', color: c.text });
+      D.label('ประจุรวม = ' + C.qs.map(function (k) { return (Q[k].q > 0 ? '+' : '') + (Math.abs(Q[k].q) === 1 / 3 ? (Q[k].q > 0 ? '1/3' : '−1/3') : (Q[k].q > 0 ? '2/3' : '−2/3')); }).join(' ') + ' = ' + (Math.abs(Math.round(C.charge * 3) / 3) === Math.abs(C.charge) ? (C.charge > 0 ? '+' : '') + fmt(C.charge, 2) : fmt(C.charge, 2)), bx, 1.5, { align: 'center', color: c.primary, bold: true });
+      D.label('= ' + C.name, bx, 1.15, { align: 'center', color: c.red, bold: true, size: 16 });
+      D.label('กลูออน (เส้นประ) ยึดควาร์กด้วยแรงเข้ม', bx, 0.75, { align: 'center', color: c.muted });
+    },
+    readouts: function (s, p) { var C = combo(p); return [{ label: 'ควาร์กที่เลือก', value: C.qs.map(function (k) { return Q[k].n.split(' ')[1]; }).join(' ') }, { label: 'ประจุรวม', value: C.charge, highlight: true }, { label: 'ชนิด', value: C.kind }, { label: 'อนุภาค', value: C.name, highlight: true }]; },
+    formulas: function (s, p) { var C = combo(p); return [{ symbolic: 'ประจุฮาดรอน = Σ ประจุควาร์ก', substituted: C.qs.map(function (k) { return fmt(Q[k].q, 2); }).join(' + '), result: '= ' + fmt(C.charge, 2) }]; },
+    content: {
+      summary: '<b>ควาร์ก</b> อนุภาคมูลฐานที่ประกอบเป็นโปรตอนและนิวตรอน มี 6 ชนิด u c t มีประจุ +2/3 และ d s b มีประจุ −1/3 ยึดกันด้วยกลูออน <b>เลปตอน</b> อนุภาคมูลฐานที่ไม่รับรู้แรงเข้ม มี 6 ชนิด อิเล็กตรอน มิวออน เทา (ประจุ −1) และนิวทริโน 3 ชนิดที่เป็นกลาง <b>โบซอน</b> อนุภาคนำพาแรง กลูออน โฟตอน Z และ W (เกจโบซอน) และฮิกส์ (สเกลาร์โบซอน) ที่ทำให้อนุภาคมีมวล <b>แบบจำลองมาตรฐาน</b> ควาร์ก 6 เลปตอน 6 เกจโบซอน 4 และฮิกส์ 1 <b>การรวมตัวของควาร์ก</b> มีซอนเกิดจากควาร์ก 2 ตัว เช่น ไพออน แบริออนเกิดจากควาร์ก 3 ตัว โปรตอน = uud (+1) นิวตรอน = udd (0) <b>แรงพื้นฐาน 4 แรง</b> ดูตารางด้านล่าง',
+      tryIt: ['ประกอบ uud แล้วดูว่าประจุรวม +1 คือโปรตอน จากนั้นเปลี่ยนเป็น udd ได้นิวตรอน', 'ประกอบ u กับ d̄ (ไม่มีตัวที่ 3) ดูว่าได้มีซอน π⁺', 'เลือกอนุภาคในตารางทีละตัวเพื่ออ่านประจุและชนิด'],
+      reference: { title: 'แรงพื้นฐาน 4 แรงและอนุภาคสื่อแรง', columns: ['แรง', 'กระทำต่อ', 'อนุภาคสื่อแรง', 'ระยะ'], rows: [['โน้มถ่วง', 'มวล', '(แกรวิตอน ยังไม่พบ)', 'ไกล อ่อนที่สุด'], ['แม่เหล็กไฟฟ้า', 'ประจุ', 'โฟตอน γ', 'ไกล'], ['เข้ม', 'ควาร์ก (ยึดนิวเคลียส)', 'กลูออน g', 'สั้น แรงที่สุด'], ['อ่อน', 'ควาร์กและเลปตอน (สลายบีตา)', 'W และ Z', 'สั้นมาก']] }
+    }
+  });
+})();
+</script>
+</body>
+</html>

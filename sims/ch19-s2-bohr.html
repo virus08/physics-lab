@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S19.2 แบบจำลองอะตอมของโบร์ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S19.2 แบบจำลองอะตอมของโบร์ · บท 19 เรื่อง 3
+   สูตร: Eₙ = −13.6/n² eV · rₙ = n² × 0.053 nm · E โฟตอน = hf = hc/λ = |E_i − E_f| · 1/λ = R_H(1/n_f² − 1/n_i²), R_H = 1.097×10⁷ m⁻¹
+   แอนิเมชันอิเล็กตรอนโคจรแล้วกระโดดชั้น (ภาพ) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, RH = 1.097e7, h = 6.63e-34, c0 = 3e8;
+  function En(n) { return -13.6 / (n * n); }
+  function calc(p) { var dE = En(p.ni) - En(p.nf), emit = dE > 0, inv = RH * Math.abs(1 / (p.nf * p.nf) - 1 / (p.ni * p.ni)), lam = inv > 0 ? 1 / inv : Infinity; var lo = Math.min(p.ni, p.nf), series = lo === 1 ? 'ไลมาน (ยูวี)' : lo === 2 ? 'บัลเมอร์ (แสงที่มองเห็น)' : lo === 3 ? 'พาสเชน (อินฟราเรด)' : 'อินฟราเรดไกล'; return { dE: Math.abs(dE), emit: emit, lam: lam, f: c0 / lam, series: series }; }
+  function wl2rgb(nm) { if (nm < 380) return '#8a5cf6'; if (nm > 780) return '#b43b3b'; var r, g, b, l = nm; if (l < 440) { r = -(l - 440) / 60; g = 0; b = 1; } else if (l < 490) { r = 0; g = (l - 440) / 50; b = 1; } else if (l < 510) { r = 0; g = 1; b = -(l - 510) / 20; } else if (l < 580) { r = (l - 510) / 70; g = 1; b = 0; } else if (l < 645) { r = 1; g = -(l - 645) / 65; b = 0; } else { r = 1; g = 0; b = 0; } return 'rgb(' + Math.round(255 * r) + ',' + Math.round(255 * g) + ',' + Math.round(255 * b) + ')'; }
+  function init(p) { return { ph: 0, n: p.ni, u: 0, stage: 'orbit', photon: null, t0: 0 }; }
+  function step(s, p, dt, t) { s.ph += 1.5 * dt; if (s.stage === 'orbit') { if (t - s.t0 > 2.0 && p.ni !== p.nf) { s.stage = 'jump'; s.u = 0; } } else if (s.stage === 'jump') { s.u += dt * 1.5; if (s.u >= 1) { s.u = 1; s.n = p.nf; s.stage = 'photon'; s.photon = 0; } } else { s.photon += dt * 1.2; if (s.photon > 1.6) { s.stage = 'orbit'; s.n = p.ni; s.t0 = t; s.photon = null; } } return s; }
+  PhysLab.createSim({
+    id: 'S19.2', chapter: 19, topics: [3], title: 'แบบจำลองอะตอมของโบร์',
+    alt: 'วงโคจรวงกลม n = 1 ถึง 6 รอบนิวเคลียส อิเล็กตรอนโคจรที่ชั้นเริ่มต้นแล้วกระโดดไปชั้นปลาย ปล่อยโฟตอนสีตามความยาวคลื่นออกไป ด้านขวาเป็นแผนภาพระดับพลังงานพร้อมลูกศรการเปลี่ยนชั้น',
+    calc: calc, En: En,
+    params: {
+      ni: { label: 'ชั้นเริ่มต้น', symbol: 'n_i', type: 'range', min: 1, max: 6, step: 1, default: 3 },
+      nf: { label: 'ชั้นปลาย', symbol: 'n_f', type: 'range', min: 1, max: 6, step: 1, default: 2 }
+    },
+    presets: [{ label: 'n 3 → 2 (H-alpha แดง 656 nm)', values: { ni: 3, nf: 2 } }, { label: 'n 4 → 2 (ฟ้า 486 nm)', values: { ni: 4, nf: 2 } }, { label: 'n 5 → 2 (ม่วง 434 nm)', values: { ni: 5, nf: 2 } }, { label: 'n 2 → 1 (ไลมาน ยูวี 122 nm)', values: { ni: 2, nf: 1 } }, { label: 'n 4 → 3 (พาสเชน อินฟราเรด)', values: { ni: 4, nf: 3 } }, { label: 'ดูดกลืน n 2 → 4', values: { ni: 2, nf: 4 } }],
+    speeds: [0.5, 1], dt: 1 / 120,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: init, step: step,
+    timeLabel: function (t, s) { return s.stage === 'orbit' ? 'โคจรที่ n = ' + s.n + ' (ไม่แผ่คลื่น)' : s.stage === 'jump' ? 'กำลังเปลี่ยนชั้น' : 'โฟตอน'; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p), cx = 2.6, cy = 2.6, R = function (n) { return 0.28 + 1.95 * (n * n - 1) / 35; }, i, col = wl2rgb(C.lam * 1e9);
+      for (i = 1; i <= 6; i++) { D.circle(cx, cy, R(i), { stroke: i === p.ni || i === p.nf ? c.primary : c.line, width: i === p.ni || i === p.nf ? 1.5 : 1 }); D.label('n=' + i, cx + R(i) * 0.707 + 0.05, cy - R(i) * 0.707 - 0.05, { color: c.muted }); }
+      D.dot(cx, cy, 7, c.red, {}); D.label('+', cx, cy, { align: 'center', color: '#fff', bold: true });
+      var r = s.stage === 'jump' ? R(p.ni) + (R(p.nf) - R(p.ni)) * s.u : R(s.n), ex = cx + r * Math.cos(s.ph), ey = cy + r * Math.sin(s.ph); D.dot(ex, ey, 6, c.primary, { stroke: c.card, width: 1.5 });
+      if (s.stage === 'photon' && C.emit) { var px = ex + s.photon * 1.8, pts = []; for (i = 0; i <= 30; i++) { var xx = px - 0.8 + 0.8 * i / 30; pts.push([xx, ey + 0.12 * Math.sin(i * 1.2)]); } D.polyline(pts, { color: col, width: 2.5 }); D.arrow(px, ey, 0.3, 0, { color: col, width: 2.5 }); D.label('โฟตอน λ = ' + fmt(C.lam * 1e9) + ' nm', px, ey + 0.25, { dy: -4, align: 'center', color: c.text, bg: c.card }); }
+      if (s.stage === 'photon' && !C.emit) D.label('ดูดกลืนโฟตอน ' + fmt(C.dE) + ' eV แล้วขึ้นชั้น', cx, 0.45, { align: 'center', color: c.text, bg: c.card });
+      var lx0 = 6.0, lx1 = 9.4, LY = function (E) { return 0.9 + 3.6 * (E + 13.6) / 13.6; };
+      D.line(lx0 - 0.3, 0.9, lx0 - 0.3, 4.6, { color: c.line, width: 1 }); for (i = 1; i <= 6; i++) { var E = En(i); D.line(lx0, LY(E), lx1, LY(E), { color: i === p.ni || i === p.nf ? c.primary : c.muted, width: i === p.ni || i === p.nf ? 2.5 : 1.5 }); D.label('n=' + i + '  ' + fmt(E, 3) + ' eV', lx1 + 0.05, LY(E) + (i >= 4 ? 0.13 * (6 - i) - 0.1 : 0), { color: c.text }); }
+      D.line(lx0, LY(0), lx1, LY(0), { color: c.line, dash: [3, 3], width: 1 }); D.label('n=∞  0 eV (หลุดจากอะตอม)', lx1 + 0.05, LY(0), { color: c.muted });
+      D.arrow(lx0 + 1.2, LY(En(p.ni)), 0, LY(En(p.nf)) - LY(En(p.ni)), { color: col, width: 3 }); D.label('ΔE = ' + fmt(C.dE) + ' eV', lx0 + 1.4, (LY(En(p.ni)) + LY(En(p.nf))) / 2, { color: c.text, bg: c.card });
+      D.label('ระดับพลังงานไฮโดรเจน Eₙ = −13.6/n² eV', lx0 - 0.3, 4.95, { color: c.text, bold: true });
+      D.label((C.emit ? 'เปล่ง' : 'ดูดกลืน') + ' λ = ' + fmt(C.lam * 1e9) + ' nm · อนุกรม' + C.series, 0.3, 4.95, { color: c.primary, bold: true });
+    },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'E_i = −13.6/n_i²', value: En(p.ni), unit: 'eV' }, { label: 'E_f = −13.6/n_f²', value: En(p.nf), unit: 'eV' }, { label: 'ΔE = |E_i − E_f|', value: C.dE, unit: 'eV', highlight: true }, { label: 'λ = hc/ΔE', value: C.lam * 1e9, unit: 'nm', highlight: true }, { label: 'f = c/λ', value: C.f, unit: 'Hz' }, { label: 'ชนิด', value: (C.emit ? 'เปล่งแสง' : 'ดูดกลืน') + ' · ' + C.series }, { label: 'r_n = n² × 0.053 nm', value: fmt(p.ni * p.ni * 0.053) + ' → ' + fmt(p.nf * p.nf * 0.053), unit: 'nm' }]; },
+    formulas: function (s, p) { var C = calc(p); return [{ symbolic: 'Eₙ = −13.6/n²', substituted: 'E_' + p.ni + ' = −13.6/' + p.ni + '² · E_' + p.nf + ' = −13.6/' + p.nf + '²', result: fmt(En(p.ni)) + ' · ' + fmt(En(p.nf)) + ' eV' }, { symbolic: '1/λ = R_H(1/n_f² − 1/n_i²)', substituted: '= 1.097×10⁷ × |1/' + p.nf + '² − 1/' + p.ni + '²|', result: 'λ = ' + fmt(C.lam * 1e9) + ' nm' }, { symbolic: 'E = hf = hc/λ', substituted: '= ' + fmt(C.dE) + ' eV × 1.6×10⁻¹⁹', result: '= ' + fmt(C.dE * 1.6e-19) + ' J' }]; },
+    content: {
+      summary: '<b>แบบจำลองอะตอมของโบร์</b> อิเล็กตรอนอยู่ได้เฉพาะวงโคจรที่โมเมนตัมเชิงมุมเป็นจำนวนเท่าของ h/2π อยู่ในวงไม่แผ่คลื่น จะแผ่หรือดูดแสงเฉพาะตอนกระโดดข้ามชั้น พลังงานโฟตอน E = hf = hc/λ ระดับพลังงานไฮโดรเจน Eₙ = −13.6/n² eV และความยาวคลื่นที่เปล่งหาจาก 1/λ = R_H(1/n_f² − 1/n_i²) ชุดที่ลงมาชั้น 2 คืออนุกรมบัลเมอร์ (แสงที่มองเห็น)',
+      tryIt: ['ตั้ง 3 → 2, 4 → 2, 5 → 2 ดูสีโฟตอนเปลี่ยนจากแดง ฟ้า ม่วง', 'ตั้งปลายทาง n = 1 ดูว่าได้ยูวีทุกกรณี (พลังงานสูง)', 'สลับให้ n_i < n_f ดูว่าต้องดูดกลืนโฟตอนพลังงานเท่ากันพอดี']
+    }
+  });
+})();
+</script>
+</body>
+</html>

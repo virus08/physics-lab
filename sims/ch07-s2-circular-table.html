@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S7.2 วงกลมพื้นฐานและโต๊ะระดับ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S7.2 วงกลมพื้นฐานและโต๊ะระดับ · บท 7 เรื่อง 4, 5
+   สูตร: T = 1/f · ω = 2π/T · v = ωR · Fc = mv²/R = mω²R · โต๊ะลื่นเชือกลอดรูผูกน้ำหนัก: T = Mg = mv²/R
+   การเคลื่อนที่วงกลมคำนวณจากมุม θ = ωt (ไม่ต้องอินทิเกรต) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function calc(p) { var g = 9.8, omega = p.v / p.R, T = 2 * Math.PI / omega, Fc = p.m * p.v * p.v / p.R, Mg = p.M * g; return { omega: omega, T: T, f: 1 / T, Fc: Fc, Mg: Mg, vEq: Math.sqrt(Mg * p.R / p.m), Mreq: Fc / g }; }
+  function init(p) { return { th: 0 }; }
+  function step(s, p, dt) { s.th += (p.v / p.R) * dt; return s; }
+  PhysLab.createSim({
+    id: 'S7.2', chapter: 7, topics: [4, 5], title: 'วงกลมพื้นฐานและโต๊ะระดับ',
+    alt: 'มองจากด้านบน มวลวิ่งเป็นวงกลมบนโต๊ะลื่น เชือกลอดรูกลางโต๊ะไปผูกน้ำหนักที่ห้อยอยู่ มีลูกศรความเร็วตามแนวสัมผัสและแรงดึงเข้าศูนย์กลาง ด้านข้างแสดงภาพตัดขวาง',
+    calc: calc,
+    params: {
+      m: { label: 'มวลบนโต๊ะ', symbol: 'm', unit: 'kg', type: 'range', min: 0.1, max: 5, step: 0.1, default: 0.5 },
+      R: { label: 'รัศมี', symbol: 'R', unit: 'm', type: 'range', min: 0.2, max: 2, step: 0.05, default: 0.8, drag: true },
+      v: { label: 'อัตราเร็ว', symbol: 'v', unit: 'm/s', type: 'range', min: 0.5, max: 10, step: 0.1, default: 3 },
+      M: { label: 'มวลที่ห้อย', symbol: 'M', unit: 'kg', type: 'range', min: 0.1, max: 10, step: 0.1, default: 0.57 }
+    },
+    presets: [{ label: 'สมดุล: M = mv²/Rg', values: { m: 0.5, R: 0.8, v: 3, M: 0.57 } }, { label: 'เร็วขึ้น 2 เท่า (ต้องห้อย 4 เท่า)', values: { m: 0.5, R: 0.8, v: 6, M: 2.3 } }, { label: 'ห้อยหนักเกิน (วงจะหด)', values: { m: 0.5, R: 0.8, v: 3, M: 2 } }, { label: 'รัศมี 2 เท่า', values: { m: 0.5, R: 1.6, v: 3, M: 0.29 } }],
+    toggles: [{ key: 'vec', label: 'ลูกศร v และ Fc' }],
+    speeds: [0.25, 0.5, 1],
+    world: { xMin: -2.6, xMax: 5.4, yMin: -2.6, yMax: 2.6 },
+    init: init, step: step,
+    timeLabel: function (t) { return 't = ' + fmt(t, 3) + ' s'; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p), x = p.R * Math.cos(s.th), y = p.R * Math.sin(s.th);
+      D.circle(0, 0, 2.3, { fill: c.soft, stroke: c.line, width: 2 }); D.label('โต๊ะลื่น มองจากบน', -2.2, 2.3, {});
+      D.circle(0, 0, p.R, { stroke: c.line, dash: [5, 4], width: 1.5 }); D.circle(0, 0, 0.08, { fill: c.text });
+      D.line(0, 0, x, y, { color: c.muted, width: 2 });
+      D.dot(x, y, 10, c.primary, { stroke: c.card, width: 2 });
+      var k = 0.5 / Math.max(p.v, 1), kf = 0.9 / Math.max(C.Fc, 1);
+      if (D.view.vec) { D.arrow(x, y, -p.v * k * Math.sin(s.th), p.v * k * Math.cos(s.th), { color: c.orange, label: 'v = ' + p.v + ' m/s', width: 3 }); D.arrow(x, y, -x / p.R * C.Fc * kf, -y / p.R * C.Fc * kf, { color: c.green, label: 'Fc = T = ' + fmt(C.Fc) + ' N', width: 3 }); }
+      D.label('R = ' + p.R + ' m', x / 2, y / 2, { dy: -10, align: 'center' });
+      var sx = 3.9; D.label('ภาพตัดขวาง', sx - 0.8, 2.3, {});
+      D.line(sx - 1.3, 0.5, sx + 1.3, 0.5, { color: c.line, width: 4 }); D.line(sx, 0.5, sx, 0.5 - 1.2 - (p.M * 0.08), { color: c.muted, width: 2 });
+      D.line(sx, 0.5, sx + p.R * 0.9, 0.5, { color: c.muted, width: 2 }); D.dot(sx + p.R * 0.9, 0.6, 8, c.primary);
+      var my = 0.5 - 1.2 - p.M * 0.08; D.rect(sx - 0.25, my - 0.4, 0.5, 0.4, { fill: c.orange }); D.label('M = ' + p.M + ' kg', sx + 0.32, my - 0.2, {});
+      D.arrow(sx, my - 0.2, 0, -0.5, { color: c.red, label: 'Mg = ' + fmt(C.Mg) + ' N', width: 2.5 });
+      var ok = Math.abs(C.Mg - C.Fc) / C.Fc < 0.03;
+      D.label(ok ? 'สมดุล: Mg = mv²/R วงคงที่' : (C.Mg > C.Fc ? 'Mg มากกว่า mv²/R: น้ำหนักดึงลง วงจะหดเล็กลง' : 'Mg น้อยกว่า mv²/R: มวลดึงเชือกขึ้น วงจะขยาย'), -2.4, -2.4, { color: ok ? c.green : c.red });
+      D.label('T = ' + fmt(C.T) + ' s · f = ' + fmt(C.f) + ' Hz · ω = ' + fmt(C.omega) + ' rad/s', -2.4, -2.1, {});
+    },
+    dragHandles: function (s, p) { return [{ param: 'R', x: p.R * Math.cos(s.th), y: p.R * Math.sin(s.th), r: 14, map: function (wx, wy) { return PhysLab.clamp(Math.hypot(wx, wy), 0.2, 2); } }]; },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'คาบ T', value: C.T, unit: 's' }, { label: 'ความถี่ f = 1/T', value: C.f, unit: 'Hz' }, { label: 'ω = 2π/T', value: C.omega, unit: 'rad/s' }, { label: 'v = ωR', value: p.v, unit: 'm/s' }, { label: 'Fc = mv²/R', value: C.Fc, unit: 'N', highlight: true }, { label: 'น้ำหนักที่ห้อย Mg', value: C.Mg, unit: 'N', highlight: true }, { label: 'M ที่ทำให้สมดุล', value: C.Mreq, unit: 'kg' }, { label: 'v ที่สมดุลกับ M นี้', value: C.vEq, unit: 'm/s' }]; },
+    formulas: function (s, p) { var C = calc(p); return [{ symbolic: 'ω = v/R · T = 2π/ω', substituted: '= ' + p.v + '/' + p.R + ' · 2π/' + fmt(C.omega), result: '= ' + fmt(C.omega) + ' rad/s · ' + fmt(C.T) + ' s' }, { symbolic: 'Fc = mv²/R', substituted: '= ' + p.m + '(' + p.v + ')²/' + p.R, result: '= ' + fmt(C.Fc) + ' N' }, { symbolic: 'สมดุล: Mg = mv²/R → M = mv²/(Rg)', substituted: '= ' + fmt(C.Fc) + '/9.8', result: '= ' + fmt(C.Mreq) + ' kg' }]; },
+    sample: function (s, p) { return { x: p.R * Math.cos(s.th), y: p.R * Math.sin(s.th) }; },
+    graphs: [{ title: 'x-t และ y-t ของมวล (รูปไซน์)', x: 't', series: [{ key: 'x', label: 'x (m)' }, { key: 'y', label: 'y (m)', color: '#E07A1F' }], window: 6 }],
+    content: {
+      summary: '<b>พื้นฐานการเคลื่อนที่แบบวงกลม</b> คาบ T คือเวลาครบ 1 รอบ ความถี่ f = 1/T ความเร็วเชิงมุม ω = 2π/T ความเร็วตามเส้นรอบวง v = ωR และต้องมีแรงดึงเข้าศูนย์กลางเสมอ Fc = mv²/R = mω²R <b>วงกลมบนโต๊ะระดับไม่มีแรงเสียดทาน</b> วัตถุหมุนบนโต๊ะลื่น เชือกลอดรูผูกน้ำหนักห้อยไว้ แรงดึงเชือกคือแรงสู่ศูนย์กลาง และเท่ากับน้ำหนักที่ห้อย W = mv²/R',
+      tryIt: ['เพิ่ม v เป็น 2 เท่า ดูว่าต้องห้อยมวลเพิ่ม 4 เท่าจึงสมดุล', 'ลากรัศมีให้ใหญ่ขึ้นที่ v เท่าเดิม ดูว่า Fc ลดลงและคาบยาวขึ้น', 'อ่านค่า T จากกราฟ x-t แล้วเทียบกับ 2πR/v']
+    }
+  });
+})();
+</script>
+</body>
+</html>

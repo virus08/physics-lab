@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S12.2 การสะท้อนและการหักเหของเสียง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S12.2 การสะท้อนและการหักเหของเสียง · บท 12 เรื่อง 3, 4
+   สูตร: โซนาร์ ระยะไปกลับ = vt → d = vt/2 · การหักเห sinθ₁/sinθ₂ = v₁/v₂ = √(T₁/T₂)
+   โหมดโซนาร์เป็นแอนิเมชันคลื่นดล · โหมดหักเหเป็นภาพนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad, deg = PhysLab.deg;
+  function vT(T) { return 331 * Math.sqrt((273 + T) / 273); }
+  function refr(p) { var v1 = vT(p.T1), v2 = vT(p.T2), s2 = Math.sin(rad(p.th1)) * v2 / v1; return { v1: v1, v2: v2, s2: s2, th2: s2 <= 1 ? deg(Math.asin(s2)) : NaN }; }
+  function init(p) { return { y: 0, dir: 1, echo: null, dist: 0 }; }
+  function step(s, p, dt, t) { if (p.mode !== 'sonar' || s.echo !== null) return s; s.dist += p.v * dt; if (s.dir === 1 && s.dist >= p.d) { s.dir = -1; } if (s.dir === -1 && s.dist >= 2 * p.d) { s.echo = t + dt; s.dist = 2 * p.d; } s.y = s.dir === 1 ? s.dist : 2 * p.d - s.dist; return s; }
+  PhysLab.createSim({
+    id: 'S12.2', chapter: 12, topics: [3, 4], title: 'การสะท้อนและการหักเหของเสียง',
+    alt: 'โหมดโซนาร์: เรือส่งคลื่นเสียงลงไปสะท้อนพื้นทะเลแล้วกลับขึ้นมา จับเวลาไปกลับ โหมดหักเห: รังสีเสียงผ่านชั้นอากาศร้อนและเย็น เบนทิศตามกฎของสเนลล์',
+    vT: vT, refr: refr,
+    params: {
+      mode: { label: 'สถานการณ์', type: 'choice', options: [{ label: 'โซนาร์ (สะท้อน)', value: 'sonar' }, { label: 'หักเหในอากาศ', value: 'refract' }], default: 'sonar' },
+      d: { label: 'ความลึกพื้นทะเล (โหมดโซนาร์)', symbol: 'd', unit: 'm', type: 'range', min: 20, max: 1000, step: 10, default: 300 },
+      v: { label: 'อัตราเร็วเสียงในน้ำ', symbol: 'v', unit: 'm/s', type: 'range', min: 1400, max: 1600, step: 10, default: 1500 },
+      T1: { label: 'อุณหภูมิชั้นที่ 1 ด้านบน (โหมดหักเห)', symbol: 'T₁', unit: '°C', type: 'range', min: -20, max: 50, step: 1, default: 30 },
+      T2: { label: 'อุณหภูมิชั้นที่ 2 ด้านล่าง', symbol: 'T₂', unit: '°C', type: 'range', min: -20, max: 50, step: 1, default: 10 },
+      th1: { label: 'มุมตกกระทบ', symbol: 'θ₁', unit: '°', type: 'range', min: 0, max: 89, step: 1, default: 40 }
+    },
+    presets: [{ label: 'โซนาร์ ลึก 300 m', values: { mode: 'sonar', d: 300, v: 1500 } }, { label: 'โซนาร์ ลึก 1000 m', values: { mode: 'sonar', d: 1000 } }, { label: 'กลางคืน: บนร้อน ล่างเย็น (เสียงเบนลง)', values: { mode: 'refract', T1: 30, T2: 10, th1: 40 } }, { label: 'กลางวัน: บนเย็น ล่างร้อน (เสียงเบนขึ้น)', values: { mode: 'refract', T1: 10, T2: 35, th1: 40 } }],
+    speeds: [0.02, 0.05, 0.1, 0.5], defaultSpeed: 0.05, dt: 1 / 240,
+    world: function (p) { return p.mode === 'sonar' ? { xMin: -1.25 * p.d, xMax: 1.25 * p.d, yMin: -p.d * 1.12, yMax: p.d * 0.18 } : { xMin: -4, xMax: 4, yMin: -3, yMax: 3 }; },
+    init: init, step: step,
+    timeLabel: function (t, s, p) { return p.mode === 'sonar' ? 't = ' + fmt(t, 3) + ' s' + (s.echo !== null ? ' · เสียงสะท้อนกลับถึงเมื่อ ' + fmt(s.echo) + ' s' : '') : 'ภาพนิ่ง'; },
+    done: function (s, p) { return p.mode !== 'sonar' || s.echo !== null; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = D.world;
+      if (p.mode === 'sonar') {
+        var d = p.d;
+        D.rect(W.xMin, W.yMin, W.xMax - W.xMin, -W.yMin, { fill: c.accentSoft }); D.rect(W.xMin, W.yMin, W.xMax - W.xMin, d * 0.1, { fill: c.muted });
+        D.polyline([[-0.09 * d, 0], [0.09 * d, 0], [0.06 * d, 0.06 * d], [-0.06 * d, 0.06 * d]], { close: true, fill: c.text }); D.label('เรือส่งสัญญาณโซนาร์', 0, 0.1 * d, { dy: -4, align: 'center', color: c.text });
+        D.label('พื้นทะเล ลึก d = ' + d + ' m', W.xMin + 0.03 * d, -d + 0.04 * d, { color: c.card });
+        D.line(0.3 * d, 0, 0.3 * d, -d, { color: c.text, width: 1 }); D.label('d = ' + d + ' m', 0.32 * d, -d / 2, { color: c.text });
+        var yw = -s.y; if (s.echo === null || s.dir === -1) { for (var k = 0; k < 4; k++) { var yy = yw + (s.dir === 1 ? k : -k) * d * 0.025; if (yy < 0 && yy > -d) { ctx.save(); ctx.globalAlpha = 1 - k * 0.22; D.arc(0, yy + (s.dir === 1 ? d * 0.06 : -d * 0.06), d * 0.06, s.dir === 1 ? -2.3 : 0.85, s.dir === 1 ? -0.85 : 2.3, { color: c.orange, width: 3 }); ctx.restore(); } } }
+        D.arrow(-0.5 * d, -d * 0.15, 0, s.dir === 1 && s.echo === null ? -d * 0.3 : d * 0.3, { color: c.orange, width: 2, label: s.echo !== null ? 'กลับถึงแล้ว' : s.dir === 1 ? 'ขาไป' : 'ขากลับ' });
+        D.label('ระยะไปกลับ 2d = vt → d = vt/2 · t ที่คาด = 2 × ' + d + ' / ' + p.v + ' = ' + fmt(2 * d / p.v) + ' s', W.xMin + 0.03 * d, -0.06 * d, { color: c.text, bg: c.card });
+      } else {
+        var R = refr(p), t1 = rad(p.th1), ix = Math.sin(t1), iy = -Math.cos(t1);
+        D.rect(W.xMin, 0, W.xMax - W.xMin, W.yMax, { fill: p.T1 > p.T2 ? '#FBE9DD' : c.accentSoft }); D.rect(W.xMin, W.yMin, W.xMax - W.xMin, -W.yMin, { fill: p.T2 > p.T1 ? '#FBE9DD' : c.accentSoft });
+        D.line(W.xMin, 0, W.xMax, 0, { color: c.muted, width: 1.5, dash: [6, 4] }); D.line(0, -2.5, 0, 2.5, { color: c.muted, dash: [3, 3], width: 1 });
+        D.arrow(-2.4 * ix, -2.4 * iy, 2.4 * ix, 2.4 * iy, { color: c.orange, width: 3 }); D.label('เสียง', -2.4 * ix, -2.4 * iy, { dx: 10, color: c.orange });
+        if (!isNaN(R.th2)) { var t2 = rad(R.th2); D.arrow(0, 0, 2.4 * Math.sin(t2), -2.4 * Math.cos(t2), { color: c.primary, width: 3 }); if (R.th2 > 0.5) D.angle(0, 0, 56, -Math.PI / 2, -Math.PI / 2 + t2, { label: 'θ₂ ' + fmt(R.th2) + '°' }); }
+        else D.label('sinθ₂ > 1: สะท้อนกลับหมด', 0.3, -1, { color: c.red, bold: true });
+        if (p.th1 > 0) D.angle(0, 0, 44, Math.PI / 2, Math.PI / 2 + t1, { label: 'θ₁ ' + p.th1 + '°' });
+        D.label('ชั้นที่ 1: T₁ = ' + p.T1 + ' °C · v₁ = ' + fmt(R.v1) + ' m/s', W.xMin + 0.15, W.yMax - 0.25, { color: c.text, bold: true, bg: c.card });
+        D.label('ชั้นที่ 2: T₂ = ' + p.T2 + ' °C · v₂ = ' + fmt(R.v2) + ' m/s · ' + (R.v2 < R.v1 ? 'ช้าลง เบนเข้าหาเส้นแนวฉาก' : R.v2 > R.v1 ? 'เร็วขึ้น เบนออกจากเส้นแนวฉาก' : 'ไม่เบน'), W.xMin + 0.15, W.yMin + 0.25, { color: c.text, bold: true, bg: c.card });
+      }
+    },
+    readouts: function (s, p) { if (p.mode === 'sonar') return [{ label: 'เวลาไปกลับที่คาด 2d/v', value: 2 * p.d / p.v, unit: 's', highlight: true }, { label: 'เวลาที่วัดได้', value: s.echo !== null ? s.echo : NaN, unit: 's' }, { label: 'ความลึกจาก d = vt/2', value: s.echo !== null ? p.v * s.echo / 2 : NaN, unit: 'm', highlight: true }, { label: 'ระยะที่คลื่นเดินทางแล้ว', value: s.dist, unit: 'm' }]; var R = refr(p); return [{ label: 'v₁ = 331√(T₁/273)', value: R.v1, unit: 'm/s' }, { label: 'v₂', value: R.v2, unit: 'm/s' }, { label: 'sinθ₂ = sinθ₁ v₂/v₁', value: R.s2 }, { label: 'θ₂', value: R.th2, unit: isNaN(R.th2) ? 'สะท้อนกลับหมด' : '°', highlight: true }]; },
+    formulas: function (s, p) { if (p.mode === 'sonar') return [{ symbolic: '2d = vt', substituted: 't = 2 × ' + p.d + ' / ' + p.v, result: '= ' + fmt(2 * p.d / p.v) + ' s' }, { symbolic: 'd = vt/2', substituted: s.echo !== null ? '= ' + p.v + ' × ' + fmt(s.echo) + ' / 2' : 'รอเสียงสะท้อน', result: s.echo !== null ? '= ' + fmt(p.v * s.echo / 2) + ' m' : '' }]; var R = refr(p); return [{ symbolic: 'sinθ₁/sinθ₂ = v₁/v₂ = √(T₁/T₂)', substituted: 'sinθ₂ = sin' + p.th1 + '° × √(' + (273 + p.T2) + '/' + (273 + p.T1) + ')', result: '= ' + fmt(R.s2) + (isNaN(R.th2) ? ' > 1' : ' → θ₂ = ' + fmt(R.th2) + '°') }]; },
+    content: {
+      summary: '<b>การสะท้อนของเสียง</b> ใช้วัดระยะได้ เช่น โซนาร์ ระยะทางไปกลับ = vt <b>การหักเหของเสียง</b> เสียงเบนเมื่อผ่านอากาศที่อุณหภูมิต่างกัน sinθ₁/sinθ₂ = v₁/v₂ = √(T₁/T₂) ทำให้บางทีได้ยินเสียงไกลชัดในตอนกลางคืน (อากาศใกล้พื้นเย็นกว่า เสียงเบนกลับลงสู่พื้น)',
+      tryIt: ['โหมดโซนาร์: กดเล่นแล้วอ่านเวลาเมื่อเสียงกลับถึง นำมาคำนวณ d = vt/2 เทียบกับความลึกที่ตั้งไว้', 'โหมดหักเห: ตั้งชั้นบนร้อนกว่าชั้นล่าง ดูว่าเสียงเบนเข้าหาเส้นแนวฉาก (ลงสู่พื้น)', 'สลับให้ชั้นล่างร้อนกว่า แล้วเพิ่มมุมจนเสียงสะท้อนกลับหมด']
+    }
+  });
+})();
+</script>
+</body>
+</html>

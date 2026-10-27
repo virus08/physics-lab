@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S17.5 สมการความต่อเนื่อง แบร์นูลลี และแรงยก · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S17.5 สมการความต่อเนื่อง แบร์นูลลี และแรงยก · บท 17 เรื่อง 11, 12, 13
+   สูตร: A₁v₁ = A₂v₂ · P + ½ρv² + ρgh = คงที่ · แรงยก F = (P₁ − P₂)A = ½ρ(v₂² − v₁²)A
+   อนุภาคของไหลเคลื่อนด้วยอัตราเร็วตามแต่ละช่วงท่อ · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, g = 9.8, rng = PhysLab.rng(5);
+  function pipe(p) { var v2 = p.A1 * p.v1 / p.A2, P2 = p.P1 * 1000 + 0.5 * p.rho * (p.v1 * p.v1 - v2 * v2) + p.rho * g * (p.h1 - p.h2); return { v2: v2, P2: P2, Q: p.A1 * 1e-4 * p.v1, dyn1: 0.5 * p.rho * p.v1 * p.v1, dyn2: 0.5 * p.rho * v2 * v2 }; }
+  function wing(p) { var dP = 0.5 * 1.2 * (p.vt * p.vt - p.vb * p.vb); return { dP: dP, F: dP * p.Aw }; }
+  function init() { var ps = []; for (var i = 0; i < 40; i++) ps.push({ u: rng(), y: rng() * 2 - 1 }); return { ps: ps }; }
+  function step(s, p, dt) { if (p.mode !== 'pipe') return s; var C = pipe(p); s.ps.forEach(function (q) { var v = q.u < 0.4 ? p.v1 : q.u < 0.6 ? p.v1 + (C.v2 - p.v1) * (q.u - 0.4) / 0.2 : C.v2; q.u += v * 0.03 * dt; if (q.u > 1) q.u -= 1; }); return s; }
+  PhysLab.createSim({
+    id: 'S17.5', chapter: 17, topics: [11, 12, 13], title: 'สมการความต่อเนื่อง แบร์นูลลี และแรงยก',
+    alt: 'โหมดท่อ: ท่อน้ำจากช่วงกว้างไปช่วงแคบและต่างระดับ อนุภาคน้ำวิ่งเร็วขึ้นในช่วงแคบ หลอดวัดความดันแสดงระดับต่ำลงตรงที่ไหลเร็ว โหมดปีก: ปีกเครื่องบินมีเส้นกระแสอากาศด้านบนชิดกว่า ลูกศรแรงยกขึ้น',
+    pipe: pipe, wing: wing,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'ท่อ (ความต่อเนื่อง + แบร์นูลลี)', value: 'pipe' }, { label: 'แรงยกปีก', value: 'wing' }], default: 'pipe' },
+      A1: { label: 'พื้นที่หน้าตัดช่วง 1', symbol: 'A₁', unit: 'cm²', type: 'range', min: 5, max: 100, step: 1, default: 40 },
+      A2: { label: 'พื้นที่หน้าตัดช่วง 2', symbol: 'A₂', unit: 'cm²', type: 'range', min: 5, max: 100, step: 1, default: 10 },
+      v1: { label: 'อัตราเร็วช่วง 1', symbol: 'v₁', unit: 'm/s', type: 'range', min: 0.2, max: 5, step: 0.1, default: 1 },
+      P1: { label: 'ความดันช่วง 1', symbol: 'P₁', unit: 'kPa', type: 'range', min: 100, max: 400, step: 5, default: 200 },
+      h1: { label: 'ความสูงช่วง 1', symbol: 'h₁', unit: 'm', type: 'range', min: 0, max: 5, step: 0.1, default: 0 },
+      h2: { label: 'ความสูงช่วง 2', symbol: 'h₂', unit: 'm', type: 'range', min: 0, max: 5, step: 0.1, default: 1 },
+      rho: { label: 'ความหนาแน่นของไหล', symbol: 'ρ', unit: 'kg/m³', type: 'range', min: 500, max: 1500, step: 10, default: 1000 },
+      vt: { label: 'อัตราเร็วอากาศเหนือปีก (โหมดปีก)', symbol: 'v บน', unit: 'm/s', type: 'range', min: 10, max: 150, step: 1, default: 70 },
+      vb: { label: 'อัตราเร็วอากาศใต้ปีก', symbol: 'v ล่าง', unit: 'm/s', type: 'range', min: 10, max: 150, step: 1, default: 60 },
+      Aw: { label: 'พื้นที่ปีก', symbol: 'A', unit: 'm²', type: 'range', min: 1, max: 100, step: 1, default: 20 }
+    },
+    presets: [{ label: 'ท่อ 40 → 10 cm² ยกสูง 1 m', values: { mode: 'pipe', A1: 40, A2: 10, v1: 1, P1: 200, h1: 0, h2: 1 } }, { label: 'ท่อแคบลงเท่านั้น (ระดับเดียวกัน)', values: { mode: 'pipe', h1: 0, h2: 0 } }, { label: 'ท่อกว้างเท่ากัน ยกสูง 3 m', values: { mode: 'pipe', A1: 40, A2: 40, h1: 0, h2: 3 } }, { label: 'ปีก 70/60 m/s พื้นที่ 20 m²', values: { mode: 'wing', vt: 70, vb: 60, Aw: 20 } }, { label: 'เครื่องบินเล็กบินช้า', values: { mode: 'wing', vt: 40, vb: 35, Aw: 15 } }],
+    speeds: [0.5, 1, 2], dt: 1 / 120,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: init, step: step,
+    timeLabel: function () { return ''; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      if (p.mode === 'pipe') {
+        var C = pipe(p), r1 = 0.25 + 0.55 * Math.sqrt(p.A1 / 100), r2 = 0.25 + 0.55 * Math.sqrt(p.A2 / 100), y1 = 1.2 + 0.35 * p.h1, y2 = 1.2 + 0.35 * p.h2, xa = 0.6, xb = 4.0, xc = 6.0, xd = 9.4;
+        function cl(u) { return u < 0.4 ? { x: xa + (xb - xa) * u / 0.4, y: y1, r: r1 } : u < 0.6 ? { x: xb + (xc - xb) * (u - 0.4) / 0.2, y: y1 + (y2 - y1) * (u - 0.4) / 0.2, r: r1 + (r2 - r1) * (u - 0.4) / 0.2 } : { x: xc + (xd - xc) * (u - 0.6) / 0.4, y: y2, r: r2 }; }
+        var top = [], bot = []; for (i = 0; i <= 60; i++) { var q = cl(i / 60); top.push([q.x, q.y + q.r]); bot.push([q.x, q.y - q.r]); }
+        D.polyline(top.concat(bot.slice().reverse()), { close: true, fill: '#BFDCF8' }); D.polyline(top, { color: c.text, width: 2.5 }); D.polyline(bot, { color: c.text, width: 2.5 });
+        s.ps.forEach(function (q) { var k = cl(q.u); D.dot(k.x, k.y + q.y * k.r * 0.85, 3, c.primary, {}); });
+        D.arrow(1.0, y1, 0.8 * Math.min(p.v1, 5) / 2 + 0.3, 0, { color: c.orange, width: 2.5, label: 'v₁ = ' + p.v1 + ' m/s', dy: -12 }); D.arrow(7.0, y2, 0.8 * Math.min(C.v2, 5) / 2 + 0.3, 0, { color: c.orange, width: 2.5, label: 'v₂ = ' + fmt(C.v2) + ' m/s', dy: -12 });
+        var pmax = 400e3, h1t = 0.4 + 1.6 * PhysLab.clamp(p.P1 * 1000 / pmax, 0, 1), h2t = 0.4 + 1.6 * PhysLab.clamp(C.P2 / pmax, 0, 1), xt1 = 2.4, xt2 = 7.8;
+        D.rect(xt1 - 0.12, y1 + r1, 0.24, h1t, { fill: '#BFDCF8' }); D.line(xt1 - 0.12, y1 + r1, xt1 - 0.12, y1 + r1 + 2.2, { color: c.text, width: 1.5 }); D.line(xt1 + 0.12, y1 + r1, xt1 + 0.12, y1 + r1 + 2.2, { color: c.text, width: 1.5 }); D.label('P₁ = ' + p.P1 + ' kPa', xt1, y1 + r1 + 2.3, { dy: -2, align: 'center', color: c.text, bold: true });
+        D.rect(xt2 - 0.12, y2 + r2, 0.24, h2t, { fill: '#BFDCF8' }); D.line(xt2 - 0.12, y2 + r2, xt2 - 0.12, y2 + r2 + 2.2, { color: c.text, width: 1.5 }); D.line(xt2 + 0.12, y2 + r2, xt2 + 0.12, y2 + r2 + 2.2, { color: c.text, width: 1.5 }); D.label('P₂ = ' + fmt(C.P2 / 1000) + ' kPa', xt2, y2 + r2 + 2.3, { dy: -2, align: 'center', color: C.P2 < 0 ? c.red : c.text, bold: true });
+        D.label('A₁ = ' + p.A1 + ' cm² · h₁ = ' + p.h1 + ' m', 2.2, y1 - r1 - 0.1, { dy: 10, align: 'center', color: c.muted }); D.label('A₂ = ' + p.A2 + ' cm² · h₂ = ' + p.h2 + ' m', 7.7, y2 - r2 - 0.1, { dy: 10, align: 'center', color: c.muted });
+        D.label('A₁v₁ = A₂v₂ → v₂ = ' + p.A1 + ' × ' + p.v1 + ' / ' + p.A2 + ' = ' + fmt(C.v2) + ' m/s · อัตราการไหล Q = ' + fmt(C.Q * 1000) + ' L/s', 0.3, 4.95, { color: c.primary, bold: true });
+        D.label('P₂ = P₁ + ½ρ(v₁² − v₂²) + ρg(h₁ − h₂) = ' + fmt(C.P2 / 1000) + ' kPa' + (C.P2 < 0 ? ' (ติดลบ: ของไหลขาดตอน)' : ''), 0.3, 4.65, { color: c.text });
+      } else {
+        var Wg = wing(p), xw = 3.0;
+        for (i = 0; i < 5; i++) { var yt = 2.9 + i * 0.22 * (60 / p.vt) * 1.2, yb = 2.3 - i * 0.22 * (60 / p.vb) * 1.2, ptsT = [], ptsB = []; for (var k = 0; k <= 40; k++) { var x = 0.5 + 9 * k / 40, bump = Math.exp(-Math.pow((x - xw - 1.2) / 1.6, 2)); ptsT.push([x, yt + 0.55 * bump * (1 - i * 0.15)]); ptsB.push([x, yb - 0.08 * bump]); } D.polyline(ptsT, { color: c.primary, width: 1.2 }); D.polyline(ptsB, { color: c.primary, width: 1.2 }); }
+        var foil = []; for (i = 0; i <= 40; i++) { var u = i / 40, x2 = xw + 3.0 * u; foil.push([x2, 2.6 + 0.6 * Math.sin(Math.PI * u) * (1 - u * 0.5)]); } for (i = 40; i >= 0; i--) { var u2 = i / 40; foil.push([xw + 3.0 * u2, 2.6 - 0.12 * Math.sin(Math.PI * u2)]); } D.polyline(foil, { close: true, fill: c.muted, color: c.text, width: 1.5 });
+        D.arrow(xw + 1.2, 2.9, 0, 0.5 + 1.3 * PhysLab.clamp(Wg.F / 100000, 0, 1), { color: c.green, width: 4, label: 'แรงยก F = ' + fmt(Wg.F) + ' N', dx: 12 });
+        D.label('อากาศเหนือปีก v = ' + p.vt + ' m/s (เร็ว ความดันต่ำ P = P₀ − ' + fmt(0.5 * 1.2 * p.vt * p.vt / 1000) + ' kPa)', 0.5, 4.95, { color: c.primary });
+        D.label('อากาศใต้ปีก v = ' + p.vb + ' m/s (ช้ากว่า ความดันสูงกว่า)', 0.5, 0.5, { color: c.primary });
+        D.label('ΔP = ½ρ(v บน² − v ล่าง²) = ½ × 1.2 × (' + p.vt + '² − ' + p.vb + '²) = ' + fmt(Wg.dP) + ' Pa · F = ΔP × A = ' + fmt(Wg.F) + ' N', 0.5, 0.2, { color: c.green, bold: true });
+      }
+    },
+    readouts: function (s, p) { if (p.mode === 'pipe') { var C = pipe(p); return [{ label: 'v₂ = A₁v₁/A₂', value: C.v2, unit: 'm/s', highlight: true }, { label: 'Q = A₁v₁', value: C.Q * 1000, unit: 'L/s' }, { label: '½ρv₁² · ½ρv₂²', value: fmt(C.dyn1 / 1000) + ' · ' + fmt(C.dyn2 / 1000), unit: 'kPa' }, { label: 'ρg(h₁ − h₂)', value: p.rho * g * (p.h1 - p.h2) / 1000, unit: 'kPa' }, { label: 'P₂', value: C.P2 / 1000, unit: 'kPa', highlight: true }]; } var Wg = wing(p); return [{ label: 'ΔP = ½ρ(v บน² − v ล่าง²)', value: Wg.dP, unit: 'Pa', highlight: true }, { label: 'F = ΔP × A', value: Wg.F, unit: 'N', highlight: true }, { label: 'ยกมวลได้ F/g', value: Wg.F / g, unit: 'kg' }]; },
+    formulas: function (s, p) { if (p.mode === 'pipe') { var C = pipe(p); return [{ symbolic: 'A₁v₁ = A₂v₂', substituted: 'v₂ = ' + p.A1 + ' × ' + p.v1 + ' / ' + p.A2, result: '= ' + fmt(C.v2) + ' m/s' }, { symbolic: 'P₁ + ½ρv₁² + ρgh₁ = P₂ + ½ρv₂² + ρgh₂', substituted: 'P₂ = ' + p.P1 + '×10³ + ' + fmt(C.dyn1 - C.dyn2) + ' + ' + fmt(p.rho * g * (p.h1 - p.h2)), result: '= ' + fmt(C.P2) + ' Pa' }]; } var Wg = wing(p); return [{ symbolic: 'F = ½ρ(v₂² − v₁²)A', substituted: '= 0.5 × 1.2 × (' + p.vt + '² − ' + p.vb + '²) × ' + p.Aw, result: '= ' + fmt(Wg.F) + ' N' }]; },
+    content: {
+      summary: '<b>สมการความต่อเนื่อง</b> ของไหลไหลผ่านท่อ ปริมาตรต่อวินาทีเท่ากันทุกจุด A₁v₁ = A₂v₂ ท่อแคบไหลเร็ว <b>สมการแบร์นูลลี</b> พลังงานของของไหลคงที่ตลอดท่อ P + ½ρv² + ρgh = คงที่ ตรงไหนไหลเร็วความดันจะต่ำ <b>แรงยก</b> อากาศเหนือปีกเร็วกว่าใต้ปีก ความดันบนต่ำกว่า จึงเกิดแรงยกขึ้น F = (P₁ − P₂)A = ½ρ(v₂² − v₁²)A',
+      tryIt: ['ลด A₂ ลง ดูว่าน้ำในช่วงแคบวิ่งเร็วขึ้นและหลอดวัดความดันต่ำลง', 'ตั้ง A₁ = A₂ แล้วยก h₂ ขึ้น ดูว่าความดันลดตาม ρgΔh เท่านั้น', 'โหมดปีก: เพิ่มความต่างของอัตราเร็วบน-ล่าง ดูแรงยกเพิ่มขึ้น']
+    }
+  });
+})();
+</script>
+</body>
+</html>

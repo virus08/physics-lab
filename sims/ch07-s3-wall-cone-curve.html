@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S7.3 ไต่ถัง กรวยคว่ำ และถนนโค้ง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S7.3 ไต่ถัง กรวยคว่ำ และถนนโค้ง · บท 7 เรื่อง 6, 7, 8
+   สูตร: ไต่ถัง μ ≥ Rg/v² · กรวยคว่ำ tanθ = v²/Rg · ถนนโค้งราบ μ ≥ v²/Rg · วงกลมคำนวณจากมุม θ = (v/R)t · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, deg = PhysLab.deg, g = 9.8;
+  function calc(p) { var a = p.v * p.v / p.R, ratio = p.v * p.v / (p.R * g); return { ac: a, Fc: p.m * a, muWall: 1 / ratio, muRoad: ratio, theta: deg(Math.atan(ratio)), ratio: ratio, okWall: p.mu >= 1 / ratio, okRoad: p.mu >= ratio, vMinWall: Math.sqrt(p.R * g / p.mu), vMaxRoad: Math.sqrt(p.mu * p.R * g) }; }
+  var MODES = [{ label: 'มอเตอร์ไซค์ไต่ถัง', value: 'wall' }, { label: 'ลูกตุ้มกรวยคว่ำ', value: 'cone' }, { label: 'รถบนถนนโค้ง', value: 'road' }];
+  PhysLab.createSim({
+    id: 'S7.3', chapter: 7, topics: [6, 7, 8], title: 'ไต่ถัง กรวยคว่ำ และถนนโค้ง',
+    alt: 'เลือกสถานการณ์วงกลมสามแบบ ซ้ายเป็นภาพตัดข้างแสดงแรงที่กระทำ ขวาเป็นภาพมองจากบนที่วัตถุวิ่งเป็นวงกลม',
+    calc: calc,
+    params: {
+      mode: { label: 'สถานการณ์', type: 'choice', options: MODES, default: 'wall' },
+      v: { label: 'อัตราเร็ว', symbol: 'v', unit: 'm/s', type: 'range', min: 1, max: 30, step: 0.5, default: 10 },
+      R: { label: 'รัศมี', symbol: 'R', unit: 'm', type: 'range', min: 1, max: 50, step: 0.5, default: 5 },
+      m: { label: 'มวล', symbol: 'm', unit: 'kg', type: 'range', min: 1, max: 1500, step: 1, default: 150 },
+      mu: { label: 'สัมประสิทธิ์เสียดทานที่มี', symbol: 'μ', type: 'range', min: 0.05, max: 1.2, step: 0.05, default: 0.6 }
+    },
+    presets: [{ label: 'ไต่ถัง v = 10, R = 5', values: { mode: 'wall', v: 10, R: 5, m: 150, mu: 0.6 } }, { label: 'ไต่ถังช้าเกิน (ไถลลง)', values: { mode: 'wall', v: 6, R: 5, m: 150, mu: 0.6 } }, { label: 'กรวยคว่ำ v = 3, R = 1', values: { mode: 'cone', v: 3, R: 1, m: 1 } }, { label: 'รถเลี้ยว 15 m/s R = 30', values: { mode: 'road', v: 15, R: 30, m: 1000, mu: 0.8 } }, { label: 'รถเลี้ยวเร็วเกิน (ไถล)', values: { mode: 'road', v: 25, R: 30, m: 1000, mu: 0.8 } }],
+    toggles: [{ key: 'vec', label: 'ลูกศรแรง' }],
+    world: { xMin: -4.6, xMax: 6.6, yMin: -3.2, yMax: 3.2 },
+    init: function () { return { th: 0 }; }, step: function (s, p, dt) { s.th += (p.v / p.R) * dt; return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p), m = p.mode, W = p.m * g, kf = 1.6 / Math.max(C.Fc, W);
+      D.label('ภาพตัดข้าง', -4.4, 3.0, {});
+      if (m === 'wall') {
+        D.line(-1.2, -2.5, -1.2, 2.5, { color: c.line, width: 5 }); D.hatch(-1.2, -2.5, -1.2, 2.5, { n: 8, side: -1 }); D.ground(-2.5);
+        D.rect(-1.2, -0.3, 0.6, 0.6, { fill: c.primary });
+        if (D.view.vec) { D.arrow(-0.9, 0, C.Fc * kf, 0, { color: c.green, label: 'N = mv²/R = ' + fmt(C.Fc) + ' N', width: 3 }); D.arrow(-0.9, 0, 0, -W * kf, { color: c.red, label: 'mg = ' + fmt(W), width: 3 }); D.arrow(-1.0, 0.3, 0, W * kf, { color: c.orange, label: 'f ≤ μN', width: 3, dx: -70 }); }
+        D.label(C.okWall ? 'เกาะผนังได้: μN ≥ mg (ต้องการ μ ≥ ' + fmt(C.muWall) + ')' : 'ไถลลง: μN < mg (ต้องการ μ ≥ ' + fmt(C.muWall) + ' หรือ v ≥ ' + fmt(C.vMinWall) + ' m/s)', -4.4, -2.9, { color: C.okWall ? c.green : c.red });
+      } else if (m === 'cone') {
+        var th = Math.atan(C.ratio), L = 2.4, px = -2.2 + L * Math.sin(th), py = 2.4 - L * Math.cos(th);
+        D.line(-3, 2.4, -1.4, 2.4, { color: c.line, width: 5 }); D.line(-2.2, 2.4, -2.2, -0.6, { color: c.line, dash: [4, 3], width: 1 });
+        D.line(-2.2, 2.4, px, py, { color: c.muted, width: 2 }); D.dot(px, py, 10, c.primary);
+        D.angle(-2.2, 2.4, 40, -Math.PI / 2, -Math.PI / 2 + th, { label: 'θ ' + fmt(C.theta) + '°' });
+        if (D.view.vec) { D.arrow(px, py, 0, -W * kf, { color: c.red, label: 'mg', width: 3 }); D.arrow(px, py, -C.Fc * kf, 0, { color: c.green, label: 'T sinθ = mv²/R', width: 3 }); D.arrow(px, py, -Math.sin(th) * (W / Math.cos(th)) * kf, Math.cos(th) * (W / Math.cos(th)) * kf, { color: c.muted, label: 'T', width: 2.5 }); }
+        D.label('tanθ = v²/Rg = ' + fmt(C.ratio) + ' → θ = ' + fmt(C.theta) + '°', -4.4, -2.9, { color: c.text });
+      } else {
+        D.ground(-1.5); D.rect(-1.5, -1.5, 1.4, 0.7, { fill: c.primary }); D.dot(-1.2, -1.5, 6, c.text); D.dot(-0.4, -1.5, 6, c.text);
+        if (D.view.vec) { D.arrow(-0.8, -1.2, -C.Fc * kf, 0, { color: c.orange, label: 'f = mv²/R = ' + fmt(C.Fc) + ' N', width: 3 }); D.arrow(-0.8, -1.2, 0, -W * kf, { color: c.red, label: 'mg', width: 3 }); D.arrow(-0.8, -1.5, 0, W * kf, { color: c.green, label: 'N = mg', width: 3, dx: 8 }); }
+        D.label(C.okRoad ? 'เลี้ยวได้: μmg ≥ mv²/R (ต้องการ μ ≥ ' + fmt(C.muRoad) + ')' : 'ไถลออกนอกโค้ง: ต้องการ μ ≥ ' + fmt(C.muRoad) + ' หรือ v ≤ ' + fmt(C.vMaxRoad) + ' m/s', -4.4, -2.9, { color: C.okRoad ? c.green : c.red });
+        D.label('ศูนย์กลางโค้งอยู่ทางซ้าย', -4.4, -2.2, {});
+      }
+      var cx = 3.6, cy = 0.2, r = 2.2, x = cx + r * Math.cos(s.th), y = cy + r * Math.sin(s.th);
+      D.label('มองจากบน', cx - 1.2, 3.0, {}); D.circle(cx, cy, r, { stroke: c.line, dash: [5, 4], width: 1.5 }); D.dot(cx, cy, 3, c.muted);
+      D.dot(x, y, 9, c.primary); D.arrow(x, y, -0.6 * Math.sin(s.th), 0.6 * Math.cos(s.th), { color: c.orange, label: 'v', width: 2.5 }); D.arrow(x, y, -(x - cx) / r * 0.7, -(y - cy) / r * 0.7, { color: c.green, label: 'Fc', width: 2.5 });
+    },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'ac = v²/R', value: C.ac, unit: 'm/s²' }, { label: 'Fc = mv²/R', value: C.Fc, unit: 'N', highlight: true }, { label: 'v²/Rg', value: C.ratio, sig: 3 }, p.mode === 'wall' ? { label: 'μ ต่ำสุดที่ต้องมี = Rg/v²', value: C.muWall, highlight: true } : p.mode === 'cone' ? { label: 'มุมเชือก θ', value: C.theta, unit: '°', highlight: true } : { label: 'μ ต่ำสุดที่ต้องมี = v²/Rg', value: C.muRoad, highlight: true }, { label: 'μ ที่มี', value: p.mu }, p.mode === 'wall' ? { label: 'v ต่ำสุดที่เกาะได้', value: C.vMinWall, unit: 'm/s' } : p.mode === 'road' ? { label: 'v สูงสุดที่เลี้ยวได้', value: C.vMaxRoad, unit: 'm/s' } : { label: 'คาบ T = 2πR/v', value: 2 * Math.PI * p.R / p.v, unit: 's' }]; },
+    formulas: function (s, p) { var C = calc(p); if (p.mode === 'wall') return [{ symbolic: 'N = mv²/R และ f = μN ≥ mg', substituted: 'μ ≥ Rg/v² = ' + p.R + '(9.8)/' + p.v + '²', result: '= ' + fmt(C.muWall) }]; if (p.mode === 'cone') return [{ symbolic: 'T cosθ = mg, T sinθ = mv²/R → tanθ = v²/Rg', substituted: '= ' + p.v + '²/(' + p.R + ' × 9.8)', result: '= ' + fmt(C.ratio) + ' → θ = ' + fmt(C.theta) + '°' }]; return [{ symbolic: 'f = mv²/R ≤ μmg → μ ≥ v²/Rg', substituted: '= ' + p.v + '²/(' + p.R + ' × 9.8)', result: '= ' + fmt(C.muRoad) }]; },
+    content: {
+      summary: '<b>มอเตอร์ไซต์ไต่ถัง</b> วิ่งวนบนผนังตั้งฉาก แรงแนวฉากจากผนังเป็นแรงสู่ศูนย์กลาง แรงเสียดทานยันน้ำหนักไว้ ได้เงื่อนไข μ = Rg/v² <b>วงกลมแบบกรวยคว่ำ</b> ลูกตุ้มแกว่งเป็นวงกลมแนวราบ แรงดึงเชือกแนวดิ่งยันน้ำหนัก แนวราบเป็นแรงสู่ศูนย์กลาง ได้ tanθ = v²/Rg <b>รถวิ่งบนถนนโค้ง</b> บนถนนราบ แรงเสียดทานเป็นแรงสู่ศูนย์กลาง เลี้ยวได้โดยไม่ไถลเมื่อ μ = v²/Rg',
+      tryIt: ['ในโหมดไต่ถัง ลดความเร็วลงเรื่อย ๆ จนสถานะเปลี่ยนเป็นไถลลง (ยิ่งเร็วยิ่งเกาะดี)', 'ในโหมดถนนโค้ง เพิ่มความเร็วจนไถล สังเกตว่ากลับกันกับไต่ถัง', 'ในโหมดกรวยคว่ำ เพิ่ม v ดูว่ามุมเชือกกางมากขึ้น']
+    }
+  });
+})();
+</script>
+</body>
+</html>

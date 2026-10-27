@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S19.1 วัตถุดำและสเปกตรัม · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S19.1 วัตถุดำและสเปกตรัม · บท 19 เรื่อง 1, 2
+   สูตร: พลังค์ B(λ,T) ∝ λ⁻⁵/(e^{hc/λkT} − 1) · วีน λ max = 2.9×10⁻³/T · สเตฟาน P ∝ T⁴ · เส้นสเปกตรัมไฮโดรเจน 410 434 486 656 nm
+   แบบจำลองนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, h = 6.63e-34, c0 = 3e8, kB = 1.38e-23;
+  var EL = { H: [410, 434, 486, 656], He: [447, 471, 501, 587, 668], Na: [589, 589.6], Hg: [405, 436, 546, 577, 579] };
+  function planck(l, T) { var x = h * c0 / (l * kB * T); return Math.pow(l, -5) / (Math.exp(Math.min(x, 700)) - 1); }
+  function rj(l, T) { return 2 * c0 * kB * T / Math.pow(l, 4); }
+  function wl2rgb(l) { var r, g, b; if (l < 380 || l > 780) return 'rgb(60,60,60)'; if (l < 440) { r = -(l - 440) / 60; g = 0; b = 1; } else if (l < 490) { r = 0; g = (l - 440) / 50; b = 1; } else if (l < 510) { r = 0; g = 1; b = -(l - 510) / 20; } else if (l < 580) { r = (l - 510) / 70; g = 1; b = 0; } else if (l < 645) { r = 1; g = -(l - 645) / 65; b = 0; } else { r = 1; g = 0; b = 0; } return 'rgb(' + Math.round(255 * r) + ',' + Math.round(255 * g) + ',' + Math.round(255 * b) + ')'; }
+  PhysLab.createSim({
+    id: 'S19.1', chapter: 19, topics: [1, 2], title: 'วัตถุดำและสเปกตรัม', static: true,
+    alt: 'โหมดวัตถุดำ: กราฟความเข้มการแผ่รังสีกับความยาวคลื่นที่อุณหภูมิต่าง ๆ ยอดเลื่อนไปทางความยาวคลื่นสั้นเมื่อร้อนขึ้น มีเส้นทฤษฎีเดิมที่พุ่งขึ้นไม่สิ้นสุดเทียบ โหมดสเปกตรัม: แถบสีต่อเนื่อง แถบเส้นสว่างของธาตุ และแถบเส้นมืดดูดกลืน',
+    planck: planck,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'การแผ่รังสีของวัตถุดำ', value: 'bb' }, { label: 'สเปกตรัมของแก๊ส', value: 'spec' }], default: 'bb' },
+      T: { label: 'อุณหภูมิวัตถุดำ', symbol: 'T', unit: 'K', type: 'range', min: 1000, max: 10000, step: 100, default: 5800 },
+      classic: { label: 'แสดงทฤษฎีเดิม (เรย์ลี-จีนส์)', type: 'toggle', default: true },
+      el: { label: 'ธาตุ (โหมดสเปกตรัม)', type: 'choice', options: [{ label: 'ไฮโดรเจน', value: 'H' }, { label: 'ฮีเลียม', value: 'He' }, { label: 'โซเดียม', value: 'Na' }, { label: 'ปรอท', value: 'Hg' }], default: 'H' }
+    },
+    presets: [{ label: 'ดวงอาทิตย์ 5800 K', values: { mode: 'bb', T: 5800 } }, { label: 'หลอดไส้ 3000 K', values: { mode: 'bb', T: 3000 } }, { label: 'ดาวร้อน 10000 K', values: { mode: 'bb', T: 10000 } }, { label: 'สเปกตรัมไฮโดรเจน', values: { mode: 'spec', el: 'H' } }, { label: 'สเปกตรัมโซเดียม (เส้นคู่เหลือง)', values: { mode: 'spec', el: 'Na' } }],
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      if (p.mode === 'bb') {
+        var gx0 = 0.9, gx1 = 9.6, gy0 = 0.9, gy1 = 4.7, lmax = 3000e-9, X = function (l) { return gx0 + (gx1 - gx0) * l / lmax; }, lpk = 2.9e-3 / p.T, pk = planck(lpk, p.T), Y = function (v) { return gy0 + (gy1 - gy0 - 0.4) * v / pk; };
+        D.rect(gx0, gy0, gx1 - gx0, gy1 - gy0, { fill: c.card, stroke: c.line });
+        for (i = 0; i < 40; i++) { var l = 380 + 400 * i / 40; D.rect(X(l * 1e-9), gy0, (X(780e-9) - X(380e-9)) / 40 + 0.01, 0.25, { fill: wl2rgb(l) }); }
+        [500, 1000, 1500, 2000, 2500, 3000].forEach(function (nm) { D.label(nm + ' nm', X(nm * 1e-9), gy0, { dy: 12, align: 'center', color: c.muted }); });
+        [[3000, 0.3], [5800, 0.55], [10000, 0.8]].forEach(function (ref) { if (Math.abs(ref[0] - p.T) < 50) return; var pts = []; for (i = 1; i <= 120; i++) { var l2 = lmax * i / 120; pts.push([X(l2), Math.min(gy1, Y(planck(l2, ref[0]) * Math.pow(p.T / ref[0], 5) * (pk / planck(2.9e-3 / p.T, p.T)) * Math.pow(ref[0] / p.T, 5)))]); } D.polyline(pts, { color: c.line, width: 1, dash: [3, 3] }); D.label(ref[0] + ' K', X(2.9e-3 / ref[0]) + 0.1, Math.min(gy1 - 0.1, Y(planck(2.9e-3 / ref[0], ref[0]) * Math.pow(ref[0] / p.T, 5) * 1)), { color: c.muted }); });
+        var cur = []; for (i = 1; i <= 160; i++) { var l3 = lmax * i / 160; cur.push([X(l3), Y(planck(l3, p.T))]); } D.polyline(cur, { color: c.red, width: 2.5 });
+        if (p.classic) { var rjp = []; for (i = 8; i <= 160; i++) { var l4 = lmax * i / 160, v = rj(l4, p.T) * pk / rj(lpk * 3, p.T) * 0.6; if (Y(v) > gy1) continue; rjp.push([X(l4), Y(v)]); } D.polyline(rjp, { color: c.muted, width: 1.5, dash: [6, 4] }); D.label('ทฤษฎีเดิม: พุ่งขึ้นไม่สิ้นสุดที่ λ สั้น (หายนะอัลตราไวโอเลต)', gx1 - 0.2, gy1 - 0.15, { align: 'right', color: c.muted }); }
+        D.line(X(lpk), gy0, X(lpk), Y(pk), { color: c.red, dash: [3, 3], width: 1 }); D.label('λ max = 2.9×10⁻³/T = ' + fmt(lpk * 1e9) + ' nm', X(lpk) + 0.1, Y(pk) + 0.05, { color: c.red, bold: true });
+        D.label('T = ' + p.T + ' K · กำลังแผ่รวม ∝ T⁴ (เทียบ 5800 K: ' + fmt(Math.pow(p.T / 5800, 4)) + ' เท่า)', gx0 + 0.2, 5.05, { color: c.text, bold: true });
+        D.label('ความเข้ม', gx0 + 0.05, gy1 - 0.15, { color: c.muted }); D.label('พลังค์: พลังงานถูกดูดหรือแผ่เป็นก้อน E = hf เท่านั้น จึงได้เส้นโค้งที่ตรงกับการทดลอง', gx0 + 0.2, 0.4, { color: c.text });
+      } else {
+        var sx0 = 1.6, sx1 = 9.4, SX = function (nm) { return sx0 + (sx1 - sx0) * (nm - 380) / 400; }, lines = EL[p.el], rows = [['ต่อเนื่อง (แสงขาวจากของแข็งร้อน)', 3.9], ['เปล่งแสง (แก๊สร้อน) เส้นสว่าง', 2.7], ['ดูดกลืน (แสงขาวผ่านแก๊สเย็น) เส้นมืด', 1.5]];
+        rows.forEach(function (r, k) { var y = r[1]; D.label(r[0], 0.3, y + 0.55, { color: c.text, bold: true }); if (k === 0 || k === 2) for (i = 0; i < 80; i++) { var l5 = 380 + 400 * i / 80; D.rect(SX(l5), y - 0.4, (sx1 - sx0) / 80 + 0.01, 0.8, { fill: wl2rgb(l5) }); } else D.rect(sx0, y - 0.4, sx1 - sx0, 0.8, { fill: '#111' }); if (k === 1) lines.forEach(function (nm) { D.rect(SX(nm) - 0.03, y - 0.4, 0.06, 0.8, { fill: wl2rgb(nm) }); D.label(String(nm), SX(nm), y - 0.45, { dy: 10, align: 'center', color: c.muted }); }); if (k === 2) lines.forEach(function (nm) { D.rect(SX(nm) - 0.03, y - 0.4, 0.06, 0.8, { fill: '#111' }); }); });
+        [400, 500, 600, 700].forEach(function (nm) { D.label(nm + ' nm', SX(nm), 0.75, { dy: 10, align: 'center', color: c.muted }); });
+        D.label('ธาตุ: ' + p.el + ' · เส้น ' + lines.join(', ') + ' nm · แต่ละธาตุมีลายเส้นเป็นของตัวเอง (ลายนิ้วมือของธาตุ) · เส้นเปล่งและเส้นดูดกลืนอยู่ตำแหน่งเดียวกัน', 0.3, 4.95, { color: c.primary, bold: true });
+      }
+    },
+    readouts: function (s, p) { if (p.mode === 'bb') { var lpk = 2.9e-3 / p.T; return [{ label: 'λ max = 2.9×10⁻³/T', value: lpk * 1e9, unit: 'nm', highlight: true }, { label: 'f ที่ยอด = c/λ max', value: c0 / lpk, unit: 'Hz' }, { label: 'E โฟตอนที่ยอด = hf', value: h * c0 / lpk / 1.6e-19, unit: 'eV' }, { label: 'กำลังแผ่ ∝ T⁴ (เทียบ 5800 K)', value: Math.pow(p.T / 5800, 4), unit: 'เท่า' }, { label: 'สีที่เห็น', value: lpk < 480e-9 ? 'ขาวอมฟ้า' : lpk < 600e-9 ? 'ขาว/เหลือง' : lpk < 1000e-9 ? 'ส้มแดง' : 'แดงคล้ำ/อินฟราเรด' }]; } return EL[p.el].map(function (nm, i) { return { label: 'เส้นที่ ' + (i + 1), value: nm, unit: 'nm' }; }); },
+    formulas: function (s, p) { var lpk = 2.9e-3 / p.T; return [{ symbolic: 'λ max T = 2.9×10⁻³ m·K', substituted: 'λ max = 2.9×10⁻³ / ' + p.T, result: '= ' + fmt(lpk * 1e9) + ' nm' }, { symbolic: 'E = hf = hc/λ', substituted: '= 6.63×10⁻³⁴ × 3×10⁸ / ' + fmt(lpk), result: '= ' + fmt(h * c0 / lpk) + ' J' }]; },
+    content: {
+      summary: '<b>สมมติฐานของพลังค์และวัตถุดำ</b> ทฤษฎีเดิมอธิบายการแผ่รังสีของวัตถุร้อนไม่ได้ พลังค์เสนอว่าพลังงานถูกดูดหรือแผ่ได้เป็นค่าเฉพาะเท่านั้น (ควอนตัม) วัตถุดำคือวัตถุที่ดูดกลืนและแผ่รังสีได้สมบูรณ์ ยิ่งร้อนยอดกราฟยิ่งเลื่อนไปทางความยาวคลื่นสั้น (กฎของวีน) และแผ่พลังงานมากขึ้นตาม T⁴ <b>สเปกตรัม</b> แสงขาวให้สเปกตรัมต่อเนื่อง แก๊สร้อนให้เส้นสว่างเฉพาะสี (เปล่งแสง) แสงขาวผ่านแก๊สเย็นให้เส้นมืด (ดูดกลืน) แต่ละธาตุมีลายเส้นเป็นของตัวเอง',
+      tryIt: ['เลื่อนอุณหภูมิจาก 3000 K ไป 10000 K ดูยอดกราฟเลื่อนจากอินฟราเรดเข้าสู่ย่านแสงและสูงขึ้นมาก', 'เปิดเส้นทฤษฎีเดิม ดูว่ามันพุ่งขึ้นไม่สิ้นสุดที่ λ สั้น ต่างจากของจริง', 'โหมดสเปกตรัม: เทียบเส้นของไฮโดรเจนกับฮีเลียม ดูว่าตำแหน่งต่างกันหมด']
+    }
+  });
+})();
+</script>
+</body>
+</html>

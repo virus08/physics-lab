@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S17.4 แรงตึงผิวและความหนืด · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S17.4 แรงตึงผิวและความหนืด · บท 17 เรื่อง 9, 10
+   สูตร: γ = F/L (ลวดตรง L = 2l · วงแหวน L = 2 × 2πr) · ลูกบอลตกในของเหลวหนืด: ma = mg − F_B − 6πηrv → ความเร็วปลาย v_t = 2r²(ρ_b − ρ_f)g/(9η)
+   โหมดความหนืดอินทิเกรตด้วย semi-implicit Euler · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, g = 9.8;
+  var LIQ = [{ label: 'น้ำ γ = 0.072 N/m', value: 0.072 }, { label: 'น้ำสบู่ 0.025', value: 0.025 }, { label: 'ปรอท 0.47', value: 0.47 }];
+  var VIS = [{ label: 'กลีเซอรีน η = 1.5 Pa·s ρ 1260', value: 'gly' }, { label: 'น้ำมัน η = 0.1 ρ 900', value: 'oil' }, { label: 'น้ำ η = 0.001 ρ 1000', value: 'water' }];
+  var VP = { gly: { eta: 1.5, rho: 1260 }, oil: { eta: 0.1, rho: 900 }, water: { eta: 0.001, rho: 1000 } };
+  function Lsurf(p) { return p.shape === 'ring' ? 2 * 2 * Math.PI * p.r * 1e-2 : 2 * p.l * 1e-2; }
+  function Fsurf(p) { return p.gamma * Lsurf(p); }
+  function ball(p) { var r = p.rb * 1e-3, f = VP[p.fluid], m = p.rhob * 4 / 3 * Math.PI * r * r * r, FB = f.rho * 4 / 3 * Math.PI * r * r * r * g, k = 6 * Math.PI * f.eta * r, vt = (m * g - FB) / k; return { r: r, m: m, FB: FB, k: k, vt: vt, eta: f.eta }; }
+  function init() { return { y: 0, v: 0 }; }
+  function step(s, p, dt) { if (p.mode !== 'visc') return s; var B = ball(p), a = (B.m * g - B.FB - B.k * s.v) / B.m; s.v += a * dt; s.y += s.v * dt; return s; }
+  PhysLab.createSim({
+    id: 'S17.4', chapter: 17, topics: [9, 10], title: 'แรงตึงผิวและความหนืด',
+    alt: 'โหมดแรงตึงผิว: วงแหวนหรือลวดถูกดึงขึ้นจากผิวของเหลว ผิวของเหลวยืดเป็นฟิล์มสองด้าน มีมาตรวัดแรง โหมดความหนืด: ลูกบอลตกในหลอดของเหลวหนืด เร่งช่วงแรกแล้วตกด้วยความเร็วคงที่ มีกราฟ v-t',
+    Fsurf: Fsurf, ball: ball,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'แรงตึงผิว', value: 'surf' }, { label: 'ความหนืด (ลูกบอลตก)', value: 'visc' }], default: 'surf' },
+      gamma: { label: 'ของเหลว (แรงตึงผิว)', type: 'choice', options: LIQ, default: 0.072 },
+      shape: { label: 'สิ่งที่ดึง', type: 'choice', options: [{ label: 'วงแหวน (L = 2·2πr)', value: 'ring' }, { label: 'ลวดตรง (L = 2l)', value: 'wire' }], default: 'ring' },
+      r: { label: 'รัศมีวงแหวน', symbol: 'r', unit: 'cm', type: 'range', min: 0.5, max: 5, step: 0.1, default: 2 },
+      l: { label: 'ความยาวลวด', symbol: 'l', unit: 'cm', type: 'range', min: 1, max: 20, step: 0.5, default: 5 },
+      fluid: { label: 'ของเหลวหนืด (โหมดความหนืด)', type: 'choice', options: VIS, default: 'gly' },
+      rb: { label: 'รัศมีลูกบอล', symbol: 'r', unit: 'mm', type: 'range', min: 0.5, max: 5, step: 0.1, default: 2 },
+      rhob: { label: 'ความหนาแน่นลูกบอล', symbol: 'ρ', unit: 'kg/m³', type: 'range', min: 1500, max: 12000, step: 100, default: 7800 }
+    },
+    presets: [{ label: 'วงแหวน 2 cm ในน้ำ', values: { mode: 'surf', gamma: 0.072, shape: 'ring', r: 2 } }, { label: 'ลวด 5 cm ในปรอท', values: { mode: 'surf', gamma: 0.47, shape: 'wire', l: 5 } }, { label: 'ลูกเหล็ก 2 mm ในกลีเซอรีน', values: { mode: 'visc', fluid: 'gly', rb: 2, rhob: 7800 } }, { label: 'ลูกบอลใหญ่ 2 เท่า (v ปลาย 4 เท่า)', values: { mode: 'visc', fluid: 'gly', rb: 4 } }, { label: 'ในน้ำมัน (หนืดน้อย ตกเร็ว)', values: { mode: 'visc', fluid: 'oil', rb: 2 } }],
+    speeds: [0.25, 0.5, 1], dt: 1 / 240,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: init, step: step,
+    timeLabel: function (t, s, p) { return p.mode === 'visc' ? 't = ' + fmt(t, 3) + ' s · v = ' + fmt(s.v) + ' m/s' : 'ภาพนิ่ง'; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      if (p.mode === 'surf') {
+        var F = Fsurf(p), L = Lsurf(p), lx = 2.0, rx = 8.0, lvl = 2.0, hw = p.shape === 'ring' ? 0.6 + 0.4 * p.r / 5 : 0.5 + 1.5 * p.l / 20;
+        D.rect(0.8, 0.6, 5.0, lvl - 0.6, { fill: p.gamma > 0.3 ? '#C9CDD3' : '#9EC9F5' }); D.line(0.8, 3.0, 0.8, 0.6, { color: c.text, width: 2 }); D.line(0.8, 0.6, 5.8, 0.6, { color: c.text, width: 2 }); D.line(5.8, 0.6, 5.8, 3.0, { color: c.text, width: 2 });
+        var cx = 3.3, yr = lvl + 0.9; D.polyline([[cx - hw, lvl], [cx - hw - 0.12, yr], [cx + hw + 0.12, yr], [cx + hw, lvl]], { close: true, fill: p.gamma > 0.3 ? 'rgba(201,205,211,0.6)' : 'rgba(158,201,245,0.6)' });
+        if (p.shape === 'ring') { D.ctx.save(); D.ctx.beginPath(); D.ctx.ellipse(D.x(cx), D.y(yr), D.sx(hw + 0.12), D.sx(0.18), 0, 0, Math.PI * 2); D.ctx.strokeStyle = c.text; D.ctx.lineWidth = 4; D.ctx.stroke(); D.ctx.restore(); } else D.line(cx - hw - 0.12, yr, cx + hw + 0.12, yr, { color: c.text, width: 4 });
+        D.line(cx, yr, cx, 4.6, { color: c.text, width: 1.5 }); D.rect(cx - 0.5, 4.2, 1.0, 0.5, { fill: c.card, stroke: c.text }); D.label('F = ' + fmt(F * 1000) + ' mN', cx, 4.45, { align: 'center', color: c.text, bold: true });
+        D.arrow(cx + hw + 0.4, yr, 0, 0.8, { color: c.orange, width: 2.5, label: 'F ดึงขึ้น' });
+        D.label(p.shape === 'ring' ? 'วงแหวน r = ' + p.r + ' cm: ผิวของเหลวเกาะสองด้าน (ใน + นอก) L = 2 × 2πr = ' + fmt(L) + ' m' : 'ลวดตรง l = ' + p.l + ' cm: ฟิล์มมีสองผิว L = 2l = ' + fmt(L) + ' m', 0.3, 4.95, { color: c.text });
+        D.label('γ = F/L → F = γL = ' + p.gamma + ' × ' + fmt(L) + ' = ' + fmt(F) + ' N', 0.3, 3.5, { color: c.primary, bold: true });
+        D.label('แรงตึงผิวทำให้ผิวของเหลวหดตัวเหมือนแผ่นยาง (หยดน้ำกลม แมลงเดินบนน้ำ)', 0.3, 0.3, { color: c.text });
+      } else {
+        var B = ball(p), H = 2.0, yball = PhysLab.clamp(s.y, 0, H), ytop = 4.6, scale = 3.6 / H, fcol = p.fluid === 'gly' ? '#E9D9A8' : p.fluid === 'oil' ? '#F3D9A4' : '#9EC9F5';
+        D.rect(1.8, 0.8, 1.6, 3.8, { fill: fcol }); D.line(1.8, 4.7, 1.8, 0.8, { color: c.text, width: 2 }); D.line(1.8, 0.8, 3.4, 0.8, { color: c.text, width: 2 }); D.line(3.4, 0.8, 3.4, 4.7, { color: c.text, width: 2 });
+        var yb = ytop - yball * scale, rb = 0.1 + 0.15 * p.rb / 5; D.circle(2.6, yb, rb, { fill: c.muted, stroke: c.text, width: 1.5 });
+        var fs = 0.5 / Math.max(B.m * g, 1e-9); D.arrow(2.6 - 0.35, yb, 0, -B.m * g * fs, { color: c.red, width: 2, label: 'mg', dx: -8, align: 'right' }); D.arrow(2.6 + 0.35, yb, 0, (B.FB + B.k * s.v) * fs, { color: c.primary, width: 2, label: 'F_B + F หนืด', dx: 8 });
+        D.label(VIS.filter(function (v) { return v.value === p.fluid; })[0].label, 0.3, 4.95, { color: c.text });
+        D.label('ลูกบอล r = ' + p.rb + ' mm ρ = ' + p.rhob + ' · ความเร็วปลาย v_t = 2r²(ρ_b − ρ_f)g/9η = ' + fmt(B.vt) + ' m/s', 0.3, 4.7, { color: c.primary, bold: true });
+        D.label(s.v > 0.98 * B.vt ? 'ถึงความเร็วปลายแล้ว: แรงหนืด + แรงพยุง = น้ำหนัก (a = 0)' : 'ช่วงเร่ง: แรงหนืด ∝ v ยังน้อยกว่า mg − F_B', 3.8, 0.4, { color: c.text, bg: c.card });
+        D.label('v = ' + fmt(s.v) + ' m/s · ระยะตก ' + fmt(s.y) + ' m', 3.8, 4.4, { color: c.text });
+        D.label('F หนืด = 6πηrv = ' + fmt(B.k * s.v) + ' N', 3.8, 4.1, { color: c.primary });
+        D.label('F_B = ' + fmt(B.FB) + ' N · mg = ' + fmt(B.m * g) + ' N', 3.8, 3.8, { color: c.muted });
+      }
+    },
+    readouts: function (s, p) { if (p.mode === 'surf') return [{ label: 'L (ความยาวแนวสัมผัส)', value: Lsurf(p), unit: 'm' }, { label: 'F = γL', value: Fsurf(p), unit: 'N', highlight: true }, { label: 'γ', value: p.gamma, unit: 'N/m' }]; var B = ball(p); return [{ label: 'v ขณะนี้', value: s.v, unit: 'm/s' }, { label: 'v ปลาย = 2r²(ρ_b − ρ_f)g/9η', value: B.vt, unit: 'm/s', highlight: true }, { label: 'F หนืด = 6πηrv', value: B.k * s.v, unit: 'N' }, { label: 'mg · F_B', value: fmt(B.m * g) + ' · ' + fmt(B.FB), unit: 'N' }, { label: 'เวลาคาดถึง 63% ของ v ปลาย (m/k)', value: B.m / B.k, unit: 's' }]; },
+    formulas: function (s, p) { if (p.mode === 'surf') return [{ symbolic: 'γ = F/L → F = γL', substituted: '= ' + p.gamma + ' × ' + fmt(Lsurf(p)), result: '= ' + fmt(Fsurf(p)) + ' N' }]; var B = ball(p); return [{ symbolic: 'ma = mg − F_B − 6πηrv', substituted: 'a = 0 เมื่อ v = v ปลาย', result: 'v_t = ' + fmt(B.vt) + ' m/s' }, { symbolic: 'v_t = 2r²(ρ_b − ρ_f)g/9η', substituted: '= 2 × (' + p.rb + '×10⁻³)² × (' + p.rhob + ' − ' + VP[p.fluid].rho + ') × 9.8 / (9 × ' + B.eta + ')', result: '= ' + fmt(B.vt) + ' m/s' }]; },
+    sample: function (s) { return { v: s.v }; },
+    graphs: [{ title: 'v-t ของลูกบอล (โหมดความหนืด)', x: 't', series: [{ key: 'v', label: 'v (m/s)' }], window: 3 }],
+    content: {
+      summary: '<b>แรงตึงผิว</b> ผิวของเหลวหดตัวเหมือนแผ่นยาง γ = F/L โดย L คือความยาวแนวสัมผัส (ลวดตรง 2l วงแหวน 2 × 2πr เพราะฟิล์มมีสองผิว) <b>ความหนืด</b> แรงต้านการเคลื่อนที่ในของไหล แปรตามความเร็ว วัตถุที่ตกในของเหลวหนืดจะเร่งช่วงแรกแล้วตกด้วยความเร็วคงที่ (ความเร็วปลาย) เมื่อแรงหนืดรวมกับแรงพยุงเท่ากับน้ำหนัก',
+      tryIt: ['โหมดแรงตึงผิว: เปลี่ยนของเหลวเป็นปรอท ดูว่าต้องใช้แรงดึงมากกว่าน้ำ 6 เท่า', 'โหมดความหนืด: กดเล่นแล้วดูกราฟ v-t โค้งเข้าหาค่าคงที่', 'เพิ่มรัศมีลูกบอล 2 เท่า ดูว่าความเร็วปลายเพิ่ม 4 เท่า']
+    }
+  });
+})();
+</script>
+</body>
+</html>

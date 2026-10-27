@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S2.1 รถบนเส้นตรงและกราฟการเคลื่อนที่ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S2.1 รถบนเส้นตรงและกราฟการเคลื่อนที่ · บท 2 เรื่อง 1, 5
+   สูตร: อัตราเร็ว = ระยะทาง/เวลา · ความเร็วเฉลี่ย = การกระจัด/เวลา · a = Δv/Δt · ความเร็วสัมพัทธ์ = v วัตถุ − v ผู้สังเกต
+   กราฟ s-t ความชัน = v · กราฟ v-t ความชัน = a พื้นที่ = การกระจัด · semi-implicit Euler dt 1/120 (ความเร่งคงที่จึงตรงสูตร) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function xAt(p, t) { return p.x0 + p.u * t + 0.5 * p.a * t * t; }
+  function vAt(p, t) { return p.u + p.a * t; }
+  function extent(p) { var lo = Infinity, hi = -Infinity; for (var i = 0; i <= 40; i++) { var x = xAt(p, p.T * i / 40); lo = Math.min(lo, x); hi = Math.max(hi, x); } var xo = p.x0 + p.vobs * p.T; lo = Math.min(lo, xo, p.x0); hi = Math.max(hi, xo, p.x0); return { lo: lo, hi: hi }; }
+  function init(p) { return { x: p.x0, v: p.u, dist: 0, xobs: p.x0 - 6, done: false }; }
+  function step(s, p, dt, t) { if (t + dt > p.T + 1e-9) { s.done = true; return s; } s.v += p.a * dt; s.x += s.v * dt; s.dist += Math.abs(s.v) * dt; s.xobs += p.vobs * dt; return s; }
+
+  PhysLab.createSim({
+    id: 'S2.1', chapter: 2, topics: [1, 5], title: 'รถบนเส้นตรงและกราฟการเคลื่อนที่',
+    alt: 'รถวิ่งบนถนนเส้นตรงจากตำแหน่งเริ่มต้น มีลูกศรความเร็วและความเร่ง รถของผู้สังเกตวิ่งในเลนล่าง พร้อมกราฟตำแหน่ง ความเร็ว และความเร่งกับเวลา',
+    xAt: xAt, vAt: vAt,
+    params: {
+      u: { label: 'ความเร็วต้น', symbol: 'u', unit: 'm/s', type: 'range', min: -10, max: 10, step: 0.5, default: 2 },
+      a: { label: 'ความเร่ง', symbol: 'a', unit: 'm/s²', type: 'range', min: -3, max: 3, step: 0.1, default: 1 },
+      x0: { label: 'ตำแหน่งเริ่มต้น', symbol: 'x₀', unit: 'm', type: 'range', min: -20, max: 20, step: 1, default: 0 },
+      T: { label: 'ช่วงเวลาที่ดู', symbol: 'T', unit: 's', type: 'range', min: 2, max: 20, step: 1, default: 10 },
+      vobs: { label: 'ความเร็วของผู้สังเกต (รถอีกคัน)', symbol: 'v ผู้สังเกต', unit: 'm/s', type: 'range', min: -10, max: 10, step: 0.5, default: 0 }
+    },
+    presets: [
+      { label: 'ความเร็วคงที่', values: { u: 4, a: 0, x0: 0, vobs: 0 } }, { label: 'เร่งจากหยุดนิ่ง', values: { u: 0, a: 1, x0: 0 } },
+      { label: 'เบรก', values: { u: 10, a: -2, x0: -20, T: 8 } }, { label: 'ถอยแล้วกลับ', values: { u: -6, a: 2, x0: 10, T: 8 } }, { label: 'รถสวนทาง', values: { u: 5, a: 0, x0: -20, vobs: -5 } }
+    ],
+    toggles: [{ key: 'vec', label: 'ลูกศร v และ a' }, { key: 'marks', label: 'รอยทุก 1 s' }],
+    world: function (p) { var e = extent(p), w = Math.max(e.hi - e.lo, 10), lo = e.lo - w * 0.15, hi = e.hi + w * 0.15; var h = (hi - lo) * 0.34; return { xMin: lo, xMax: hi, yMin: -h * 0.55, yMax: h * 0.45 }; },
+    init: init, step: step, done: function (s) { return s.done; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, w = D.world, laneY = 0, obsY = -(w.yMax - w.yMin) * 0.3, carH = (w.yMax - w.yMin) * 0.16, carW = (w.xMax - w.xMin) * 0.06;
+      D.grid(); D.axes({ xLabel: 'x (m)', y0: w.yMin + (w.yMax - w.yMin) * 0.02, x0: w.xMin });
+      D.line(w.xMin, laneY - carH * 0.55, w.xMax, laneY - carH * 0.55, { color: c.line, width: 2 });
+      D.line(p.x0, laneY - carH, p.x0, laneY + carH, { color: c.muted, dash: [4, 3] }); D.label('x₀', p.x0, laneY + carH, { dy: -10, align: 'center' });
+      if (D.view.marks) for (var i = 1; i <= p.T; i++) { var xi = xAt(p, i); if (i <= D.t + 1e-9) D.dot(xi, laneY - carH * 0.55, 3, c.muted); }
+      D.rect(s.x - carW / 2, laneY - carH * 0.5, carW, carH, { fill: c.primary });
+      D.dot(s.x - carW * 0.3, laneY - carH * 0.55, 4, c.text); D.dot(s.x + carW * 0.3, laneY - carH * 0.55, 4, c.text);
+      var k = (w.xMax - w.xMin) * 0.12 / 10;
+      if (D.view.vec) { if (Math.abs(s.v) > 0.05) D.arrow(s.x, laneY + carH * 0.9, s.v * k, 0, { color: c.horizontal, label: 'v ' + fmt(s.v), width: 3 }); if (Math.abs(p.a) > 0.01) D.arrow(s.x, laneY + carH * 1.7, p.a * k * 3, 0, { color: c.vertical, label: 'a ' + fmt(p.a), width: 2.5 }); }
+      if (p.vobs !== 0 || true) {
+        D.line(w.xMin, obsY - carH * 0.55, w.xMax, obsY - carH * 0.55, { color: c.line, width: 1.5, dash: [6, 4] });
+        D.rect(s.xobs - carW / 2, obsY - carH * 0.5, carW, carH, { fill: c.muted });
+        D.label('ผู้สังเกต v = ' + fmt(p.vobs) + ' m/s', s.xobs, obsY + carH * 0.9, { align: 'center' });
+      }
+      D.label('ระยะทางสะสม ' + fmt(s.dist) + ' m · การกระจัด ' + fmt(s.x - p.x0) + ' m', w.xMin + (w.xMax - w.xMin) * 0.02, w.yMax, { dy: 12, color: c.text });
+    },
+    readouts: function (s, p, t) {
+      var tt = Math.min(t, p.T), sdisp = s.x - p.x0;
+      return [
+        { label: 'ตำแหน่ง x', value: s.x, unit: 'm' }, { label: 'ความเร็ว v', value: s.v, unit: 'm/s', color: '#E07A1F' },
+        { label: 'การกระจัด', value: sdisp, unit: 'm', highlight: true }, { label: 'ระยะทาง', value: s.dist, unit: 'm', highlight: true },
+        { label: 'ความเร็วเฉลี่ย', value: tt > 0 ? sdisp / tt : 0, unit: 'm/s' }, { label: 'อัตราเร็วเฉลี่ย', value: tt > 0 ? s.dist / tt : 0, unit: 'm/s' },
+        { label: 'ความเร่ง a', value: p.a, unit: 'm/s²', color: '#0E6B57' }, { label: 'ความเร็วสัมพัทธ์กับผู้สังเกต', value: s.v - p.vobs, unit: 'm/s' }
+      ];
+    },
+    formulas: function (s, p, t) {
+      var tt = Math.min(t, p.T);
+      return [
+        { symbolic: 'v = u + at', substituted: '= ' + p.u + ' + (' + p.a + ')(' + fmt(tt) + ')', result: '= ' + fmt(vAt(p, tt)) + ' m/s' },
+        { symbolic: 's = ut + ½at²', substituted: '= ' + p.u + '(' + fmt(tt) + ') + ½(' + p.a + ')(' + fmt(tt) + ')²', result: '= ' + fmt(xAt(p, tt) - p.x0) + ' m' },
+        { symbolic: 'ความเร็วสัมพัทธ์ = v วัตถุ − v ผู้สังเกต', substituted: '= ' + fmt(s.v) + ' − (' + p.vobs + ')', result: '= ' + fmt(s.v - p.vobs) + ' m/s' }
+      ];
+    },
+    sample: function (s, p) { return { x: s.x, v: s.v, a: p.a }; },
+    graphs: [
+      { title: 's-t ตำแหน่งกับเวลา (ความชัน = v)', x: 't', series: [{ key: 'x', label: 'x (m)' }], window: 20 },
+      { title: 'v-t ความเร็วกับเวลา (ความชัน = a, พื้นที่ = การกระจัด)', x: 't', series: [{ key: 'v', label: 'v (m/s)', color: '#E07A1F' }], window: 20 },
+      { title: 'a-t ความเร่งกับเวลา', x: 't', series: [{ key: 'a', label: 'a (m/s²)', color: '#0E6B57' }], window: 20 }
+    ],
+    content: {
+      summary: '<b>พื้นฐานการเคลื่อนที่แนวตรง</b> อัตราเร็ว = ระยะทาง/เวลา ความเร็วเฉลี่ย = การกระจัด/เวลา ความเร่ง = ความเร็วที่เปลี่ยนไป/เวลา และความเร็วสัมพัทธ์ = ความเร็วของวัตถุ − ความเร็วของผู้สังเกต (เช่น นั่งรถแล้วมองรถอีกคัน) <b>กราฟการเคลื่อนที่แนวตรง</b> กราฟ s-t ความชันคือความเร็ว กราฟ v-t ความชันคือความเร่ง และพื้นที่ใต้กราฟคือการกระจัด กราฟ a-t พื้นที่ใต้กราฟคือความเร็วที่เปลี่ยนไป',
+      tryIt: ['เลือก "ถอยแล้วกลับ" ดูว่าระยะทางกับการกระจัดต่างกัน และกราฟ s-t โค้งกลับ', 'เลือก "รถสวนทาง" ดูว่าความเร็วสัมพัทธ์เป็น 10 m/s ทั้งที่รถเราวิ่งแค่ 5', 'ชี้บนกราฟ v-t แล้วเทียบความชันกับค่า a ที่ตั้งไว้']
+    }
+  });
+})();
+</script>
+</body>
+</html>

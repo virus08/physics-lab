@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S18.4 สัญญาณดิจิทัลและระบบ GPS · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S18.4 สัญญาณดิจิทัลและระบบ GPS · บท 18 เรื่อง 8, 9
+   หลัก: ADC สุ่มตัวอย่างสัญญาณต่อเนื่องแล้วแปลงเป็นเลขฐานสอง (จำนวนบิตกำหนดระดับ) DAC แปลงกลับ · GPS: ระยะ = c × เวลาเดินทาง ใช้ดาวเทียมอย่างน้อย 4 ดวง (ภาพ 2 มิติใช้ 3 วง)
+   แบบจำลองนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, c0 = 3e8;
+  function sig(t) { return 0.6 * Math.sin(2 * Math.PI * 1.0 * t) + 0.3 * Math.sin(2 * Math.PI * 2.7 * t + 1); }
+  var SATS = [{ x: 1.5, y: 4.3 }, { x: 7.8, y: 4.5 }, { x: 8.6, y: 1.2 }];
+  PhysLab.createSim({
+    id: 'S18.4', chapter: 18, topics: [8, 9], title: 'สัญญาณดิจิทัลและระบบ GPS', static: true,
+    alt: 'โหมดดิจิทัล: คลื่นเสียงต่อเนื่องถูกสุ่มตัวอย่างเป็นจุดและปัดเป็นระดับขั้นบันได แสดงรหัสเลขฐานสองของแต่ละตัวอย่าง โหมด GPS: ดาวเทียมสามดวงบนแผนที่ วงกลมระยะทางจากแต่ละดวงตัดกันที่ตำแหน่งเครื่องรับ',
+    sig: sig,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'แอนะล็อก → ดิจิทัล', value: 'adc' }, { label: 'ระบบ GPS', value: 'gps' }], default: 'adc' },
+      fs: { label: 'อัตราสุ่มตัวอย่าง', symbol: 'f_s', unit: 'ครั้ง/วินาที', type: 'range', min: 4, max: 40, step: 1, default: 12 },
+      bits: { label: 'จำนวนบิต', unit: 'บิต', type: 'range', min: 1, max: 6, step: 1, default: 3 },
+      rx: { label: 'ตำแหน่งเครื่องรับ x (โหมด GPS ลากได้)', unit: 'km', type: 'range', min: 1, max: 9, step: 0.05, default: 4.5, drag: true },
+      ry: { label: 'ตำแหน่งเครื่องรับ y', unit: 'km', type: 'range', min: 0.5, max: 3.5, step: 0.05, default: 2.0, drag: true }
+    },
+    presets: [{ label: 'สุ่ม 12 ครั้ง/s 3 บิต', values: { mode: 'adc', fs: 12, bits: 3 } }, { label: 'สุ่มถี่ขึ้น 40 ครั้ง/s 6 บิต (เหมือนต้นฉบับ)', values: { mode: 'adc', fs: 40, bits: 6 } }, { label: 'สุ่มน้อย 4 ครั้ง/s 1 บิต (เพี้ยนมาก)', values: { mode: 'adc', fs: 4, bits: 1 } }, { label: 'GPS หาตำแหน่ง', values: { mode: 'gps' } }],
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      if (p.mode === 'adc') {
+        var gx0 = 0.6, gx1 = 9.4, gy = 2.9, A = 1.3, T = 2.0, X = function (t) { return gx0 + (gx1 - gx0) * t / T; }, Y = function (v) { return gy + A * v; }, levels = Math.pow(2, p.bits), q = function (v) { var k = Math.round((v + 1) / 2 * (levels - 1)); return { k: k, v: k / (levels - 1) * 2 - 1 }; };
+        D.line(gx0, gy, gx1, gy, { color: c.line, width: 1 }); for (i = 0; i < levels; i++) { var lv = i / (levels - 1) * 2 - 1; D.line(gx0, Y(lv), gx1, Y(lv), { color: c.line, dash: [2, 4], width: 1 }); }
+        var pts = []; for (i = 0; i <= 200; i++) { var t = T * i / 200; pts.push([X(t), Y(sig(t))]); } D.polyline(pts, { color: c.muted, width: 1.5 });
+        var N = Math.round(p.fs * T), stair = [], codes = []; for (i = 0; i <= N; i++) { var ts = T * i / N, qv = q(sig(ts)); D.dot(X(ts), Y(sig(ts)), 3.5, c.orange, {}); stair.push([X(ts), Y(qv.v)]); if (i < N) stair.push([X(T * (i + 1) / N), Y(qv.v)]); if (i < 8) codes.push(qv.k.toString(2).padStart(p.bits, '0')); }
+        D.polyline(stair, { color: c.primary, width: 2 });
+        D.label('ไมโครโฟน → สัญญาณต่อเนื่อง (เทา) → ADC สุ่ม ' + p.fs + ' ครั้ง/s (จุดส้ม) ปัดเป็น ' + levels + ' ระดับ (' + p.bits + ' บิต) → DAC → ลำโพง', 0.6, 4.95, { color: c.text, bold: true });
+        D.label('รหัส 8 ตัวอย่างแรก: ' + codes.join(' '), 0.6, 4.6, { color: c.primary });
+        D.label('ยิ่งสุ่มถี่และใช้บิตมาก สัญญาณดิจิทัลยิ่งใกล้ต้นฉบับ (เสียงชัดขึ้น แต่ข้อมูลใหญ่ขึ้น: ' + fmt(p.fs * p.bits) + ' บิต/วินาที)', 0.6, 0.5, { color: c.text });
+        D.label('เวลา →', gx1, 0.9, { align: 'right', color: c.muted });
+      } else {
+        D.rect(0.3, 0.3, 9.4, 3.7, { fill: c.accentSoft }); D.label('แผนที่ (2 มิติ ใช้ 3 ดวง · จริง 3 มิติ + เวลา ใช้ 4 ดวง)', 0.4, 3.85, { color: c.muted });
+        SATS.forEach(function (sat, k) { var d = Math.hypot(p.rx - sat.x, p.ry - sat.y), t = d * 1000 / c0; D.circle(sat.x, sat.y, d, { stroke: [c.red, c.green, c.primary][k], width: 1.5, dash: [5, 4] }); D.rect(sat.x - 0.22, sat.y - 0.12, 0.44, 0.24, { fill: c.text }); D.rect(sat.x - 0.5, sat.y - 0.06, 0.26, 0.12, { fill: c.primary }); D.rect(sat.x + 0.24, sat.y - 0.06, 0.26, 0.12, { fill: c.primary }); D.line(sat.x, sat.y, p.rx, p.ry, { color: [c.red, c.green, c.primary][k], width: 1 }); D.label('ดาวเทียม ' + (k + 1) + ': d = ' + fmt(d) + ' km · t = ' + fmt(t * 1e6) + ' µs', sat.x, sat.y + 0.2, { dy: -4, align: 'center', color: [c.red, c.green, c.primary][k], bg: c.card }); });
+        D.dot(p.rx, p.ry, 8, c.orange, { stroke: c.card, width: 2 }); D.label('เครื่องรับ (' + fmt(p.rx) + ', ' + fmt(p.ry) + ') km', p.rx, p.ry - 0.2, { dy: 12, align: 'center', color: c.orange, bold: true, bg: c.card });
+        D.label('ดาวเทียมส่งตำแหน่งและเวลา → เครื่องรับคำนวณระยะ d = c × t จากเวลาที่สัญญาณเดินทาง → ตำแหน่งคือจุดตัดของวงกลม', 0.4, 4.95, { color: c.text, bold: true });
+        D.label('นาฬิกาคลาดเพียง 1 µs ทำให้ระยะคลาด 300 m จึงต้องใช้นาฬิกาอะตอมและดาวเทียมดวงที่ 4 แก้เวลา', 0.4, 4.6, { color: c.text });
+      }
+    },
+    dragHandles: function (s, p) { if (p.mode !== 'gps') return []; return [{ param: 'rx', x: p.rx, y: p.ry, r: 18, map: function (wx, wy) { return { rx: PhysLab.clamp(wx, 1, 9), ry: PhysLab.clamp(wy, 0.5, 3.5) }; } }]; },
+    readouts: function (s, p) { if (p.mode === 'adc') { var levels = Math.pow(2, p.bits); return [{ label: 'จำนวนระดับ = 2ⁿ', value: levels, highlight: true }, { label: 'ตัวอย่างต่อวินาที', value: p.fs }, { label: 'อัตราข้อมูล = f_s × บิต', value: p.fs * p.bits, unit: 'บิต/s', highlight: true }, { label: 'ขั้นความละเอียด', value: 2 / (levels - 1) }]; } return SATS.map(function (sat, k) { var d = Math.hypot(p.rx - sat.x, p.ry - sat.y); return { label: 'ดาวเทียม ' + (k + 1) + ' ระยะ · เวลา', value: fmt(d) + ' km · ' + fmt(d * 1000 / c0 * 1e6) + ' µs' }; }).concat([{ label: 'c', value: c0, unit: 'm/s' }]); },
+    formulas: function (s, p) { if (p.mode === 'adc') return [{ symbolic: 'ระดับ = 2ⁿ', substituted: '= 2^' + p.bits, result: '= ' + Math.pow(2, p.bits) + ' ระดับ' }]; var d = Math.hypot(p.rx - SATS[0].x, p.ry - SATS[0].y); return [{ symbolic: 'd = c × t', substituted: 't = ' + fmt(d * 1000) + ' / 3×10⁸', result: '= ' + fmt(d * 1000 / c0 * 1e6) + ' µs (ดาวเทียม 1)' }]; },
+    content: {
+      summary: '<b>สัญญาณแอนะล็อกและดิจิทัล</b> เสียงจากไมโครโฟนเป็นสัญญาณต่อเนื่อง แปลงเป็นตัวเลข 0 และ 1 ด้วย ADC (สุ่มตัวอย่างเป็นช่วงเวลา แล้วปัดเป็นระดับที่กำหนดด้วยจำนวนบิต) ประมวลผล แล้วแปลงกลับด้วย DAC ไปลำโพง <b>ระบบ GPS</b> ดาวเทียมส่งตำแหน่งและเวลา เครื่องรับคำนวณระยะจากเวลาที่สัญญาณเดินทาง (d = ct) ใช้ดาวเทียมอย่างน้อย 4 ดวงหาตำแหน่งบนโลก',
+      tryIt: ['ลดอัตราสุ่มเหลือ 4 ครั้ง/s และ 1 บิต ดูว่าสัญญาณดิจิทัลเพี้ยนจากต้นฉบับมาก', 'เพิ่มเป็น 40 ครั้ง/s 6 บิต ดูว่าแทบทับต้นฉบับ', 'โหมด GPS: ลากเครื่องรับแล้วดูวงกลมสามวงปรับขนาดตามระยะและยังตัดกันที่ตำแหน่งเดียวเสมอ']
+    }
+  });
+})();
+</script>
+</body>
+</html>

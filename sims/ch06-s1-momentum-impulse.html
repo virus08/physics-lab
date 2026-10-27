@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S6.1 โมเมนตัม แรงดล และการดล · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S6.1 โมเมนตัม แรงดล และการดล · บท 6 เรื่อง 1, 2, 3
+   สูตร: p = mv · F = Δp/Δt · I = FΔt = Δp = m(v − u) · ช่วงชนใช้แรงรูปครึ่งคลื่นไซน์ยาว Δt ให้การดลรวมตรงกับ Δp
+   พื้นลื่น · semi-implicit Euler dt 1/120 · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, WALL = 6;
+  function impulse(p) { var v = -p.e * p.u; return { v: v, dp: p.m * (v - p.u), Favg: Math.abs(p.m * (v - p.u)) / p.dt, Fmax: Math.PI / 2 * Math.abs(p.m * (v - p.u)) / p.dt }; }
+  function init(p) { return { x: 0.5, v: p.u, phase: 'approach', tc: 0, F: 0, I: 0, done: false }; }
+  function step(s, p, dt, t) {
+    if (s.done) return s;
+    var im = impulse(p), r = 0.3;
+    if (s.phase === 'approach') { s.x += s.v * dt; if (s.x + r >= WALL) { s.x = WALL - r; s.phase = 'contact'; s.tc = 0; } }
+    else if (s.phase === 'contact') { s.tc += dt; var F = -im.Fmax * Math.sin(Math.PI * Math.min(s.tc, p.dt) / p.dt); s.F = F; s.v += F / p.m * dt; s.I += F * dt; s.x = WALL - r - 0.12 * Math.sin(Math.PI * Math.min(s.tc, p.dt) / p.dt); if (s.tc >= p.dt) { s.phase = 'leave'; s.F = 0; s.v = im.v; s.x = WALL - r; } }
+    else { s.x += s.v * dt; if (s.x < -0.5 || Math.abs(s.v) < 1e-3) s.done = true; }
+    return s;
+  }
+  PhysLab.createSim({
+    id: 'S6.1', chapter: 6, topics: [1, 2, 3], title: 'โมเมนตัม แรงดล และการดล',
+    alt: 'ลูกบอลวิ่งเข้าชนผนังนุ่ม มีลูกศรโมเมนตัมและแรงดลขณะสัมผัส พร้อมกราฟแรงกับเวลาที่พื้นที่ใต้กราฟคือการดล',
+    impulse: impulse,
+    params: {
+      m: { label: 'มวล', symbol: 'm', unit: 'kg', type: 'range', min: 0.1, max: 5, step: 0.1, default: 1 },
+      u: { label: 'ความเร็วก่อนชน', symbol: 'u', unit: 'm/s', type: 'range', min: 1, max: 20, step: 0.5, default: 8 },
+      e: { label: 'สัดส่วนความเร็วที่สะท้อนกลับ', symbol: 'e', type: 'range', min: 0, max: 1, step: 0.05, default: 0.8 },
+      dt: { label: 'เวลาที่สัมผัส (ความนุ่มของผนัง)', symbol: 'Δt', unit: 's', type: 'range', min: 0.02, max: 0.5, step: 0.01, default: 0.1 }
+    },
+    presets: [{ label: 'กำแพงแข็ง Δt = 0.02 s', values: { dt: 0.02, e: 0.8 } }, { label: 'ถุงลมนิรภัย Δt = 0.3 s', values: { dt: 0.3, e: 0.2 } }, { label: 'ชนแล้วหยุด (e = 0)', values: { e: 0, dt: 0.1 } }, { label: 'ลูกหนัก 5 kg', values: { m: 5, u: 8, dt: 0.1 } }],
+    toggles: [{ key: 'vec', label: 'ลูกศร p และ F' }],
+    speeds: [0.1, 0.25, 0.5, 1],
+    world: { xMin: -1, xMax: 7.5, yMin: -1.2, yMax: 3.2 },
+    init: init, step: step, done: function (s) { return s.done; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, im = impulse(p), r = 0.3;
+      D.ground(0); D.rect(WALL, 0, 0.5, 3, { fill: c.soft, stroke: c.muted }); D.hatch(WALL + 0.5, 0, WALL + 0.5, 3, { n: 8, side: 1 });
+      if (s.phase === 'contact') D.rect(WALL - 0.12 * Math.sin(Math.PI * Math.min(s.tc, p.dt) / p.dt), 0, 0.12, 3, { fill: c.orange });
+      D.dot(s.x, r, D.sx(r), c.primary, { stroke: c.card, width: 2 });
+      var kp = 1.8 / Math.max(p.m * p.u, 1);
+      if (D.view.vec) { if (Math.abs(s.v) > 0.05) D.arrow(s.x, r + 0.6, p.m * s.v * kp, 0, { color: c.primary, label: 'p = mv = ' + fmt(p.m * s.v) + ' kg·m/s', width: 3 }); if (Math.abs(s.F) > 0.5) D.arrow(WALL, r, -Math.min(2.5, Math.abs(s.F) / im.Fmax * 2.5), 0, { color: c.red, label: 'F = ' + fmt(Math.abs(s.F)) + ' N', width: 4, dy: -14 }); }
+      D.label(s.phase === 'approach' ? 'กำลังเข้าชน' : s.phase === 'contact' ? 'สัมผัสผนัง ' + fmt(s.tc * 1000, 3) + ' ms จาก ' + fmt(p.dt * 1000, 3) + ' ms' : 'สะท้อนกลับ', -0.8, 3.0, { color: c.text });
+      D.label('การดลสะสม I = ∫F dt = ' + fmt(s.I) + ' N·s (ต้องได้ ' + fmt(im.dp) + ')', -0.8, 2.7, {});
+    },
+    readouts: function (s, p) { var im = impulse(p); return [{ label: 'p ก่อนชน = mu', value: p.m * p.u, unit: 'kg·m/s' }, { label: 'p หลังชน = mv', value: p.m * im.v, unit: 'kg·m/s' }, { label: 'Δp = m(v − u)', value: im.dp, unit: 'kg·m/s', highlight: true }, { label: 'การดล I = Δp', value: im.dp, unit: 'N·s' }, { label: 'แรงดลเฉลี่ย F = Δp/Δt', value: im.Favg, unit: 'N', highlight: true, color: '#B42318' }, { label: 'แรงดลสูงสุด', value: im.Fmax, unit: 'N', color: '#B42318' }, { label: 'ความเร็วขณะนี้', value: s.v, unit: 'm/s' }]; },
+    formulas: function (s, p) { var im = impulse(p); return [{ symbolic: 'Δp = m(v − u)', substituted: '= ' + p.m + '(' + fmt(im.v) + ' − ' + p.u + ')', result: '= ' + fmt(im.dp) + ' kg·m/s' }, { symbolic: 'F เฉลี่ย = Δp/Δt', substituted: '= ' + fmt(Math.abs(im.dp)) + ' / ' + p.dt, result: '= ' + fmt(im.Favg) + ' N' }, { symbolic: 'Δt ยาวขึ้น → F น้อยลง (ถุงลมนิรภัย)', substituted: 'Δp เท่าเดิม', result: 'F ∝ 1/Δt' }]; },
+    sample: function (s) { return { F: Math.abs(s.F), p: s.v }; },
+    graphs: [{ title: 'F-t แรงดลกับเวลา (พื้นที่ = การดล)', x: 't', series: [{ key: 'F', label: 'F (N)', color: '#B42318' }], window: 2 }, { title: 'v-t', x: 't', series: [{ key: 'p', label: 'v (m/s)' }], window: 2 }],
+    content: {
+      summary: '<b>โมเมนตัม</b> p = mv รถบรรทุกที่วิ่งช้าอาจมีโมเมนตัมมากกว่ามอเตอร์ไซค์ที่วิ่งเร็ว เพราะมวลมากกว่า <b>แรงดล</b> แรงที่กระทำช่วงสั้น ๆ ระหว่างชน F = Δp/Δt เปลี่ยนโมเมนตัมเท่ากันแต่ใช้เวลานานกว่า แรงจะน้อยกว่า (เหตุผลที่ถุงลมนิรภัยช่วยลดการบาดเจ็บ) <b>การดล</b> แรงดลคูณเวลา I = Ft = Δp = m(v − u) คือโมเมนตัมที่เปลี่ยนไปทั้งหมด',
+      tryIt: ['เทียบกำแพงแข็งกับถุงลมนิรภัย: Δp ใกล้กัน แต่แรงดลต่างกันหลายเท่า', 'ตั้ง e = 1 กับ e = 0 ดูว่าแบบสะท้อนเต็มมี Δp เป็น 2 เท่าของแบบหยุดนิ่ง', 'ดูกราฟ F-t ว่าพื้นที่ใต้กราฟเท่ากับ Δp เสมอ ไม่ว่ากราฟจะแหลมหรือกว้าง']
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S18.2 โพลาไรเซชัน · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S18.2 โพลาไรเซชัน · บท 18 เรื่อง 6
+   หลัก: แผ่นโพลารอยด์ยอมให้ E ผ่านเฉพาะแนวแกนของแผ่น · แสงไม่โพลาไรซ์ผ่านแผ่นแรกเหลือครึ่ง · กฎของมาลุส I = I₀cos²θ สำหรับแผ่นถัดไป
+   แบบจำลองนิ่ง (หมุนแผ่นด้วยสไลเดอร์) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad;
+  function calc(p) { var I1 = p.I0 / 2, I2 = I1 * Math.pow(Math.cos(rad(p.th2 - p.th1)), 2), I3 = p.n3 ? I2 * Math.pow(Math.cos(rad(p.th3 - p.th2)), 2) : I2; return { I1: I1, I2: I2, I3: I3 }; }
+  PhysLab.createSim({
+    id: 'S18.2', chapter: 18, topics: [6], title: 'โพลาไรเซชัน', static: true,
+    alt: 'แสงไม่โพลาไรซ์แสดงด้วยลูกศรสนามไฟฟ้าทุกทิศ ผ่านแผ่นโพลารอยด์แผ่นแรกเหลือสั่นแนวเดียว ผ่านแผ่นที่สองที่หมุนมุม θ ความเข้มลดตาม cos²θ มีแถบความสว่างท้ายทาง',
+    calc: calc,
+    params: {
+      I0: { label: 'ความเข้มแสงตกกระทบ', symbol: 'I₀', unit: 'W/m²', type: 'range', min: 1, max: 100, step: 1, default: 100 },
+      th1: { label: 'แกนแผ่นที่ 1', symbol: 'θ₁', unit: '°', type: 'range', min: 0, max: 180, step: 1, default: 0 },
+      th2: { label: 'แกนแผ่นที่ 2', symbol: 'θ₂', unit: '°', type: 'range', min: 0, max: 180, step: 1, default: 30 },
+      n3: { label: 'มีแผ่นที่ 3', type: 'toggle', default: false },
+      th3: { label: 'แกนแผ่นที่ 3', symbol: 'θ₃', unit: '°', type: 'range', min: 0, max: 180, step: 1, default: 90 }
+    },
+    presets: [{ label: 'แผ่นสองแผ่น ต่าง 30°', values: { th1: 0, th2: 30, n3: false } }, { label: 'แกนขนานกัน (ผ่านหมด)', values: { th1: 0, th2: 0, n3: false } }, { label: 'แกนตั้งฉาก (มืดสนิท)', values: { th1: 0, th2: 90, n3: false } }, { label: 'แทรกแผ่น 45° ระหว่าง 0° กับ 90° (กลับสว่าง!)', values: { th1: 0, th2: 45, n3: true, th3: 90 } }],
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p), i, yc = 2.7;
+      function plate(x, th, label, I) { D.rect(x - 0.08, yc - 1.3, 0.16, 2.6, { fill: c.muted }); for (i = -4; i <= 4; i++) { var o = i * 0.22; D.line(x - 0.6 * Math.cos(rad(th)) - 0, yc + 0.1, x, yc, { color: 'rgba(0,0,0,0)' }); } D.circle(x, yc, 0.9, { fill: 'rgba(31,95,191,0.12)', stroke: c.primary, width: 2 }); D.line(x - 0.8 * Math.cos(rad(th)), yc - 0.8 * Math.sin(rad(th)), x + 0.8 * Math.cos(rad(th)), yc + 0.8 * Math.sin(rad(th)), { color: c.primary, width: 3 }); D.label(label + ' แกน ' + th + '°', x, yc - 1.45, { dy: 10, align: 'center', color: c.primary, bold: true }); D.label('ผ่านได้ I = ' + fmt(I) + ' W/m²', x, yc - 1.75, { dy: 10, align: 'center', color: c.text }); }
+      function evec(x, th, amp) { D.line(x - amp * Math.cos(rad(th)), yc - amp * Math.sin(rad(th)), x + amp * Math.cos(rad(th)), yc + amp * Math.sin(rad(th)), { color: c.orange, width: 2.5 }); }
+      D.line(0.4, yc, 9.6, yc, { color: c.line, width: 1, dash: [4, 4] });
+      for (i = 0; i < 6; i++) evec(1.0, i * 30, 0.5); D.label('แสงไม่โพลาไรซ์ E ทุกทิศ · I₀ = ' + p.I0, 1.0, yc + 0.8, { dy: -4, align: 'center', color: c.orange });
+      plate(2.6, p.th1, 'แผ่นที่ 1', C.I1); evec(3.8, p.th1, 0.5 * Math.sqrt(C.I1 / p.I0 * 2)); D.label('โพลาไรซ์แล้ว', 3.8, yc + 0.8, { dy: -4, align: 'center', color: c.orange });
+      plate(5.0, p.th2, 'แผ่นที่ 2', C.I2); evec(6.2, p.th2, 0.5 * Math.sqrt(C.I2 / p.I0 * 2) + 0.02);
+      if (p.n3) { plate(7.4, p.th3, 'แผ่นที่ 3', C.I3); evec(8.4, p.th3, 0.5 * Math.sqrt(C.I3 / p.I0 * 2) + 0.02); }
+      var Iout = C.I3, br = PhysLab.clamp(Iout / p.I0 * 2, 0, 1); D.rect(9.0, yc - 1.0, 0.6, 2.0, { fill: '#111' }); D.rect(9.0, yc - 1.0, 0.6, 2.0, { fill: 'rgba(255,220,80,' + br + ')' }); D.label('ฉาก I = ' + fmt(Iout), 9.3, yc - 1.45, { dy: 10, align: 'center', color: c.text, bold: true });
+      D.label('แผ่นแรก: ผ่านครึ่งหนึ่ง I₁ = I₀/2 · แผ่นถัดไป (กฎของมาลุส): I = I ก่อนหน้า × cos²(มุมระหว่างแกน)', 0.3, 4.95, { color: c.text, bold: true });
+      D.label('I₂ = ' + fmt(C.I1) + ' × cos²(' + Math.abs(p.th2 - p.th1) + '°) = ' + fmt(C.I2) + (p.n3 ? ' · I₃ = ' + fmt(C.I2) + ' × cos²(' + Math.abs(p.th3 - p.th2) + '°) = ' + fmt(C.I3) : ''), 0.3, 4.65, { color: c.primary });
+      D.label('โพลาไรเซชันเกิดได้เฉพาะคลื่นตามขวาง จึงเป็นหลักฐานว่าแสงเป็นคลื่นตามขวาง', 0.3, 0.3, { color: c.text });
+    },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'I₁ = I₀/2', value: C.I1, unit: 'W/m²' }, { label: 'I₂ = I₁cos²(θ₂ − θ₁)', value: C.I2, unit: 'W/m²', highlight: true }, { label: 'I₃', value: p.n3 ? C.I3 : NaN, unit: p.n3 ? 'W/m²' : 'ไม่มีแผ่นที่ 3' }, { label: 'ความเข้มสุดท้าย/I₀', value: C.I3 / p.I0 * 100, unit: '%', highlight: true }]; },
+    formulas: function (s, p) { var C = calc(p); return [{ symbolic: 'I₁ = I₀/2', substituted: '= ' + p.I0 + '/2', result: '= ' + fmt(C.I1) }, { symbolic: 'I₂ = I₁cos²θ', substituted: '= ' + fmt(C.I1) + ' × cos²' + Math.abs(p.th2 - p.th1) + '°', result: '= ' + fmt(C.I2) + ' W/m²' }]; },
+    content: {
+      summary: '<b>โพลาไรเซชัน</b> คลื่นตามขวางที่ถูกกรองให้สั่นในระนาบเดียวด้วยแผ่นโพลารอยด์ เป็นหลักฐานว่าแสงเป็นคลื่นตามขวาง แสงไม่โพลาไรซ์ผ่านแผ่นแรกเหลือความเข้มครึ่งหนึ่ง แผ่นถัดไปที่ทำมุม θ กับแผ่นก่อนหน้ายอมให้ผ่าน I = I cos²θ (กฎของมาลุส) แกนตั้งฉากกันจะมืดสนิท ใช้ในแว่นกันแดดและจอ LCD',
+      tryIt: ['หมุนแผ่นที่ 2 จาก 0° ไป 90° ดูฉากค่อย ๆ มืดลงตาม cos²θ', 'ตั้งแผ่น 1 และ 2 ตั้งฉากกัน (มืด) แล้วเปิดแผ่นที่ 3 ที่ 45° แทรกกลาง ดูว่าแสงกลับผ่านได้', 'ดูว่า I ที่ 60° เหลือ 1/4 ของ I₁ พอดี']
+    }
+  });
+})();
+</script>
+</body>
+</html>

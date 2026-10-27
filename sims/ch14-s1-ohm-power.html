@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S14.1 กระแส ความต้านทาน กฎของโอห์ม และกำลังไฟฟ้า · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S14.1 กระแส ความต้านทาน กฎของโอห์ม และกำลังไฟฟ้า · บท 14 เรื่อง 1, 2, 3, 4, 5
+   สูตร: I = Q/t · R = ρl/A · ΔV = IR · P = IΔV = ΔV²/R = I²R · W = Pt (kWh = 3.6×10⁶ J)
+   วงจรนิ่ง แอนิเมชันจุดกระแสเคลื่อนด้วยอัตราแปรตาม I · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, e = 1.6e-19;
+  var MAT = [{ label: 'ทองแดง ρ = 1.7×10⁻⁸', value: 1.7e-8 }, { label: 'อะลูมิเนียม 2.8×10⁻⁸', value: 2.8e-8 }, { label: 'ทังสเตน 5.6×10⁻⁸', value: 5.6e-8 }, { label: 'นิโครม 1.1×10⁻⁶', value: 1.1e-6 }];
+  function calc(p) { var R = p.rho * p.l / (p.A * 1e-6), I = p.V / R, P = I * p.V, t = p.hours * 3600, W = P * t; return { R: R, I: I, P: P, W: W, kWh: W / 3.6e6, cost: W / 3.6e6 * p.price, Q: I * t, Ne: I * t / e }; }
+  var PATH = [[1, 3.4], [1, 4.5], [9, 4.5], [9, 0.7], [1, 0.7], [1, 1.8]];
+  function pathLen() { var L = 0; for (var i = 1; i < PATH.length; i++) L += Math.hypot(PATH[i][0] - PATH[i - 1][0], PATH[i][1] - PATH[i - 1][1]); return L; }
+  function pointAt(d) { for (var i = 1; i < PATH.length; i++) { var seg = Math.hypot(PATH[i][0] - PATH[i - 1][0], PATH[i][1] - PATH[i - 1][1]); if (d <= seg) { var u = d / seg; return [PATH[i - 1][0] + (PATH[i][0] - PATH[i - 1][0]) * u, PATH[i - 1][1] + (PATH[i][1] - PATH[i - 1][1]) * u]; } d -= seg; } return PATH[PATH.length - 1]; }
+  PhysLab.createSim({
+    id: 'S14.1', chapter: 14, topics: [1, 2, 3, 4, 5], title: 'กระแส ความต้านทาน กฎของโอห์ม และกำลังไฟฟ้า',
+    alt: 'วงจรแบตเตอรี่ต่อกับลวดตัวต้านทาน จุดสีส้มแทนกระแสไหลวนรอบวงจร เร็วขึ้นเมื่อกระแสมาก ตัวต้านทานเรืองแสงตามกำลังไฟฟ้า',
+    calc: calc,
+    params: {
+      V: { label: 'แรงดันแบตเตอรี่', symbol: 'ΔV', unit: 'V', type: 'range', min: 1, max: 24, step: 0.5, default: 12 },
+      rho: { label: 'วัสดุลวด (สภาพต้านทาน Ω·m)', type: 'choice', options: MAT, default: 1.1e-6 },
+      l: { label: 'ความยาวลวด', symbol: 'l', unit: 'm', type: 'range', min: 0.1, max: 20, step: 0.1, default: 5 },
+      A: { label: 'พื้นที่หน้าตัด', symbol: 'A', unit: 'mm²', type: 'range', min: 0.05, max: 5, step: 0.05, default: 1 },
+      hours: { label: 'เวลาที่ใช้งาน', symbol: 't', unit: 'ชั่วโมง', type: 'range', min: 0.01, max: 24, step: 0.01, default: 1 },
+      price: { label: 'ค่าไฟต่อหน่วย (kWh)', unit: 'บาท', type: 'range', min: 1, max: 10, step: 0.1, default: 4.5 }
+    },
+    presets: [{ label: 'ลวดนิโครม 5 m 1 mm² ที่ 12 V', values: { V: 12, rho: 1.1e-6, l: 5, A: 1 } }, { label: 'ลวดยาว 2 เท่า (R 2 เท่า I ครึ่งหนึ่ง)', values: { l: 10 } }, { label: 'ลวดอ้วน 2 เท่า (R ครึ่งหนึ่ง)', values: { l: 5, A: 2 } }, { label: 'ทองแดง (ต้านทานน้อยมาก)', values: { rho: 1.7e-8, l: 5, A: 1, V: 1 } }, { label: 'ใช้งาน 24 ชั่วโมง', values: { hours: 24 } }],
+    toggles: [{ key: 'flow', label: 'จุดแสดงกระแส' }],
+    speeds: [1], dt: 1 / 120,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return { ph: 0 }; }, step: function (s, p, dt) { s.ph += PhysLab.clamp(calc(p).I, 0, 30) * 0.3 * dt + 0.05 * dt; return s; },
+    timeLabel: function () { return ''; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p);
+      D.polyline(PATH, { color: c.text, width: 2.5 });
+      D.line(0.7, 3.4, 1.3, 3.4, { color: c.text, width: 3 }); D.line(0.85, 3.1, 1.15, 3.1, { color: c.text, width: 3 }); D.line(0.7, 2.8, 1.3, 2.8, { color: c.text, width: 3 }); D.line(0.85, 2.5, 1.15, 2.5, { color: c.text, width: 3 }); D.line(1, 2.5, 1, 1.8, { color: c.text, width: 2.5 });
+      D.label('+', 1.45, 3.45, { color: c.red, bold: true }); D.label('−', 1.45, 2.5, { color: c.primary, bold: true }); D.label('ΔV = ' + p.V + ' V', 0.15, 3.0, { color: c.text });
+      var glow = PhysLab.clamp(C.P / 100, 0, 1); D.rect(3.8, 4.2, 2.4, 0.6, { fill: 'rgba(224,122,31,' + (0.15 + 0.85 * glow) + ')', stroke: c.text }); D.label('R = ρl/A = ' + fmt(C.R) + ' Ω', 5, 4.9, { dy: -4, align: 'center', color: c.text, bold: true }); D.label('P = ' + fmt(C.P) + ' W', 5, 4.5, { align: 'center', color: glow > 0.5 ? '#fff' : c.text });
+      D.label('ลวด ' + MAT.filter(function (m) { return m.value === p.rho; })[0].label.split(' ')[0] + ' ยาว ' + p.l + ' m หน้าตัด ' + p.A + ' mm²', 5, 3.95, { dy: 4, align: 'center', color: c.muted });
+      if (D.view.flow) { var Lp = pathLen(), n = 28, sp = Lp / n; for (var i = 0; i < n; i++) { var d = ((i * sp + s.ph * 1.6) % Lp + Lp) % Lp, pt = pointAt(d); D.dot(pt[0], pt[1], 4, c.orange, {}); } }
+      D.arrow(5, 0.7, 1.2, 0, { color: c.orange, width: 2, label: 'I = ' + fmt(C.I) + ' A', dy: 16 }); D.arrow(5.4, 0.7, -1.2, 0, { color: c.orange, width: 2 });
+      D.label('ใน ' + p.hours + ' ชั่วโมง: Q = It = ' + fmt(C.Q) + ' C (' + fmt(C.Ne) + ' อิเล็กตรอน) · W = Pt = ' + fmt(C.W) + ' J = ' + fmt(C.kWh) + ' หน่วย ≈ ' + fmt(C.cost) + ' บาท', 0.15, 0.25, { color: c.primary });
+    },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'R = ρl/A', value: C.R, unit: 'Ω', highlight: true }, { label: 'I = ΔV/R', value: C.I, unit: 'A', highlight: true }, { label: 'P = IΔV', value: C.P, unit: 'W' }, { label: 'Q = It', value: C.Q, unit: 'C' }, { label: 'W = Pt', value: C.W, unit: 'J' }, { label: 'หน่วยไฟ (kWh)', value: C.kWh, unit: 'kWh' }, { label: 'ค่าไฟ', value: C.cost, unit: 'บาท' }]; },
+    formulas: function (s, p) { var C = calc(p); return [{ symbolic: 'R = ρl/A', substituted: '= ' + p.rho + ' × ' + p.l + ' / ' + p.A + '×10⁻⁶', result: '= ' + fmt(C.R) + ' Ω' }, { symbolic: 'ΔV = IR → I = ΔV/R', substituted: '= ' + p.V + ' / ' + fmt(C.R), result: '= ' + fmt(C.I) + ' A' }, { symbolic: 'P = IΔV = ΔV²/R = I²R', substituted: '= ' + fmt(C.I) + ' × ' + p.V, result: '= ' + fmt(C.P) + ' W' }, { symbolic: 'W = Pt', substituted: '= ' + fmt(C.P) + ' × ' + p.hours + ' × 3600', result: '= ' + fmt(C.W) + ' J = ' + fmt(C.kWh) + ' kWh' }]; },
+    content: {
+      summary: '<b>กระแสไฟฟ้า</b> ประจุที่ไหลผ่านต่อวินาที I = Q/t หรือคิดจากอิเล็กตรอน I = evAN <b>ความต้านทาน</b> R = ρl/A ลวดยาวต้านมาก ลวดอ้วนต้านน้อย ρ คือสภาพต้านทานของวัสดุ <b>ความต่างศักย์</b> กฎของโอห์ม ΔV = IR <b>กำลังไฟฟ้า</b> P = IΔV = ΔV²/R = I²R <b>พลังงานไฟฟ้า</b> W = ItΔV = I²Rt หน่วยที่การไฟฟ้าคิดเงินคือกิโลวัตต์ชั่วโมง',
+      tryIt: ['เพิ่มความยาวลวดเป็น 2 เท่า ดูว่า R เพิ่ม 2 เท่า กระแสลดครึ่งหนึ่ง', 'เพิ่มแรงดันเป็น 2 เท่า ดูว่ากำลังเพิ่ม 4 เท่า (P = V²/R)', 'ตั้งเวลา 24 ชั่วโมง ดูค่าไฟที่ต้องจ่าย']
+    }
+  });
+})();
+</script>
+</body>
+</html>

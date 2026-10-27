@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S1.2 เลขนัยสำคัญและการบันทึกผล · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S1.2 เลขนัยสำคัญและการบันทึกผล · บท 1 เรื่อง 6, 7
+   กติกา: เลข 1 ถึง 9 นับ · 0 นำหน้าไม่นับ · 0 ระหว่างตัวเลขนับ · 0 ท้ายทศนิยมนับ (0 ท้ายจำนวนเต็มไม่นับ)
+   บวกลบ: ตอบตามตำแหน่งทศนิยมน้อยสุด · คูณหาร: ตอบตามเลขนัยสำคัญน้อยสุด · แบบนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function analyze(str) {
+    var s = String(str).trim().replace(/,/g, ''), sign = '';
+    if (/^[+-]/.test(s)) { sign = s[0]; s = s.slice(1); }
+    var parts = s.split(/e/i), mant = parts[0], exp = parts[1] !== undefined ? parseInt(parts[1], 10) : null;
+    if (!/^\d*\.?\d*$/.test(mant) || mant === '' || mant === '.') return { ok: false, raw: str };
+    var hasDot = mant.indexOf('.') >= 0, dec = hasDot ? mant.split('.')[1].length : 0;
+    var digits = [], seenNonZero = false, chars = mant.split('');
+    var firstNZ = mant.replace('.', '').search(/[1-9]/);
+    var lastNZ = mant.replace('.', '').split('').map(function (d, i) { return d !== '0' ? i : -1; }).filter(function (i) { return i >= 0; }).pop();
+    var di = 0;
+    chars.forEach(function (ch) {
+      if (ch === '.') { digits.push({ ch: ch, kind: 'dot' }); return; }
+      var kind;
+      if (ch !== '0') { kind = 'count'; seenNonZero = true; }
+      else if (!seenNonZero) kind = 'lead';
+      else if (lastNZ !== undefined && di < lastNZ) kind = 'between';
+      else kind = hasDot ? 'trailDec' : 'trailInt';
+      digits.push({ ch: ch, kind: kind, idx: di }); di++;
+    });
+    var n = digits.filter(function (d) { return d.kind === 'count' || d.kind === 'between' || d.kind === 'trailDec'; }).length;
+    var val = parseFloat(sign + mant) * (exp !== null ? Math.pow(10, exp) : 1);
+    return { ok: true, raw: str, sign: sign, digits: digits, n: n, dec: dec, val: val, exp: exp };
+  }
+  function trimZ(s) { return s.indexOf('.') >= 0 ? s.replace(/\.?0+$/, '') : s; }
+  function toSig(v, n) { if (!isFinite(v)) return '—'; if (v === 0) return '0'; var e = Math.floor(Math.log10(Math.abs(v))); if (e >= n) { var p = Math.pow(10, e - n + 1); return String(Math.round(v / p) * p); } return v.toPrecision(n); }
+  function compute(p) {
+    var a = analyze(p.a), b = analyze(p.b), res = { a: a, b: b, ok: a.ok && b.ok };
+    if (!res.ok) return res;
+    var raw, op = p.op;
+    if (op === '+') raw = a.val + b.val; else if (op === '−') raw = a.val - b.val; else if (op === '×') raw = a.val * b.val; else raw = b.val !== 0 ? a.val / b.val : NaN;
+    res.raw = raw;
+    if (op === '+' || op === '−') { res.rule = 'ทศนิยมน้อยสุด'; res.limit = Math.min(a.dec, b.dec); res.out = isFinite(raw) ? raw.toFixed(res.limit) : '—'; res.unitRule = 'ตำแหน่งทศนิยม ' + res.limit + ' ตำแหน่ง'; }
+    else { res.rule = 'เลขนัยสำคัญน้อยสุด'; res.limit = Math.max(1, Math.min(a.n, b.n)); res.out = isFinite(raw) ? toSig(raw, res.limit) : '—'; res.unitRule = 'เลขนัยสำคัญ ' + res.limit + ' ตัว'; }
+    return res;
+  }
+  var KIND = { count: { label: 'นับ', color: 'green' }, between: { label: 'นับ (0 ระหว่างตัวเลข)', color: 'green' }, trailDec: { label: 'นับ (0 ท้ายทศนิยม)', color: 'green' }, lead: { label: 'ไม่นับ (0 นำหน้า)', color: 'muted' }, trailInt: { label: 'ไม่นับ (0 ท้ายจำนวนเต็ม)', color: 'muted' } };
+
+  PhysLab.createSim({
+    id: 'S1.2', chapter: 1, topics: [6, 7], title: 'เลขนัยสำคัญและการบันทึกผล', static: true,
+    alt: 'ตัวเลขสองจำนวนถูกแยกเป็นหลัก ๆ ระบายสีว่าหลักไหนนับเป็นเลขนัยสำคัญ และแสดงผลการคำนวณที่ปัดตามกติกา',
+    analyze: analyze, compute: compute,
+    params: {
+      a: { label: 'ตัวเลขที่ 1', symbol: 'A', type: 'text', default: '0.00450', hint: 'พิมพ์ได้ทั้งทศนิยมและรูป 1.5e3' },
+      op: { label: 'การดำเนินการ', type: 'choice', options: [{ label: 'บวก', value: '+' }, { label: 'ลบ', value: '−' }, { label: 'คูณ', value: '×' }, { label: 'หาร', value: '÷' }], default: '×' },
+      b: { label: 'ตัวเลขที่ 2', symbol: 'B', type: 'text', default: '12.3' }
+    },
+    presets: [
+      { label: '0.00450 × 12.3', values: { a: '0.00450', b: '12.3', op: '×' } },
+      { label: '12.11 + 0.3', values: { a: '12.11', b: '0.3', op: '+' } },
+      { label: '1500 ÷ 2.0', values: { a: '1500', b: '2.0', op: '÷' } },
+      { label: '100.0 − 99.95', values: { a: '100.0', b: '99.95', op: '−' } }
+    ],
+    world: { xMin: 0, xMax: 100, yMin: 0, yMax: 50, fit: 'stretch', pad: 0, yUp: false },
+    init: function (p) { return compute(p); }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = D.W, y = 40;
+      function row(label, an, yy) {
+        D.textPx(label, 24, yy, { size: 13, color: c.muted });
+        if (!an.ok) { D.textPx('อ่านตัวเลขไม่ได้: ' + an.raw, 24, yy + 34, { size: 14, mono: true, color: c.red }); return; }
+        var x = 24, box = Math.min(42, (W - 60) / Math.max(an.digits.length, 6));
+        if (an.sign) { D.textPx(an.sign, x + 8, yy + 36, { size: 22, mono: true }); x += 20; }
+        an.digits.forEach(function (d) {
+          if (d.kind === 'dot') { D.textPx('.', x + 6, yy + 40, { size: 22, mono: true, bold: true }); x += 14; return; }
+          var k = KIND[d.kind], col = k.color === 'green' ? c.green : c.muted;
+          D.rectPx(x, yy + 14, box - 4, 44, { fill: k.color === 'green' ? c.accentSoft : c.soft, stroke: col });
+          D.textPx(d.ch, x + (box - 4) / 2, yy + 36, { align: 'center', size: 22, mono: true, bold: true, color: col });
+          x += box;
+        });
+        if (an.exp !== null) D.textPx('× 10' + PhysLab.sup(an.exp), x + 6, yy + 36, { size: 16, mono: true });
+        D.textPx('เลขนัยสำคัญ ' + an.n + ' ตัว · ทศนิยม ' + an.dec + ' ตำแหน่ง', 24, yy + 76, { size: 12, mono: true, color: c.text });
+        var legend = {}; an.digits.forEach(function (d) { if (d.kind !== 'dot' && d.kind !== 'count') legend[d.kind] = KIND[d.kind].label; });
+        var lx = 24, ly = yy + 94; Object.keys(legend).forEach(function (k) { D.textPx('■ ' + legend[k], lx, ly, { size: 11, color: KIND[k].color === 'green' ? c.green : c.muted }); lx += 170; });
+      }
+      row('ตัวเลขที่ 1', s.a, y); row('ตัวเลขที่ 2', s.b, y + 120);
+      var yy = y + 250;
+      D.ctx.strokeStyle = c.line; D.ctx.beginPath(); D.ctx.moveTo(24, yy - 14); D.ctx.lineTo(W - 24, yy - 14); D.ctx.stroke();
+      if (s.ok) {
+        D.textPx('ผลลัพธ์ดิบ  ' + (s.a.raw.trim()) + ' ' + p.op + ' ' + (s.b.raw.trim()) + ' = ' + (isFinite(s.raw) ? String(s.raw) : 'หารด้วยศูนย์ไม่ได้'), 24, yy + 8, { size: 13, mono: true, color: c.muted });
+        D.textPx('กติกา: ' + s.rule + ' → ' + s.unitRule, 24, yy + 32, { size: 13, color: c.text });
+        D.textPx('บันทึกผล = ' + s.out, 24, yy + 66, { size: 24, mono: true, bold: true, color: c.primary });
+      }
+    },
+    readouts: function (s, p) {
+      if (!s.ok) return [{ label: 'สถานะ', value: 'พิมพ์ตัวเลขให้ถูกต้องก่อน' }];
+      return [
+        { label: 'นัยสำคัญ A · B', value: s.a.n + ' · ' + s.b.n, unit: 'ตัว' }, { label: 'ทศนิยม A · B', value: s.a.dec + ' · ' + s.b.dec, unit: 'ตำแหน่ง' },
+        { label: 'ผลลัพธ์ดิบ', value: isFinite(s.raw) ? String(s.raw) : '—' }, { label: 'ใช้กติกา', value: s.rule },
+        { label: 'บันทึกผล', value: s.out, highlight: true }, { label: 'จำกัดที่', value: s.unitRule }
+      ];
+    },
+    content: {
+      summary: '<b>เลขนัยสำคัญ</b> กติกาว่าตัวเลขไหน "นับ" ว่ามีความหมายจากการวัด เลข 1 ถึง 9 นับหมด เลข 0 ที่อยู่หน้าไม่นับ เลข 0 ที่อยู่ระหว่างตัวเลขนับ เลข 0 ท้ายทศนิยมนับ ส่วนค่าคงตัวในสูตรไม่นับ <b>การบันทึกผลการคำนวณ</b> บวกลบ ให้ตอบตามจำนวนตำแหน่งทศนิยมที่น้อยที่สุด คูณหาร ให้ตอบตามจำนวนเลขนัยสำคัญที่น้อยที่สุด',
+      tryIt: ['พิมพ์ 0.00450 ดูว่า 0 สองตัวหน้าไม่นับ แต่ 0 ท้ายนับ ได้ 3 ตัว', 'เปลี่ยนเป็น 1500 (ไม่มีจุด) เทียบกับ 1500. ดูว่าจำนวนเลขนัยสำคัญต่างกัน', 'เลือกบวก 12.11 + 0.3 ดูว่าคำตอบเหลือทศนิยม 1 ตำแหน่งตามตัวที่หยาบกว่า']
+    }
+  });
+})();
+</script>
+</body>
+</html>

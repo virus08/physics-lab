@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S13.3 งานในการเลื่อนประจุ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S13.3 งานในการเลื่อนประจุ · บท 13 เรื่อง 7, 8
+   สูตร: W = qΔV = q(V₂ − V₁) · จากอนันต์ W = qV₂ · แผ่นคู่ขนาน E = V/d, W = qEd (d เฉพาะระยะตามแนวสนาม)
+   แบบจำลองนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, k = 9e9;
+  function pointCalc(p) { var V1 = k * p.Q * 1e-6 / p.r1, V2 = k * p.Q * 1e-6 / p.r2; return { V1: V1, V2: V2, dV: V2 - V1, W: p.q * 1e-6 * (V2 - V1), Winf: p.q * 1e-6 * V2 }; }
+  function plateCalc(p) { var E = p.V / p.dp, yA = 0, yB = p.sy, dV = p.V * (yB - yA) / p.dp; return { E: E, dV: dV, dAlong: yB - yA, W: p.q * 1e-6 * dV }; }
+  PhysLab.createSim({
+    id: 'S13.3', chapter: 13, topics: [7, 8], title: 'งานในการเลื่อนประจุ', static: true,
+    alt: 'โหมดประจุจุด: ประจุ Q ตรงกลางมีวงศักย์เท่าเป็นวงกลม เลื่อนประจุทดสอบจากจุด A ไป B โหมดแผ่นคู่ขนาน: สองแผ่นมีสนามสม่ำเสมอ เลื่อนประจุจาก A ไป B โดยนับเฉพาะระยะตามแนวสนาม',
+    pointCalc: pointCalc, plateCalc: plateCalc,
+    params: {
+      mode: { label: 'สถานการณ์', type: 'choice', options: [{ label: 'รอบประจุจุด', value: 'point' }, { label: 'แผ่นคู่ขนาน', value: 'plates' }], default: 'point' },
+      q: { label: 'ประจุที่เลื่อน', symbol: 'q', unit: 'µC', type: 'range', min: -5, max: 5, step: 0.5, default: 2 },
+      Q: { label: 'ประจุต้นกำเนิด (โหมดประจุจุด)', symbol: 'Q', unit: 'µC', type: 'range', min: -10, max: 10, step: 0.5, default: 4 },
+      r1: { label: 'ระยะจุด A (ลากได้)', symbol: 'r₁', unit: 'm', type: 'range', min: 0.3, max: 4, step: 0.05, default: 2.5, drag: true },
+      r2: { label: 'ระยะจุด B (ลากได้)', symbol: 'r₂', unit: 'm', type: 'range', min: 0.3, max: 4, step: 0.05, default: 1, drag: true },
+      V: { label: 'ความต่างศักย์ระหว่างแผ่น (โหมดแผ่น)', symbol: 'V', unit: 'V', type: 'range', min: 10, max: 1000, step: 10, default: 200 },
+      dp: { label: 'ระยะห่างแผ่น', symbol: 'd', unit: 'm', type: 'range', min: 0.1, max: 1, step: 0.05, default: 0.4 },
+      sx: { label: 'จุด B: ระยะตามแนวแผ่น (ลากได้)', unit: 'm', type: 'range', min: -1.5, max: 1.5, step: 0.05, default: 0.9, drag: true },
+      sy: { label: 'จุด B: ระยะตามแนวสนาม', unit: 'm', type: 'range', min: -0.5, max: 0.5, step: 0.01, default: -0.12, drag: true }
+    },
+    presets: [{ label: 'เข้าใกล้ประจุบวก (ต้องทำงาน +)', values: { mode: 'point', q: 2, Q: 4, r1: 2.5, r2: 1 } }, { label: 'ออกห่างประจุบวก (งานเป็นลบ)', values: { mode: 'point', q: 2, Q: 4, r1: 1, r2: 2.5 } }, { label: 'ประจุลบเข้าใกล้ประจุบวก', values: { mode: 'point', q: -2, Q: 4, r1: 2.5, r2: 1 } }, { label: 'แผ่นคู่ขนาน เลื่อนเฉียง', values: { mode: 'plates', V: 200, dp: 0.4, sx: 0.9, sy: -0.12 } }, { label: 'เลื่อนขนานแผ่น (งานเป็นศูนย์)', values: { mode: 'plates', sx: 1.2, sy: 0 } }],
+    toggles: [{ key: 'equi', label: 'เส้นศักย์เท่า' }],
+    world: function (p) { return p.mode === 'point' ? { xMin: -4.6, xMax: 4.6, yMin: -3.3, yMax: 3.3 } : { xMin: -2.6, xMax: 2.6, yMin: -p.dp / 2 - 0.55, yMax: p.dp / 2 + 0.55 }; },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = D.world, i;
+      if (p.mode === 'point') {
+        var C = pointCalc(p), colQ = p.Q >= 0 ? c.red : c.primary, ang = 0.9;
+        if (D.view.equi) for (i = 1; i <= 8; i++) { var rr = i * 0.5; D.circle(0, 0, rr, { stroke: c.line, width: 1, dash: [3, 4] }); D.label(fmt(k * p.Q * 1e-6 / rr, 2) + ' V', rr * 0.707, -rr * 0.707, { color: c.muted }); }
+        D.circle(0, 0, 0.22, { fill: colQ }); D.label(p.Q >= 0 ? '+' : '−', 0, 0, { align: 'center', color: '#fff', bold: true, size: 16 }); D.label('Q = ' + p.Q + ' µC', 0, -0.3, { dy: 12, align: 'center', color: colQ });
+        var ax = p.r1, ay = 0, bx = p.r2 * Math.cos(ang), by = p.r2 * Math.sin(ang);
+        D.line(0, 0, ax, ay, { color: c.muted, dash: [3, 3], width: 1 }); D.line(0, 0, bx, by, { color: c.muted, dash: [3, 3], width: 1 });
+        D.arrow(ax, ay, bx - ax, by - ay, { color: c.orange, width: 2, label: 'เลื่อน q' });
+        D.dot(ax, ay, 9, c.green, { stroke: c.card, width: 2 }); D.label('A · r₁ = ' + p.r1 + ' m · V₁ = ' + fmt(C.V1) + ' V', ax + 0.15, ay - 0.15, { color: c.green, bg: c.card });
+        D.dot(bx, by, 9, c.primary, { stroke: c.card, width: 2 }); D.label('B · r₂ = ' + p.r2 + ' m · V₂ = ' + fmt(C.V2) + ' V', bx + 0.15, by + 0.15, { color: c.primary, bg: c.card });
+        D.label('W = qΔV = ' + p.q + '×10⁻⁶ × (' + fmt(C.V2) + ' − ' + fmt(C.V1) + ') = ' + fmt(C.W) + ' J' + (C.W > 0 ? ' (ต้องออกแรงทำงาน)' : C.W < 0 ? ' (สนามทำงานให้)' : ''), W.xMin + 0.15, W.yMax - 0.2, { color: c.text, bold: true, bg: c.card });
+        D.label('งานไม่ขึ้นกับเส้นทาง ขึ้นกับ r₁ และ r₂ เท่านั้น', W.xMin + 0.15, W.yMin + 0.2, { color: c.text, bg: c.card });
+      } else {
+        var P = plateCalc(p), top = p.dp / 2, bot = -p.dp / 2;
+        D.rect(-2.2, top, 4.4, 0.04, { fill: c.red }); D.rect(-2.2, bot - 0.04, 4.4, 0.04, { fill: c.primary });
+        D.label('+ + + + + + + + + +   V = ' + p.V + ' V', -2.2, top + 0.06, { color: c.red }); D.label('− − − − − − − − − −   0 V', -2.2, bot - 0.08, { color: c.primary });
+        for (i = -4; i <= 4; i++) D.arrow(i * 0.5, top - 0.03, 0, -(p.dp - 0.06), { color: c.line, width: 1 });
+        D.label('E = V/d = ' + fmt(P.E) + ' V/m ↓', 1.5, 0.02, { color: c.muted, bg: c.card });
+        if (D.view.equi) for (i = 1; i < 4; i++) { var yy = bot + p.dp * i / 4; D.line(-2.2, yy, 2.2, yy, { color: c.line, dash: [3, 4], width: 1 }); D.label(fmt(p.V * i / 4, 2) + ' V', -2.15, yy, { dy: -6, color: c.muted }); }
+        D.arrow(-1, 0, p.sx + 1, p.sy, { color: c.orange, width: 2 });
+        D.line(p.sx, 0, p.sx, p.sy, { color: c.green, width: 2 }); D.line(-1, 0, p.sx, 0, { color: c.muted, dash: [3, 3], width: 1 });
+        D.label('d ที่นับ = ' + fmt(Math.abs(P.dAlong)) + ' m', p.sx + 0.06, p.sy / 2, { color: c.green, bg: c.card });
+        D.dot(-1, 0, 9, c.green, { stroke: c.card, width: 2 }); D.label('A', -1, 0.06, { dy: -4, align: 'center', color: c.green, bold: true });
+        D.dot(p.sx, p.sy, 9, c.primary, { stroke: c.card, width: 2 }); D.label('B', p.sx, p.sy + 0.06, { dy: -4, align: 'center', color: c.primary, bold: true });
+        D.label('W = qEd = ' + p.q + '×10⁻⁶ × ' + fmt(P.E) + ' × ' + fmt(P.dAlong) + ' = ' + fmt(P.W) + ' J', W.xMin + 0.15, W.yMax - 0.12, { color: c.text, bold: true, bg: c.card });
+        D.label('ระยะตามแนวแผ่น (ขนานแผ่น) ไม่มีผลต่องาน', W.xMin + 0.15, W.yMin + 0.12, { color: c.text, bg: c.card });
+      }
+    },
+    dragHandles: function (s, p) { if (p.mode === 'point') { var ang = 0.9; return [{ param: 'r1', x: p.r1, y: 0, r: 16, map: function (wx) { return PhysLab.clamp(wx, 0.3, 4); } }, { param: 'r2', x: p.r2 * Math.cos(ang), y: p.r2 * Math.sin(ang), r: 16, map: function (wx, wy) { return PhysLab.clamp(Math.hypot(wx, wy), 0.3, 4); } }]; } return [{ param: 'sx', x: p.sx, y: p.sy, r: 16, map: function (wx, wy) { return { sx: PhysLab.clamp(wx, -1.5, 1.5), sy: PhysLab.clamp(wy, -p.dp / 2 + 0.02, p.dp / 2 - 0.02) }; } }]; },
+    readouts: function (s, p) { if (p.mode === 'point') { var C = pointCalc(p); return [{ label: 'V₁ ที่ A', value: C.V1, unit: 'V', color: '#0E6B57' }, { label: 'V₂ ที่ B', value: C.V2, unit: 'V', color: '#1F5FBF' }, { label: 'ΔV = V₂ − V₁', value: C.dV, unit: 'V' }, { label: 'W = qΔV', value: C.W, unit: 'J', highlight: true }, { label: 'ถ้ามาจากอนันต์ W = qV₂', value: C.Winf, unit: 'J' }]; } var P = plateCalc(p); return [{ label: 'E = V/d', value: P.E, unit: 'V/m' }, { label: 'ระยะตามแนวสนาม d', value: Math.abs(P.dAlong), unit: 'm', color: '#0E6B57' }, { label: 'ΔV = E·d', value: P.dV, unit: 'V' }, { label: 'W = qΔV = qEd', value: P.W, unit: 'J', highlight: true }]; },
+    formulas: function (s, p) { if (p.mode === 'point') { var C = pointCalc(p); return [{ symbolic: 'V = kQ/r', substituted: 'V₁ = 9×10⁹ × ' + p.Q + '×10⁻⁶ / ' + p.r1 + ' · V₂ = … / ' + p.r2, result: 'V₁ = ' + fmt(C.V1) + ' V · V₂ = ' + fmt(C.V2) + ' V' }, { symbolic: 'W = q(V₂ − V₁)', substituted: '= ' + p.q + '×10⁻⁶ × ' + fmt(C.dV), result: '= ' + fmt(C.W) + ' J' }]; } var P = plateCalc(p); return [{ symbolic: 'E = V/d', substituted: '= ' + p.V + ' / ' + p.dp, result: '= ' + fmt(P.E) + ' V/m' }, { symbolic: 'W = qEd (d ตามแนวสนาม)', substituted: '= ' + p.q + '×10⁻⁶ × ' + fmt(P.E) + ' × ' + fmt(P.dAlong), result: '= ' + fmt(P.W) + ' J' }]; },
+    content: {
+      summary: '<b>งานในการเลื่อนประจุ</b> W = qΔV = q(V₂ − V₁) ถ้าเลื่อนมาจากระยะอนันต์ (V = 0) ได้ W = qV₂ <b>งานในแผ่นคู่ขนาน</b> W = qΔV = qEd โดย d คือระยะที่เลื่อนไปตามแนวสนามเท่านั้น',
+      tryIt: ['ลาก B ให้ r₂ = r₁ ดูว่างานเป็นศูนย์แม้เลื่อนไปคนละทิศ', 'สลับเครื่องหมาย q ดูว่างานเปลี่ยนเครื่องหมายตาม', 'โหมดแผ่น: ลาก B ไปด้านข้างโดยไม่เปลี่ยนความสูง ดูว่างานเป็นศูนย์']
+    }
+  });
+})();
+</script>
+</body>
+</html>

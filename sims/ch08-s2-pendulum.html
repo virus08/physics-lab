@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S8.2 ลูกตุ้มนาฬิกาและการแกว่งแบบกรวยคว่ำ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S8.2 ลูกตุ้มนาฬิกาและการแกว่งแบบกรวยคว่ำ · บท 8 เรื่อง 6, 7
+   สูตร: ลูกตุ้ม ω = √(g/l), T = 2π√(l/g) (มุมเล็ก ไม่ขึ้นกับมวล) · กรวยคว่ำ T = 2π√(l cosθ/g)
+   การแกว่งจำลองด้วยสมการเต็ม θ'' = −(g/l) sinθ (semi-implicit Euler dt 1/120) แล้ววัดคาบจริงจากการตัดศูนย์เทียบสูตร · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad, deg = PhysLab.deg;
+  function Tsmall(p) { return 2 * Math.PI * Math.sqrt(p.l / p.g); }
+  function Tcone(p) { return 2 * Math.PI * Math.sqrt(p.l * Math.cos(rad(p.thc)) / p.g); }
+  function init(p) { return { th: rad(p.th0), w: 0, phase: 0, zeroTimes: [], Tmeas: null, lastTh: rad(p.th0) }; }
+  function step(s, p, dt, t) {
+    if (p.mode === 'cone') { s.phase += 2 * Math.PI / Tcone(p) * dt; return s; }
+    var a = -(p.g / p.l) * Math.sin(s.th); s.w += a * dt; s.th += s.w * dt;
+    if (s.lastTh > 0 && s.th <= 0) { s.zeroTimes.push(t + dt); if (s.zeroTimes.length >= 2) s.Tmeas = s.zeroTimes[s.zeroTimes.length - 1] - s.zeroTimes[s.zeroTimes.length - 2]; }
+    s.lastTh = s.th; return s;
+  }
+  PhysLab.createSim({
+    id: 'S8.2', chapter: 8, topics: [6, 7], title: 'ลูกตุ้มนาฬิกาและการแกว่งแบบกรวยคว่ำ',
+    alt: 'ลูกตุ้มแขวนด้วยเชือกแกว่งไปมา มีมุมสูงสุดกำกับ หรือในโหมดกรวยคว่ำลูกตุ้มหมุนเป็นวงกลมแนวราบใต้จุดแขวน',
+    Tsmall: Tsmall, Tcone: Tcone,
+    params: {
+      mode: { label: 'โหมด', type: 'choice', options: [{ label: 'ลูกตุ้มแกว่ง', value: 'swing' }, { label: 'กรวยคว่ำ (หมุนวงกลม)', value: 'cone' }], default: 'swing' },
+      l: { label: 'ความยาวเชือก', symbol: 'l', unit: 'm', type: 'range', min: 0.1, max: 4, step: 0.05, default: 1, drag: true },
+      m: { label: 'มวล', symbol: 'm', unit: 'kg', type: 'range', min: 0.1, max: 5, step: 0.1, default: 0.5 },
+      th0: { label: 'มุมสูงสุด (โหมดแกว่ง)', symbol: 'θ₀', unit: '°', type: 'range', min: 2, max: 80, step: 1, default: 10, drag: true },
+      thc: { label: 'มุมกรวย (โหมดกรวยคว่ำ)', symbol: 'θ', unit: '°', type: 'range', min: 5, max: 80, step: 1, default: 30 },
+      g: { label: 'ค่า g', symbol: 'g', unit: 'm/s²', type: 'choice', options: [{ label: 'ดวงจันทร์ 1.6', value: 1.6 }, { label: 'ดาวอังคาร 3.7', value: 3.7 }, { label: 'โลก 9.8', value: 9.8 }, { label: 'ดาวพฤหัส 24.8', value: 24.8 }], default: 9.8 }
+    },
+    presets: [{ label: 'นาฬิกาลูกตุ้ม l = 1 m', values: { mode: 'swing', l: 1, th0: 10, g: 9.8 } }, { label: 'มวลต่างกัน คาบเท่ากัน', values: { mode: 'swing', m: 5, l: 1, th0: 10 } }, { label: 'ยาว 4 เท่า คาบ 2 เท่า', values: { mode: 'swing', l: 4, th0: 10 } }, { label: 'มุมกว้าง 60° (สูตรมุมเล็กคลาด)', values: { mode: 'swing', th0: 60, l: 1 } }, { label: 'กรวยคว่ำ 30°', values: { mode: 'cone', thc: 30, l: 1 } }, { label: 'บนดวงจันทร์', values: { g: 1.6 } }],
+    toggles: [{ key: 'vec', label: 'ลูกศร v' }],
+    world: function (p) { var r = Math.max(p.l * 1.25, 0.6); return { xMin: -r, xMax: r, yMin: -r * 1.05, yMax: r * 0.25 }; },
+    init: init, step: step,
+    timeLabel: function (t, s, p) { return 't = ' + fmt(t, 3) + ' s' + (p.mode === 'swing' && s.Tmeas ? ' · วัดคาบได้ ' + fmt(s.Tmeas) + ' s' : ''); },
+    draw: function (ctx, s, p, D) {
+      var c = D.color;
+      D.line(-D.world.xMax * 0.4, 0, D.world.xMax * 0.4, 0, { color: c.line, width: 5 });
+      if (p.mode === 'swing') {
+        var x = p.l * Math.sin(s.th), y = -p.l * Math.cos(s.th), x0 = p.l * Math.sin(rad(p.th0));
+        D.line(0, 0, 0, -p.l, { color: c.line, dash: [4, 3], width: 1 });
+        D.arc(0, 0, p.l, -Math.PI / 2 - rad(p.th0), -Math.PI / 2 + rad(p.th0), { color: c.line, dash: [3, 3], width: 1 });
+        D.dot(x0, -p.l * Math.cos(rad(p.th0)), 8, c.primary, {}); D.ctx.globalAlpha = 1;
+        D.line(0, 0, x, y, { color: c.muted, width: 2 }); D.dot(x, y, 12 + p.m * 2, c.primary, { stroke: c.card, width: 2 });
+        D.angle(0, 0, 40, Math.min(-Math.PI / 2, -Math.PI / 2 + s.th), Math.max(-Math.PI / 2, -Math.PI / 2 + s.th), { label: 'θ ' + fmt(deg(s.th)) + '°' });
+        var v = s.w * p.l; if (D.view.vec && Math.abs(v) > 0.02) D.arrow(x, y, v * 0.25 * Math.cos(s.th), v * 0.25 * Math.sin(s.th), { color: c.orange, label: 'v ' + fmt(Math.abs(v)), width: 3 });
+        D.label('T (สูตรมุมเล็ก) = 2π√(l/g) = ' + fmt(Tsmall(p)) + ' s' + (s.Tmeas ? ' · วัดจริง ' + fmt(s.Tmeas) + ' s' : ''), -D.world.xMax * 0.95, D.world.yMax * 0.8, { color: c.text });
+        D.label('ไม่ขึ้นกับมวล ' + p.m + ' kg · θ₀ = ' + p.th0 + '°' + (p.th0 > 20 ? ' (มุมกว้าง คาบจริงยาวกว่าสูตร)' : ''), -D.world.xMax * 0.95, D.world.yMax * 0.5, {});
+      } else {
+        var tc = rad(p.thc), R = p.l * Math.sin(tc), h = p.l * Math.cos(tc), cx = R * Math.cos(s.phase), cy = -h - 0.18 * R * Math.sin(s.phase);
+        D.line(0, 0, 0, -h, { color: c.line, dash: [4, 3], width: 1 });
+        D.ctx.save(); D.ctx.beginPath(); D.ctx.ellipse(D.x(0), D.y(-h), D.sx(R), D.sx(R) * 0.18, 0, 0, Math.PI * 2); D.ctx.strokeStyle = c.line; D.ctx.setLineDash([4, 3]); D.ctx.stroke(); D.ctx.restore();
+        D.line(0, 0, cx, cy, { color: c.muted, width: 2 }); D.dot(cx, cy, 12 + p.m * 2, c.orange, { stroke: c.card, width: 2 });
+        D.angle(0, 0, 40, -Math.PI / 2, -Math.PI / 2 + tc, { label: 'θ ' + p.thc + '°' });
+        if (D.view.vec) D.arrow(cx, cy, -0.35 * R * Math.sin(s.phase), 0.35 * R * 0.18 * Math.cos(s.phase), { color: c.orange, label: 'v', width: 2.5 });
+        D.label('T = 2π√(l cosθ/g) = ' + fmt(Tcone(p)) + ' s · R = l sinθ = ' + fmt(R) + ' m', -D.world.xMax * 0.95, D.world.yMax * 0.8, { color: c.text });
+        D.label('ยิ่งมุมกว้าง คาบยิ่งสั้น', -D.world.xMax * 0.95, D.world.yMax * 0.5, {});
+      }
+    },
+    dragHandles: function (s, p, D) { if (p.mode !== 'swing' || D.running) return []; return [{ param: 'th0', x: p.l * Math.sin(rad(p.th0)), y: -p.l * Math.cos(rad(p.th0)), r: 16, map: function (wx, wy) { return PhysLab.clamp(deg(Math.atan2(wx, -wy)), 2, 80); } }, { param: 'l', x: 0, y: -p.l, r: 10, map: function (wx, wy) { return PhysLab.clamp(-wy, 0.1, 4); } }]; },
+    readouts: function (s, p) { var T = p.mode === 'swing' ? Tsmall(p) : Tcone(p); return [{ label: 'T (สูตร)', value: T, unit: 's', highlight: true }, { label: p.mode === 'swing' ? 'T (วัดจากการแกว่ง)' : 'R = l sinθ', value: p.mode === 'swing' ? (s.Tmeas || 0) : p.l * Math.sin(rad(p.thc)), unit: p.mode === 'swing' ? 's' : 'm' }, { label: 'f = 1/T', value: 1 / T, unit: 'Hz' }, { label: 'ω = 2π/T', value: 2 * Math.PI / T, unit: 'rad/s' }, { label: p.mode === 'swing' ? 'θ ตอนนี้' : 'v = 2πR/T', value: p.mode === 'swing' ? deg(s.th) : 2 * Math.PI * p.l * Math.sin(rad(p.thc)) / T, unit: p.mode === 'swing' ? '°' : 'm/s' }, { label: 'มวล (ไม่มีผลต่อคาบ)', value: p.m, unit: 'kg' }]; },
+    formulas: function (s, p) { if (p.mode === 'swing') return [{ symbolic: 'T = 2π√(l/g)', substituted: '= 2π√(' + p.l + '/' + p.g + ')', result: '= ' + fmt(Tsmall(p)) + ' s' }, { symbolic: 'ω = √(g/l)', substituted: '= √(' + p.g + '/' + p.l + ')', result: '= ' + fmt(Math.sqrt(p.g / p.l)) + ' rad/s' }]; return [{ symbolic: 'T = 2π√(l cosθ/g)', substituted: '= 2π√(' + p.l + ' cos' + p.thc + '°/' + p.g + ')', result: '= ' + fmt(Tcone(p)) + ' s' }, { symbolic: 'tanθ = v²/Rg', substituted: 'R = ' + fmt(p.l * Math.sin(rad(p.thc))) + ' m', result: '→ v = ' + fmt(Math.sqrt(Math.tan(rad(p.thc)) * p.l * Math.sin(rad(p.thc)) * p.g)) + ' m/s' }]; },
+    sample: function (s, p) { return { th: p.mode === 'swing' ? deg(s.th) : deg(Math.atan2(Math.sin(s.phase), Math.cos(s.phase))) }; },
+    graphs: [{ title: 'θ-t', x: 't', series: [{ key: 'th', label: 'θ (°)' }], window: 6 }],
+    content: {
+      summary: '<b>ลูกตุ้มนาฬิกา</b> ω = √(g/l) คาบ T = 2π√(l/g) ขึ้นกับความยาวเชือกและ g เท่านั้น ไม่ขึ้นกับมวล (สูตรนี้ใช้ได้ดีเมื่อมุมเล็ก) <b>การแกว่งแบบกรวยคว่ำ</b> ลูกตุ้มที่หมุนเป็นวงกลมแนวราบ คาบ T = 2π√(l cosθ/g)',
+      tryIt: ['เปลี่ยนมวลจาก 0.5 เป็น 5 kg ดูว่าคาบที่วัดได้เท่าเดิม', 'เพิ่มความยาวเป็น 4 เท่า ดูว่าคาบเพิ่มเป็น 2 เท่า', 'ตั้งมุม 60° ดูว่าคาบที่วัดจริงยาวกว่าสูตรมุมเล็กเล็กน้อย']
+    }
+  });
+})();
+</script>
+</body>
+</html>

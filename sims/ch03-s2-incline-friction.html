@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S3.2 กล่องบนพื้นเอียงและแรงเสียดทาน · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S3.2 กล่องบนพื้นเอียงและแรงเสียดทาน · บท 3 เรื่อง 6, 7, 8, 10
+   สูตร: W = mg · N = mg cosθ · แรงตามพื้นเอียง mg sinθ · f สถิต ≤ μsN · f จลน์ = μkN · เชือกข้ามรอก T = m₂(g − a)
+   ขึ้นตามพื้นเอียงเป็นบวก · ΣF = ma บนระบบ (m + m₂) · semi-implicit Euler dt 1/120 · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad, deg = PhysLab.deg, L = 6;
+  function forces(p, v) {
+    var g = p.g, t = rad(p.theta), N = p.m * g * Math.cos(t), down = p.m * g * Math.sin(t), drive = p.F + p.m2 * g - down, fmax = p.mus * N, fk = p.muk * N;
+    var moving = Math.abs(v) > 1e-4, f, a, state;
+    if (!moving && Math.abs(drive) <= fmax) { f = -drive; a = 0; state = 'นิ่ง (เสียดทานสถิต)'; }
+    else { var dir = moving ? Math.sign(v) : Math.sign(drive); f = -dir * fk; a = (drive + f) / (p.m + p.m2); state = moving ? 'ไถล (เสียดทานจลน์)' : 'เริ่มไถล'; }
+    var T = p.m2 > 0 ? p.m2 * (g - a) : 0;
+    return { N: N, down: down, fmax: fmax, fk: fk, f: f, a: a, T: T, state: state, drive: drive };
+  }
+  function init(p) { return { x: p.x0, v: 0, out: false, f: 0, a: 0 }; }
+  function step(s, p, dt) {
+    if (s.out) return s;
+    var F = forces(p, s.v); var vN = s.v + F.a * dt;
+    if (F.a === 0 && Math.abs(s.v) <= 1e-4) vN = 0;
+    if (Math.abs(s.v) > 1e-4 && Math.sign(vN) !== Math.sign(s.v)) { vN = 0; }
+    s.v = vN; s.x += s.v * dt; s.f = F.f; s.a = F.a;
+    if (s.x < 0 || s.x > L) { s.x = PhysLab.clamp(s.x, 0, L); s.out = true; }
+    return s;
+  }
+  PhysLab.createSim({
+    id: 'S3.2', chapter: 3, topics: [6, 7, 8, 10], title: 'กล่องบนพื้นเอียงและแรงเสียดทาน',
+    alt: 'กล่องวางบนพื้นเอียง มีลูกศรน้ำหนัก แรงแนวฉาก แรงเสียดทาน แรงผลัก และเชือกข้ามรอกไปมวลที่ห้อยอยู่',
+    forces: forces,
+    params: {
+      m: { label: 'มวลกล่อง', symbol: 'm', unit: 'kg', type: 'range', min: 1, max: 20, step: 0.5, default: 5 },
+      theta: { label: 'มุมพื้นเอียง', symbol: 'θ', unit: '°', type: 'range', min: 0, max: 60, step: 1, default: 25, drag: true },
+      mus: { label: 'สัมประสิทธิ์เสียดทานสถิต', symbol: 'μs', type: 'range', min: 0, max: 1, step: 0.05, default: 0.5 },
+      muk: { label: 'สัมประสิทธิ์เสียดทานจลน์', symbol: 'μk', type: 'range', min: 0, max: 1, step: 0.05, default: 0.3 },
+      F: { label: 'แรงผลักตามพื้นเอียง (ขึ้นเป็นบวก)', symbol: 'F', unit: 'N', type: 'range', min: -100, max: 100, step: 1, default: 0 },
+      m2: { label: 'มวลที่ห้อยปลายเชือก', symbol: 'm₂', unit: 'kg', type: 'range', min: 0, max: 10, step: 0.5, default: 0 },
+      x0: { label: 'ตำแหน่งเริ่มบนพื้นเอียง', unit: 'm', type: 'range', min: 0.5, max: 5.5, step: 0.5, default: 3 },
+      g: { label: 'ค่า g', symbol: 'g', unit: 'm/s²', type: 'choice', options: [{ label: 'โลก 9.8', value: 9.8 }, { label: 'ดวงจันทร์ 1.6', value: 1.6 }], default: 9.8 }
+    },
+    presets: [
+      { label: 'นิ่งด้วยเสียดทาน 25°', values: { m: 5, theta: 25, mus: 0.5, muk: 0.3, F: 0, m2: 0 } }, { label: 'ชันจนไถล 35°', values: { theta: 35, mus: 0.5, muk: 0.3, F: 0, m2: 0, x0: 5 } },
+      { label: 'พื้นลื่น', values: { mus: 0, muk: 0, theta: 25, F: 0, m2: 0, x0: 5 } }, { label: 'ผลักขึ้น 60 N', values: { F: 60, theta: 25, x0: 1 } }, { label: 'ห้อยมวล 4 kg ข้ามรอก', values: { m2: 4, F: 0, theta: 25, x0: 1 } }
+    ],
+    toggles: [{ key: 'fbd', label: 'ลูกศรแรง' }, { key: 'comp', label: 'องค์ประกอบของน้ำหนัก' }],
+    world: function (p) { var t = rad(p.theta); var H = L * Math.sin(t); return { xMin: -0.8, xMax: L * Math.cos(t) + 3.4, yMin: -1.2, yMax: Math.max(H, 2.2) + 1.6, alignX: 'left' }; },
+    init: init, step: step, done: function (s) { return s.out; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, t = rad(p.theta), cs = Math.cos(t), sn = Math.sin(t), top = [L * cs, L * sn], F = forces(p, s.v);
+      D.polyline([[0, 0], top, [top[0], 0]], { color: c.line, width: 2, close: true, fill: c.soft });
+      D.ground(0); D.angle(0, 0, 40, 0, t, { label: 'θ ' + p.theta + '°' });
+      var bx = s.x * cs, by = s.x * sn, h = 0.5, nx = -sn, ny = cs, cx = bx + nx * h / 2, cy = by + ny * h / 2;
+      D.ctx.save(); D.ctx.translate(D.x(cx), D.y(cy)); D.ctx.rotate(-t); D.ctx.fillStyle = c.primary; D.ctx.fillRect(-D.sx(h) / 2, -D.sx(h) / 2, D.sx(h), D.sx(h)); D.ctx.restore();
+      if (p.m2 > 0) { var px = top[0] + 0.25, py = top[1] + 0.25; D.line(cx + nx * 0, cy + ny * 0, top[0], top[1] + 0.3, { color: c.muted, width: 2 }); D.circle(top[0], top[1] + 0.3, 0.2, { fill: c.card, stroke: c.muted, width: 2 }); var hy = top[1] + 0.3 - 0.9 - (s.x - p.x0); D.line(top[0] + 0.2, top[1] + 0.3, top[0] + 0.2, hy + 0.3, { color: c.muted, width: 2 }); D.rect(top[0] - 0.05, hy - 0.3, 0.5, 0.6, { fill: c.orange }); D.label('m₂ ' + p.m2 + ' kg', top[0] + 0.2, hy - 0.5, { align: 'center' }); if (F.T > 0) D.label('T = ' + fmt(F.T) + ' N', top[0] + 0.35, (top[1] + hy) / 2 + 0.3, { color: c.text }); }
+      var k = 2.0 / Math.max(p.m * p.g, 20);
+      if (D.view.fbd) {
+        D.arrow(cx, cy, 0, -p.m * p.g * k, { color: c.red, label: 'W = mg = ' + fmt(p.m * p.g), width: 3 });
+        D.arrow(cx, cy, nx * F.N * k, ny * F.N * k, { color: c.green, label: 'N = ' + fmt(F.N), width: 3 });
+        if (Math.abs(F.f) > 0.05) D.arrow(cx, cy, cs * F.f * k, sn * F.f * k, { color: c.orange, label: 'f = ' + fmt(Math.abs(F.f)), width: 3 });
+        if (Math.abs(p.F) > 0.05) D.arrow(cx, cy, cs * p.F * k, sn * p.F * k, { color: c.text, label: 'F = ' + p.F, width: 3 });
+        if (p.m2 > 0) D.arrow(cx, cy, cs * F.T * k, sn * F.T * k, { color: c.muted, label: 'T', width: 2.5, dy: -12 });
+      }
+      if (D.view.comp) { D.arrow(cx, cy, -cs * F.down * k, -sn * F.down * k, { color: c.red, label: 'mg sinθ ' + fmt(F.down), width: 1.5, dy: 14 }); D.arrow(cx, cy, -nx * F.N * k, -ny * F.N * k, { color: c.red, label: 'mg cosθ ' + fmt(F.N), width: 1.5, dy: 14 }); }
+      D.label(F.state + (s.out ? ' · ออกนอกพื้นเอียง' : ''), 0, D.world.yMax, { dy: 12, color: F.a === 0 ? c.green : c.red });
+    },
+    dragHandles: function (s, p) { return [{ param: 'theta', x: L * Math.cos(rad(p.theta)), y: L * Math.sin(rad(p.theta)), r: 12, map: function (wx, wy) { return PhysLab.clamp(deg(Math.atan2(wy, Math.max(wx, 0.1))), 0, 60); } }]; },
+    readouts: function (s, p) {
+      var F = forces(p, s.v);
+      return [
+        { label: 'N = mg cosθ', value: F.N, unit: 'N', color: '#0E6B57' }, { label: 'mg sinθ (ดึงลง)', value: F.down, unit: 'N', color: '#B42318' },
+        { label: 'f สถิตสูงสุด μsN', value: F.fmax, unit: 'N' }, { label: 'f ที่เกิดจริง', value: Math.abs(F.f), unit: 'N', color: '#E07A1F', highlight: true },
+        { label: 'ความเร่ง a', value: F.a, unit: 'm/s²', highlight: true }, { label: 'ความเร็ว v', value: s.v, unit: 'm/s' },
+        { label: 'แรงตึงเชือก T', value: F.T, unit: 'N' }, { label: 'สถานะ', value: F.state }
+      ];
+    },
+    formulas: function (s, p) {
+      var F = forces(p, s.v), t = p.theta;
+      return [
+        { symbolic: 'N = mg cosθ', substituted: '= ' + p.m + '(' + p.g + ') cos ' + t + '°', result: '= ' + fmt(F.N) + ' N' },
+        { symbolic: 'แรงตามพื้น = mg sinθ', substituted: '= ' + p.m + '(' + p.g + ') sin ' + t + '°', result: '= ' + fmt(F.down) + ' N' },
+        { symbolic: 'f สถิต ≤ μsN', substituted: '≤ ' + p.mus + ' × ' + fmt(F.N), result: '= ' + fmt(F.fmax) + ' N' },
+        { symbolic: 'ΣF = ma (ระบบ m + m₂)', substituted: '(' + fmt(F.drive) + ' + ' + fmt(F.f) + ') / ' + (p.m + p.m2), result: '→ a = ' + fmt(F.a) + ' m/s²' }
+      ];
+    },
+    sample: function (s) { return { v: s.v, x: s.x, f: Math.abs(s.f) }; },
+    graphs: [{ title: 'v-t', x: 't', series: [{ key: 'v', label: 'v (m/s)' }], window: 6 }, { title: 'f-t แรงเสียดทาน', x: 't', series: [{ key: 'f', label: 'f (N)', color: '#E07A1F' }], window: 6 }],
+    content: {
+      summary: '<b>น้ำหนัก</b> แรงที่โลกดึงดูดวัตถุ W = mg ทิศชี้ลงเสมอ <b>แรงแนวฉาก</b> แรงที่พื้นผิวดันกลับวัตถุ ทิศตั้งฉากกับผิวสัมผัสเสมอ <b>แรงตึงเชือก</b> แรงที่เชือกดึงวัตถุ ทิศพุ่งออกจากวัตถุไปตามแนวเชือก <b>แรงเสียดทาน</b> ตอนวัตถุยังนิ่งเป็นแรงเสียดทานสถิต มีค่าได้ไม่เกิน μsN พอเคลื่อนที่แล้วเป็นแรงเสียดทานจลน์ค่าคงที่ fk = μkN',
+      tryIt: ['ลากมุมพื้นเอียงเพิ่มช้า ๆ สังเกตว่ากล่องเริ่มไถลเมื่อ mg sinθ เกิน μsN (tanθ = μs)', 'เลือก "พื้นลื่น" ดูว่า a = g sinθ และแรงเสียดทานเป็นศูนย์', 'ห้อยมวล 4 kg ดูว่าแรงตึงเชือก T น้อยกว่า m₂g เพราะมวลกำลังเร่งลง']
+    }
+  });
+})();
+</script>
+</body>
+</html>

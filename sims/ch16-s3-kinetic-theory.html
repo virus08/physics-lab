@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S16.3 ทฤษฎีจลน์ของแก๊ส · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S16.3 ทฤษฎีจลน์ของแก๊ส · บท 16 เรื่อง 8, 9, 10
+   สูตร: v rms = √(3RT/M) = √(3P/ρ) · Ek เฉลี่ย = (3/2)k_BT · U = (3/2)nRT = (3/2)PV · k_B = 1.38×10⁻²³
+   โมเลกุลในกล่องวิ่งด้วยอัตราเร็วสุ่มตามการแจกแจงแมกซ์เวลล์-โบลต์ซมันน์ (ภาพ) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, R = 8.31, kB = 1.38e-23, NA = 6.02e23, rng = PhysLab.rng(11);
+  var GAS = [{ label: 'H₂ (M = 2)', value: 2 }, { label: 'He (M = 4)', value: 4 }, { label: 'N₂ (M = 28)', value: 28 }, { label: 'O₂ (M = 32)', value: 32 }, { label: 'CO₂ (M = 44)', value: 44 }];
+  function vrms(p) { return Math.sqrt(3 * R * p.T / (p.M * 1e-3)); }
+  function mb(p, v) { var a = p.M * 1e-3 / (2 * R * p.T); return 4 * Math.PI * Math.pow(a / Math.PI, 1.5) * v * v * Math.exp(-a * v * v); }
+  function init() { var ms = []; for (var i = 0; i < 36; i++) { var u = rng(), sp = Math.sqrt(-2 * Math.log(Math.max(1e-6, rng()))) * 0.7 + 0.3; ms.push({ x: rng(), y: rng(), a: rng() * Math.PI * 2, s: Math.min(2.2, sp) }); } return { ms: ms }; }
+  function step(s, p, dt) { var k = 0.3 * Math.sqrt(p.T / 300) * Math.sqrt(28 / p.M); s.ms.forEach(function (m) { var v = k * m.s; m.x += Math.cos(m.a) * v * dt; m.y += Math.sin(m.a) * v * dt; if (m.x < 0) { m.x = -m.x; m.a = Math.PI - m.a; } if (m.x > 1) { m.x = 2 - m.x; m.a = Math.PI - m.a; } if (m.y < 0) { m.y = -m.y; m.a = -m.a; } if (m.y > 1) { m.y = 2 - m.y; m.a = -m.a; } }); return s; }
+  PhysLab.createSim({
+    id: 'S16.3', chapter: 16, topics: [8, 9, 10], title: 'ทฤษฎีจลน์ของแก๊ส',
+    alt: 'กล่องแก๊สทางซ้ายมีโมเลกุลวิ่งชนกันด้วยอัตราเร็วต่าง ๆ ด้านขวาเป็นกราฟการแจกแจงอัตราเร็วของโมเลกุลที่มีเส้น v rms กำกับ และแถบเทียบ v rms ของแก๊สต่าง ๆ',
+    vrms: vrms,
+    params: {
+      M: { label: 'แก๊ส (มวลโมลาร์ g/mol)', type: 'choice', options: GAS, default: 28 },
+      T: { label: 'อุณหภูมิ', symbol: 'T', unit: 'K', type: 'range', min: 50, max: 1500, step: 10, default: 300 },
+      n: { label: 'จำนวนโมล', symbol: 'n', unit: 'mol', type: 'range', min: 0.1, max: 5, step: 0.1, default: 1 }
+    },
+    presets: [{ label: 'N₂ ที่ 300 K', values: { M: 28, T: 300, n: 1 } }, { label: 'T 4 เท่า (v rms 2 เท่า)', values: { M: 28, T: 1200 } }, { label: 'H₂ ที่ 300 K (เบา วิ่งเร็ว)', values: { M: 2, T: 300 } }, { label: 'CO₂ ที่ 300 K (หนัก วิ่งช้า)', values: { M: 44, T: 300 } }],
+    speeds: [1], dt: 1 / 120,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: init, step: step,
+    timeLabel: function () { return ''; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i, v = vrms(p), col = 'hsl(' + (240 - PhysLab.clamp((p.T - 50) / 1450, 0, 1) * 240) + ', 75%, 45%)';
+      D.rect(0.5, 0.9, 3.4, 3.4, { fill: c.accentSoft, stroke: c.text }); s.ms.forEach(function (m) { D.dot(0.6 + m.x * 3.2, 1.0 + m.y * 3.2, 3.5 + 1.5 * Math.min(1, p.M / 44), col, {}); });
+      D.label(GAS.filter(function (g) { return g.value === p.M; })[0].label + ' · T = ' + p.T + ' K', 2.2, 4.45, { dy: -4, align: 'center', color: c.text, bold: true });
+      D.label('Ek เฉลี่ย = (3/2)k_BT = ' + fmt(1.5 * kB * p.T) + ' J ต่อโมเลกุล', 0.5, 0.6, { color: c.text });
+      D.label('U = (3/2)nRT = ' + fmt(1.5 * p.n * R * p.T) + ' J (n = ' + p.n + ' mol)', 0.5, 0.3, { color: c.primary, bold: true });
+      var gx0 = 4.6, gx1 = 9.7, gy0 = 2.6, gy1 = 4.9, vmax = 3 * v, X = function (vv) { return gx0 + (gx1 - gx0) * vv / vmax; }, fmax = mb(p, Math.sqrt(2 * R * p.T / (p.M * 1e-3))), Y = function (f) { return gy0 + (gy1 - gy0 - 0.3) * f / fmax; };
+      D.rect(gx0, gy0, gx1 - gx0, gy1 - gy0, { fill: c.card, stroke: c.line }); var pts = []; for (i = 0; i <= 100; i++) { var vv = vmax * i / 100; pts.push([X(vv), Y(mb(p, vv))]); } D.polyline(pts, { color: col, width: 2 });
+      D.line(X(v), gy0, X(v), gy1 - 0.1, { color: c.red, dash: [4, 3], width: 1.5 }); D.label('v rms = ' + fmt(v) + ' m/s', X(v) + 0.08, gy0 + 1.1, { color: c.red, bold: true, bg: c.card });
+      D.label('การแจกแจงอัตราเร็วโมเลกุล', gx0 + 0.1, gy1 - 0.05, { color: c.text }); D.label('v (m/s)', gx1, gy0, { dy: 12, align: 'right', color: c.muted }); D.label('0', gx0, gy0, { dy: 12, align: 'center', color: c.muted });
+      var by0 = 0.5, bh = 0.3; D.label('เทียบ v rms ของแก๊สต่าง ๆ ที่ ' + p.T + ' K (แก๊สเบาวิ่งเร็ว)', gx0, by0 + 5 * bh + 0.1, { color: c.text });
+      GAS.forEach(function (g, k) { var vr = Math.sqrt(3 * R * p.T / (g.value * 1e-3)), y = by0 + (4 - k) * bh, w = (gx1 - gx0 - 1.3) * vr / 4500; D.rect(gx0 + 1.3, y, w, bh - 0.06, { fill: g.value === p.M ? col : c.soft }); D.label(g.label.split(' ')[0], gx0 + 1.2, y + bh / 2, { align: 'right', color: c.text }); D.label(fmt(vr) + ' m/s', gx0 + 1.35 + w, y + bh / 2, { color: c.muted }); });
+    },
+    readouts: function (s, p) { var v = vrms(p); return [{ label: 'v rms = √(3RT/M)', value: v, unit: 'm/s', highlight: true }, { label: 'Ek เฉลี่ยต่อโมเลกุล = (3/2)k_BT', value: 1.5 * kB * p.T, unit: 'J', highlight: true }, { label: 'มวลหนึ่งโมเลกุล m = M/N_A', value: p.M * 1e-3 / NA, unit: 'kg' }, { label: 'ตรวจสอบ ½m v rms²', value: 0.5 * p.M * 1e-3 / NA * v * v, unit: 'J' }, { label: 'U = (3/2)nRT', value: 1.5 * p.n * R * p.T, unit: 'J' }, { label: 'ΔU ถ้า T เพิ่ม 100 K', value: 1.5 * p.n * R * 100, unit: 'J' }]; },
+    formulas: function (s, p) { return [{ symbolic: 'v rms = √(3RT/M)', substituted: '= √(3 × 8.31 × ' + p.T + ' / ' + p.M + '×10⁻³)', result: '= ' + fmt(vrms(p)) + ' m/s' }, { symbolic: 'Ek เฉลี่ย = (3/2)k_BT', substituted: '= 1.5 × 1.38×10⁻²³ × ' + p.T, result: '= ' + fmt(1.5 * kB * p.T) + ' J' }, { symbolic: 'U = (3/2)nRT', substituted: '= 1.5 × ' + p.n + ' × 8.31 × ' + p.T, result: '= ' + fmt(1.5 * p.n * R * p.T) + ' J' }]; },
+    content: {
+      summary: '<b>อัตราเร็ว rms</b> ความเร็วเฉลี่ยแบบกำลังสองของโมเลกุลแก๊ส v rms = √(3RT/M) = √(3P/ρ) แก๊สร้อนโมเลกุลวิ่งเร็ว แก๊สเบาวิ่งเร็ว <b>พลังงานจลน์เฉลี่ยของโมเลกุล</b> ขึ้นกับอุณหภูมิอย่างเดียว Ek เฉลี่ย = (3/2)k_BT <b>พลังงานภายใน</b> ผลรวมพลังงานจลน์ของโมเลกุลทั้งหมด U = (3/2)nRT = (3/2)PV และ ΔU = (3/2)nRΔT',
+      tryIt: ['เพิ่ม T เป็น 4 เท่า ดูว่า v rms เพิ่ม 2 เท่า (รากที่สอง) แต่ Ek เฉลี่ยเพิ่ม 4 เท่า', 'เปลี่ยนจาก N₂ เป็น H₂ ที่อุณหภูมิเดียวกัน ดูว่า v rms เพิ่มแต่ Ek เฉลี่ยเท่าเดิม', 'สังเกตว่ากราฟการแจกแจงกว้างขึ้นเมื่อร้อนขึ้น และ v rms อยู่ทางขวาของยอดกราฟเล็กน้อย']
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S16.1 อุณหภูมิ ความร้อน และการเปลี่ยนสถานะ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S16.1 อุณหภูมิ ความร้อน และการเปลี่ยนสถานะ · บท 16 เรื่อง 1, 2, 3, 4, 5
+   สูตร: K = °C + 273 · F = 1.8C + 32 · Q = mcΔT · Q = mL · สมดุล Q ลด = Q เพิ่ม
+   โหมดให้ความร้อน: ใส่พลังงานคงที่ P ให้น้ำแข็ง → น้ำ → ไอ (ค่า c น้ำแข็ง 2100 น้ำ 4200 ไอ 2010 J/kg·K, L หลอม 334 kJ/kg, L กลายเป็นไอ 2256 kJ/kg) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, C_ICE = 2100, C_W = 4200, C_ST = 2010, LF = 334000, LV = 2256000;
+  function init(p) { return { T: p.T0, phase: p.T0 < 0 ? 'ice' : p.T0 < 100 ? 'water' : 'steam', melt: 0, boil: 0, Q: 0, Tmix: null }; }
+  function step(s, p, dt) {
+    if (p.mode !== 'heat') return s; var dQ = p.P * dt; s.Q += dQ; var m = p.m;
+    if (s.phase === 'ice') { s.T += dQ / (m * C_ICE); if (s.T >= 0) { s.T = 0; s.phase = 'melting'; } }
+    else if (s.phase === 'melting') { s.melt += dQ; if (s.melt >= m * LF) { s.phase = 'water'; s.melt = m * LF; } }
+    else if (s.phase === 'water') { s.T += dQ / (m * C_W); if (s.T >= 100) { s.T = 100; s.phase = 'boiling'; } }
+    else if (s.phase === 'boiling') { s.boil += dQ; if (s.boil >= m * LV) { s.phase = 'steam'; s.boil = m * LV; } }
+    else { s.T += dQ / (m * C_ST); if (s.T > 150) s.T = 150; }
+    return s;
+  }
+  function mix(p) { return (p.m1 * C_W * p.T1 + p.m2 * p.c2 * p.T2) / (p.m1 * C_W + p.m2 * p.c2); }
+  PhysLab.createSim({
+    id: 'S16.1', chapter: 16, topics: [1, 2, 3, 4, 5], title: 'อุณหภูมิ ความร้อน และการเปลี่ยนสถานะ',
+    alt: 'โหมดให้ความร้อน: บีกเกอร์น้ำแข็งบนเตา อุณหภูมิเพิ่มขึ้นเป็นขั้นตามกราฟ Q-T ที่มีช่วงราบขณะหลอมเหลวและเดือด โหมดสมดุล: ถ้วยน้ำร้อนใส่ก้อนโลหะเย็นจนอุณหภูมิเท่ากัน',
+    mix: mix,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'ให้ความร้อน น้ำแข็ง → ไอ', value: 'heat' }, { label: 'สมดุลความร้อน', value: 'mix' }], default: 'heat' },
+      m: { label: 'มวลน้ำแข็ง (โหมดให้ความร้อน)', symbol: 'm', unit: 'kg', type: 'range', min: 0.1, max: 2, step: 0.1, default: 0.5 },
+      T0: { label: 'อุณหภูมิเริ่มต้น', symbol: 'T₀', unit: '°C', type: 'range', min: -40, max: 20, step: 1, default: -20 },
+      P: { label: 'กำลังเตา', symbol: 'P', unit: 'W', type: 'range', min: 100, max: 5000, step: 100, default: 2000 },
+      m1: { label: 'มวลน้ำ (โหมดสมดุล)', symbol: 'm₁', unit: 'kg', type: 'range', min: 0.1, max: 2, step: 0.1, default: 0.5 },
+      T1: { label: 'อุณหภูมิน้ำ', symbol: 'T₁', unit: '°C', type: 'range', min: 0, max: 100, step: 1, default: 80 },
+      m2: { label: 'มวลวัตถุที่ใส่', symbol: 'm₂', unit: 'kg', type: 'range', min: 0.1, max: 2, step: 0.1, default: 0.3 },
+      c2: { label: 'ความร้อนจำเพาะของวัตถุ', symbol: 'c₂', unit: 'J/kg·K', type: 'choice', options: [{ label: 'เหล็ก 450', value: 450 }, { label: 'ทองแดง 390', value: 390 }, { label: 'อะลูมิเนียม 900', value: 900 }, { label: 'น้ำ 4200', value: 4200 }], default: 450 },
+      T2: { label: 'อุณหภูมิวัตถุ', symbol: 'T₂', unit: '°C', type: 'range', min: 0, max: 100, step: 1, default: 20 }
+    },
+    presets: [{ label: 'น้ำแข็ง 0.5 kg ที่ −20 °C เตา 2 kW', values: { mode: 'heat', m: 0.5, T0: -20, P: 2000 } }, { label: 'มวล 2 เท่า (ใช้เวลา 2 เท่า)', values: { mode: 'heat', m: 1 } }, { label: 'น้ำร้อน 80 °C ใส่เหล็ก 20 °C', values: { mode: 'mix', m1: 0.5, T1: 80, m2: 0.3, c2: 450, T2: 20 } }, { label: 'ผสมน้ำกับน้ำ', values: { mode: 'mix', c2: 4200, m2: 0.5, T2: 20 } }],
+    speeds: [10, 30, 100], defaultSpeed: 30, dt: 1 / 60,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: init, step: step,
+    timeLabel: function (t, s, p) { return p.mode === 'heat' ? 't = ' + fmt(t) + ' s · Q = ' + fmt(s.Q / 1000) + ' kJ' : 'ภาพนิ่ง'; },
+    done: function (s, p) { return p.mode === 'heat' && s.phase === 'steam' && s.T >= 150; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      if (p.mode === 'heat') {
+        var lvl = 1.0 + 1.6 * PhysLab.clamp(1 - (s.phase === 'boiling' ? s.boil / (p.m * LV) : s.phase === 'steam' ? 1 : 0), 0, 1), col = s.phase === 'ice' ? '#CFE6FF' : s.phase === 'melting' ? '#A9D3FF' : s.phase === 'steam' ? c.soft : '#5FA8F5';
+        D.rect(0.8, 1.0, 2.2, lvl - 1.0 + 0.001, { fill: col }); D.line(0.8, 3.4, 0.8, 1.0, { color: c.text, width: 2.5 }); D.line(0.8, 1.0, 3.0, 1.0, { color: c.text, width: 2.5 }); D.line(3.0, 1.0, 3.0, 3.4, { color: c.text, width: 2.5 });
+        if (s.phase === 'ice' || s.phase === 'melting') for (i = 0; i < 4; i++) D.rect(1.0 + i * 0.5, 1.1 + (i % 2) * 0.4, 0.4, 0.4, { fill: '#fff', stroke: '#8CB8E6' });
+        if (s.phase === 'boiling' || s.phase === 'steam') for (i = 0; i < 5; i++) D.circle(1.1 + i * 0.45, 2.9 + 0.5 * ((i * 7 + Math.floor(D.t * 3)) % 3) / 2, 0.1, { stroke: c.muted, width: 1 });
+        D.rect(0.6, 0.55, 2.6, 0.35, { fill: c.red }); D.label('เตา P = ' + p.P + ' W', 1.9, 0.35, { dy: 6, align: 'center', color: c.text });
+        D.label('T = ' + fmt(s.T) + ' °C = ' + fmt(s.T + 273) + ' K', 1.9, 3.6, { dy: -4, align: 'center', color: c.text, bold: true });
+        var ph = { ice: 'น้ำแข็ง (c = 2100)', melting: 'กำลังหลอม (Q = mL, T คงที่)', water: 'น้ำ (c = 4200)', boiling: 'กำลังเดือด (Q = mL, T คงที่)', steam: 'ไอน้ำ (c = 2010)' }[s.phase]; D.label(ph, 1.9, 4.1, { align: 'center', color: c.primary, bg: c.card });
+        var Qtot = p.m * (C_ICE * (0 - Math.min(p.T0, 0)) + LF + C_W * 100 + LV + C_ST * 50), gx0 = 4.2, gx1 = 9.7, gy0 = 0.9, gy1 = 4.6, X = function (Q) { return gx0 + (gx1 - gx0) * Q / Qtot; }, Y = function (T) { return gy0 + (gy1 - gy0) * (T + 40) / 190; };
+        D.rect(gx0, gy0, gx1 - gx0, gy1 - gy0, { fill: c.card, stroke: c.line }); D.line(gx0, Y(0), gx1, Y(0), { color: c.line, dash: [3, 3], width: 1 }); D.line(gx0, Y(100), gx1, Y(100), { color: c.line, dash: [3, 3], width: 1 });
+        D.label('0 °C', gx0, Y(0), { dx: -4, align: 'right', color: c.muted }); D.label('100 °C', gx0, Y(100), { dx: -4, align: 'right', color: c.muted }); D.label('Q (kJ)', gx1, gy0, { dy: 12, align: 'right', color: c.muted }); D.label('กราฟ T-Q: ช่วงราบคือการเปลี่ยนสถานะ', gx0 + 0.1, gy1 - 0.05, { color: c.text });
+        var pts = [], Qa = 0, Ta = p.T0; pts.push([X(0), Y(Ta)]); if (Ta < 0) { Qa += p.m * C_ICE * (0 - Ta); pts.push([X(Qa), Y(0)]); } Qa += p.m * LF; pts.push([X(Qa), Y(0)]); Qa += p.m * C_W * 100; pts.push([X(Qa), Y(100)]); Qa += p.m * LV; pts.push([X(Qa), Y(100)]); Qa += p.m * C_ST * 50; pts.push([X(Qa), Y(150)]);
+        D.polyline(pts, { color: c.line, width: 1.5, dash: [5, 4] });
+        D.dot(X(Math.min(s.Q, Qtot)), Y(s.T), 6, c.red, { stroke: c.card, width: 1.5 });
+        [['mcΔT น้ำแข็ง', p.m * C_ICE * Math.max(0, -p.T0)], ['mL หลอม', p.m * LF], ['mcΔT น้ำ', p.m * C_W * 100], ['mL กลายเป็นไอ', p.m * LV]].forEach(function (it, k) { D.label(it[0] + ' ' + fmt(it[1] / 1000) + ' kJ', gx1 - 0.1, gy0 + 0.95 - k * 0.22, { align: 'right', color: c.muted }); });
+      } else {
+        var Tf = mix(p), Q1 = p.m1 * C_W * (p.T1 - Tf);
+        D.rect(1.2, 1.0, 2.6, 2.4, { fill: '#5FA8F5' }); D.line(1.2, 3.6, 1.2, 1.0, { color: c.text, width: 2.5 }); D.line(1.2, 1.0, 3.8, 1.0, { color: c.text, width: 2.5 }); D.line(3.8, 1.0, 3.8, 3.6, { color: c.text, width: 2.5 });
+        D.label('น้ำ m₁ = ' + p.m1 + ' kg · T₁ = ' + p.T1 + ' °C', 2.5, 3.7, { dy: -4, align: 'center', color: c.text, bold: true });
+        D.rect(2.1, 1.3, 0.8, 0.8, { fill: c.muted }); D.label('m₂ = ' + p.m2 + ' kg · c₂ = ' + p.c2 + ' · T₂ = ' + p.T2 + ' °C', 2.5, 1.15, { dy: 8, align: 'center', color: c.card });
+        D.arrow(4.3, 2.3, 1.2, 0, { color: c.red, width: 3, label: 'Q ถ่ายโอน ' + fmt(Math.abs(Q1) / 1000) + ' kJ' });
+        D.rect(6.2, 1.0, 2.6, 2.4, { fill: '#7FB7F2' }); D.line(6.2, 3.6, 6.2, 1.0, { color: c.text, width: 2.5 }); D.line(6.2, 1.0, 8.8, 1.0, { color: c.text, width: 2.5 }); D.line(8.8, 1.0, 8.8, 3.6, { color: c.text, width: 2.5 }); D.rect(7.1, 1.3, 0.8, 0.8, { fill: c.muted });
+        D.label('สมดุล: T สุดท้าย = ' + fmt(Tf) + ' °C', 7.5, 3.7, { dy: -4, align: 'center', color: c.primary, bold: true });
+        D.label('Q ลด (น้ำ) = m₁c₁(T₁ − T) = Q เพิ่ม (วัตถุ) = m₂c₂(T − T₂)', 0.3, 4.7, { color: c.text, bold: true });
+        D.label(fmt(p.m1) + '×4200×(' + p.T1 + ' − ' + fmt(Tf) + ') = ' + fmt(Q1 / 1000) + ' kJ · ' + p.m2 + '×' + p.c2 + '×(' + fmt(Tf) + ' − ' + p.T2 + ') = ' + fmt(p.m2 * p.c2 * (Tf - p.T2) / 1000) + ' kJ', 0.3, 4.3, { color: c.muted });
+        D.label('การถ่ายโอน: การนำ (ผ่านของแข็ง) การพา (ของไหลพาไป) การแผ่รังสี (ไม่ต้องมีตัวกลาง)', 0.3, 0.35, { color: c.text });
+      }
+    },
+    readouts: function (s, p) { if (p.mode === 'heat') return [{ label: 'T', value: s.T, unit: '°C', highlight: true }, { label: 'T (K)', value: s.T + 273, unit: 'K' }, { label: 'T (°F) = 1.8C + 32', value: 1.8 * s.T + 32, unit: '°F' }, { label: 'สถานะ', value: { ice: 'น้ำแข็ง', melting: 'หลอมเหลว', water: 'น้ำ', boiling: 'เดือด', steam: 'ไอน้ำ' }[s.phase] }, { label: 'Q ที่ให้แล้ว', value: s.Q / 1000, unit: 'kJ', highlight: true }, { label: 'Q หลอมทั้งหมด mL', value: p.m * LF / 1000, unit: 'kJ' }, { label: 'Q เดือดทั้งหมด mL', value: p.m * LV / 1000, unit: 'kJ' }]; var Tf = mix(p); return [{ label: 'T สุดท้าย', value: Tf, unit: '°C', highlight: true }, { label: 'Q ที่น้ำเสีย', value: p.m1 * C_W * (p.T1 - Tf) / 1000, unit: 'kJ' }, { label: 'Q ที่วัตถุได้', value: p.m2 * p.c2 * (Tf - p.T2) / 1000, unit: 'kJ' }]; },
+    formulas: function (s, p) { if (p.mode === 'heat') return [{ symbolic: 'Q = mcΔT (น้ำ 0 → 100 °C)', substituted: '= ' + p.m + ' × 4200 × 100', result: '= ' + fmt(p.m * C_W * 100 / 1000) + ' kJ' }, { symbolic: 'Q = mL (หลอม · กลายเป็นไอ)', substituted: '= ' + p.m + ' × 334 kJ · ' + p.m + ' × 2256 kJ', result: '= ' + fmt(p.m * LF / 1000) + ' · ' + fmt(p.m * LV / 1000) + ' kJ' }, { symbolic: 'K = °C + 273', substituted: '= ' + fmt(s.T) + ' + 273', result: '= ' + fmt(s.T + 273) + ' K' }]; var Tf = mix(p); return [{ symbolic: 'm₁c₁(T₁ − T) = m₂c₂(T − T₂)', substituted: 'T = (m₁c₁T₁ + m₂c₂T₂)/(m₁c₁ + m₂c₂)', result: '= ' + fmt(Tf) + ' °C' }]; },
+    sample: function (s, p) { return { T: p.mode === 'heat' ? s.T : mix(p) }; },
+    graphs: [{ title: 'T-t (โหมดให้ความร้อน)', x: 't', series: [{ key: 'T', label: 'T (°C)', color: '#B42318' }], window: 1200 }],
+    content: {
+      summary: '<b>อุณหภูมิ</b> แปลงหน่วยด้วย C/5 = (K − 273)/5 = (F − 32)/9 และ K = °C + 273 <b>ความจุความร้อนและความร้อนจำเพาะ</b> Q = mcΔT โดย c คือความร้อนจำเพาะของสาร (น้ำมีค่าสูงมาก จึงร้อนช้าเย็นช้า) <b>ความร้อนแฝง</b> ความร้อนที่ใช้เปลี่ยนสถานะโดยอุณหภูมิไม่เปลี่ยน Q = mL <b>การถ่ายโอนความร้อน</b> การนำ การพา การแผ่รังสี <b>สมดุลความร้อน</b> ของร้อนให้ความร้อนแก่ของเย็นจนอุณหภูมิเท่ากัน Q ลด = Q เพิ่ม',
+      tryIt: ['กดเล่นแล้วดูกราฟ T-Q ราบตรง 0 °C และ 100 °C ขณะเปลี่ยนสถานะ', 'สังเกตว่าช่วงเดือดใช้ความร้อนมากกว่าช่วงต้มน้ำ 0 → 100 °C หลายเท่า', 'โหมดสมดุล: เปลี่ยนวัตถุเป็นน้ำ ดูว่าอุณหภูมิสุดท้ายใกล้ค่ากลางมากขึ้น']
+    }
+  });
+})();
+</script>
+</body>
+</html>

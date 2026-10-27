@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S17.2 ความดันในของเหลว แมนอมิเตอร์ และบารอมิเตอร์ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S17.2 ความดันในของเหลว แมนอมิเตอร์ และบารอมิเตอร์ · บท 17 เรื่อง 2, 3, 4, 5, 6
+   สูตร: P = F/A · P สัมบูรณ์ = P₀ + ρgh · แรงที่ก้น = ρgh × A ก้น · ความดันเฉลี่ยบนผนัง = (บน + ล่าง)/2 · แมนอมิเตอร์ P แก๊ส = P₀ + ρgh · บารอมิเตอร์ P₀ = ρgh (ปรอท 760 mm)
+   แบบจำลองนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, g = 9.8, P0 = 1.013e5, RHO_HG = 13600;
+  var LIQ = [{ label: 'น้ำ 1000', value: 1000 }, { label: 'น้ำทะเล 1030', value: 1030 }, { label: 'น้ำมัน 800', value: 800 }, { label: 'ปรอท 13600', value: 13600 }];
+  function depthCalc(p) { var Pg = p.rho * g * p.h, Pd = p.rho * g * p.d; return { Pg: Pg, Pabs: P0 + Pg, Fbot: Pg * p.Ab, Pwall: Pg / 2, Pd: Pd, PdAbs: P0 + Pd }; }
+  PhysLab.createSim({
+    id: 'S17.2', chapter: 17, topics: [2, 3, 4, 5, 6], title: 'ความดันในของเหลว แมนอมิเตอร์ และบารอมิเตอร์', static: true,
+    alt: 'โหมดความลึก: ถังของเหลวมีจุดตรวจลากได้ ลูกศรความดันด้านข้างยาวขึ้นตามความลึก โหมดแมนอมิเตอร์: หลอดรูปตัว U ต่อกับถังแก๊ส ระดับของเหลวต่างกัน h โหมดบารอมิเตอร์: หลอดปรอทคว่ำในอ่าง',
+    depthCalc: depthCalc,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'ความดันตามความลึก', value: 'depth' }, { label: 'แมนอมิเตอร์', value: 'mano' }, { label: 'บารอมิเตอร์', value: 'baro' }], default: 'depth' },
+      rho: { label: 'ของเหลว (ความหนาแน่น kg/m³)', type: 'choice', options: LIQ, default: 1000 },
+      h: { label: 'ความลึกของเหลวในถัง', symbol: 'h', unit: 'm', type: 'range', min: 0.5, max: 10, step: 0.1, default: 3 },
+      d: { label: 'ความลึกจุดตรวจ (ลากได้)', symbol: 'd', unit: 'm', type: 'range', min: 0, max: 10, step: 0.1, default: 1.5, drag: true },
+      Ab: { label: 'พื้นที่ก้นถัง', symbol: 'A', unit: 'm²', type: 'range', min: 0.1, max: 5, step: 0.1, default: 1 },
+      Pgas: { label: 'ความดันเกจของแก๊ส (โหมดแมนอมิเตอร์)', unit: 'kPa', type: 'range', min: -30, max: 60, step: 1, default: 20 },
+      Patm: { label: 'ความดันบรรยากาศ (โหมดบารอมิเตอร์)', symbol: 'P₀', unit: 'kPa', type: 'range', min: 60, max: 110, step: 0.5, default: 101.3 }
+    },
+    presets: [{ label: 'น้ำลึก 3 m', values: { mode: 'depth', rho: 1000, h: 3, d: 1.5 } }, { label: 'ปรอท (หนักกว่าน้ำ 13.6 เท่า)', values: { mode: 'depth', rho: 13600, h: 1, d: 0.5 } }, { label: 'แมนอมิเตอร์ แก๊สดันมากกว่าบรรยากาศ', values: { mode: 'mano', rho: 1000, Pgas: 20 } }, { label: 'แมนอมิเตอร์ แก๊สดันน้อยกว่า', values: { mode: 'mano', rho: 13600, Pgas: -20 } }, { label: 'บารอมิเตอร์ระดับน้ำทะเล 760 mm', values: { mode: 'baro', Patm: 101.3 } }, { label: 'บารอมิเตอร์บนภูเขา 80 kPa', values: { mode: 'baro', Patm: 80 } }],
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      if (p.mode === 'depth') {
+        var C = depthCalc(p), x0 = 1.0, w = 3.0, H = 3.6, sc = H / p.h, dd = Math.min(p.d, p.h), yTop = 0.8 + H;
+        D.rect(x0, 0.8, w, H, { fill: p.rho > 5000 ? '#C9CDD3' : p.rho < 900 ? '#F3D9A4' : '#9EC9F5' }); D.line(x0, yTop + 0.3, x0, 0.8, { color: c.text, width: 3 }); D.line(x0, 0.8, x0 + w, 0.8, { color: c.text, width: 3 }); D.line(x0 + w, 0.8, x0 + w, yTop + 0.3, { color: c.text, width: 3 });
+        for (i = 1; i <= 6; i++) { var yy = yTop - H * i / 6, L = 0.15 + 0.55 * i / 6; D.arrow(x0 - 0.05, yy, -L, 0, { color: c.primary, width: 1.5 }); D.arrow(x0 + w + 0.05, yy, L, 0, { color: c.primary, width: 1.5 }); }
+        D.label('h = ' + p.h + ' m', x0 + w / 2, yTop + 0.05, { dy: -2, align: 'center', color: c.text });
+        D.line(x0 + w + 0.9, yTop, x0 + w + 0.9, yTop - dd * sc, { color: c.orange, width: 1.5 }); D.dot(x0 + w / 2, yTop - dd * sc, 7, c.orange, { stroke: c.card, width: 2 }); D.line(x0 + w / 2, yTop - dd * sc, x0 + w + 0.9, yTop - dd * sc, { color: c.orange, dash: [3, 3], width: 1 });
+        D.label('ลึก d = ' + fmt(dd) + ' m: P เกจ = ρgd = ' + fmt(p.rho * g * dd / 1000) + ' kPa', x0 + w + 1.0, yTop - dd * sc + 0.14, { color: c.orange, bg: c.card }); D.label('P สัมบูรณ์ = P₀ + ρgd = ' + fmt((P0 + p.rho * g * dd) / 1000) + ' kPa', x0 + w + 1.0, yTop - dd * sc - 0.14, { color: c.orange, bg: c.card });
+        D.label('ที่ก้น: P เกจ = ρgh = ' + fmt(C.Pg / 1000) + ' kPa · แรงที่ก้น = P × A = ' + fmt(C.Fbot) + ' N (A = ' + p.Ab + ' m²)', 0.3, 0.45, { color: c.primary, bold: true });
+        D.label('ผนังข้าง: ความดันเฉลี่ย = (0 + ρgh)/2 = ' + fmt(C.Pwall / 1000) + ' kPa · ไม่ขึ้นกับรูปทรงถัง', 0.3, 0.15, { color: c.text });
+        D.label('ρ = ' + p.rho + ' kg/m³ · P₀ = 101.3 kPa ที่ผิว', x0 + w + 1.0, yTop + 0.1, { color: c.muted });
+      } else if (p.mode === 'mano') {
+        var hm = p.Pgas * 1000 / (p.rho * g), sc2 = Math.min(1.2, 1.5 / Math.max(Math.abs(hm), 0.2)), dh = PhysLab.clamp(hm * sc2, -1.4, 1.4), yb = 1.0, ym = 2.6, xl = 4.2, xr = 5.6;
+        D.rect(1.2, 2.0, 2.0, 1.8, { fill: c.soft, stroke: c.text }); D.label('แก๊ส', 2.2, 3.0, { align: 'center', color: c.text, bold: true }); D.label('P แก๊ส', 2.2, 2.6, { align: 'center', color: c.text });
+        D.line(3.2, 2.9, xl, 2.9, { color: c.text, width: 2 }); D.line(xl, 2.9, xl, ym + dh / 2 + 0.01, { color: c.text, width: 2 });
+        D.rect(xl - 0.2, yb, 0.4, ym - dh / 2 - yb, { fill: p.rho > 5000 ? '#C9CDD3' : '#9EC9F5' }); D.rect(xr - 0.2, yb, 0.4, ym + dh / 2 - yb, { fill: p.rho > 5000 ? '#C9CDD3' : '#9EC9F5' }); D.rect(xl - 0.2, yb - 0.4, xr - xl + 0.4, 0.4, { fill: p.rho > 5000 ? '#C9CDD3' : '#9EC9F5' });
+        D.line(xl - 0.2, 4.4, xl - 0.2, yb - 0.4, { color: c.text, width: 2 }); D.line(xl - 0.2, yb - 0.4, xr + 0.2, yb - 0.4, { color: c.text, width: 2 }); D.line(xr + 0.2, yb - 0.4, xr + 0.2, 4.4, { color: c.text, width: 2 }); D.line(xl + 0.2, 4.4, xl + 0.2, yb, { color: c.text, width: 2 }); D.line(xl + 0.2, yb, xr - 0.2, yb, { color: c.text, width: 2 }); D.line(xr - 0.2, yb, xr - 0.2, 4.4, { color: c.text, width: 2 });
+        D.label('เปิดสู่อากาศ P₀', xr, 4.5, { dy: -2, align: 'center', color: c.muted });
+        D.line(xl - 0.5, ym - dh / 2, xr + 0.9, ym - dh / 2, { color: c.orange, dash: [3, 3], width: 1 }); D.line(xr + 0.6, ym - dh / 2, xr + 0.6, ym + dh / 2, { color: c.orange, width: 2 }); D.label('h = ' + fmt(Math.abs(hm) * 100) + ' cm', xr + 0.7, ym, { color: c.orange, bold: true });
+        D.label('ระดับเดียวกันในของเหลวเดียวกัน ความดันเท่ากัน', 6.3, 1.5, { color: c.text, bg: c.card });
+        D.label('P แก๊ส = P₀ ' + (p.Pgas >= 0 ? '+' : '−') + ' ρgh = 101.3 ' + (p.Pgas >= 0 ? '+' : '−') + ' ' + fmt(Math.abs(p.Pgas)) + ' = ' + fmt((P0 + p.Pgas * 1000) / 1000) + ' kPa', 0.3, 0.3, { color: c.primary, bold: true });
+        D.label(p.Pgas >= 0 ? 'แก๊สดันแรงกว่าบรรยากาศ ของเหลวฝั่งเปิดสูงกว่า' : 'แก๊สดันอ่อนกว่าบรรยากาศ ของเหลวฝั่งแก๊สสูงกว่า', 6.3, 1.2, { color: c.text, bg: c.card });
+      } else {
+        var hb = p.Patm * 1000 / (RHO_HG * g), hw = hb / 0.76 * 3.0;
+        D.rect(2.0, 0.8, 4.0, 0.6, { fill: '#C9CDD3' }); D.line(2.0, 1.6, 2.0, 0.8, { color: c.text, width: 2 }); D.line(2.0, 0.8, 6.0, 0.8, { color: c.text, width: 2 }); D.line(6.0, 0.8, 6.0, 1.6, { color: c.text, width: 2 });
+        D.rect(3.8, 1.0, 0.4, hw, { fill: '#C9CDD3' }); D.line(3.8, 4.8, 3.8, 1.0, { color: c.text, width: 2 }); D.line(3.8, 4.8, 4.2, 4.8, { color: c.text, width: 2 }); D.line(4.2, 4.8, 4.2, 1.0, { color: c.text, width: 2 });
+        D.label('สุญญากาศ', 4.0, 1.0 + hw + 0.2, { dy: -2, align: 'center', color: c.muted });
+        D.line(4.6, 1.4, 4.6, 1.0 + hw, { color: c.orange, width: 2 }); D.label('h = ' + fmt(hb * 1000) + ' mm ปรอท', 4.7, 1.2 + hw / 2, { color: c.orange, bold: true });
+        for (i = 0; i < 4; i++) D.arrow(2.4 + i * 0.6, 2.0, 0, -0.5, { color: c.primary, width: 1.5 }); for (i = 0; i < 2; i++) D.arrow(5.0 + i * 0.6, 2.0, 0, -0.5, { color: c.primary, width: 1.5 }); D.label('P₀ กดผิวปรอทในอ่าง', 2.4, 2.2, { color: c.primary });
+        D.label('P₀ = ρgh = 13600 × 9.8 × ' + fmt(hb) + ' = ' + fmt(p.Patm) + ' kPa', 0.3, 0.3, { color: c.primary, bold: true });
+        D.label('ถ้าใช้น้ำแทนปรอท ต้องสูง ' + fmt(p.Patm * 1000 / (1000 * g)) + ' m', 6.3, 3.5, { color: c.text, bg: c.card });
+      }
+    },
+    dragHandles: function (s, p) { if (p.mode !== 'depth') return []; var H = 3.6, sc = H / p.h, yTop = 0.8 + H; return [{ param: 'd', x: 2.5, y: yTop - Math.min(p.d, p.h) * sc, r: 16, map: function (wx, wy) { return PhysLab.clamp((yTop - wy) / sc, 0, p.h); } }]; },
+    readouts: function (s, p) { if (p.mode === 'depth') { var C = depthCalc(p), dd = Math.min(p.d, p.h); return [{ label: 'P เกจที่จุดตรวจ = ρgd', value: p.rho * g * dd, unit: 'Pa', highlight: true }, { label: 'P สัมบูรณ์ = P₀ + ρgd', value: P0 + p.rho * g * dd, unit: 'Pa', highlight: true }, { label: 'P เกจที่ก้น = ρgh', value: C.Pg, unit: 'Pa' }, { label: 'แรงที่ก้น = ρgh × A', value: C.Fbot, unit: 'N' }, { label: 'P เฉลี่ยบนผนังข้าง', value: C.Pwall, unit: 'Pa' }, { label: 'P₀ = 1 atm = 760 mmHg', value: P0, unit: 'Pa' }]; } if (p.mode === 'mano') return [{ label: 'h = |P แก๊ส − P₀|/ρg', value: Math.abs(p.Pgas * 1000 / (p.rho * g)), unit: 'm', highlight: true }, { label: 'P แก๊ส (สัมบูรณ์)', value: P0 + p.Pgas * 1000, unit: 'Pa', highlight: true }, { label: 'P เกจ', value: p.Pgas * 1000, unit: 'Pa' }]; var hb = p.Patm * 1000 / (RHO_HG * g); return [{ label: 'h ปรอท = P₀/ρg', value: hb * 1000, unit: 'mm', highlight: true }, { label: 'P₀', value: p.Patm * 1000, unit: 'Pa' }, { label: 'เทียบ atm', value: p.Patm / 101.3, unit: 'atm' }]; },
+    formulas: function (s, p) { if (p.mode === 'depth') { var dd = Math.min(p.d, p.h); return [{ symbolic: 'P = P₀ + ρgh', substituted: '= 1.013×10⁵ + ' + p.rho + ' × 9.8 × ' + fmt(dd), result: '= ' + fmt(P0 + p.rho * g * dd) + ' Pa' }, { symbolic: 'F ก้น = ρgh × A', substituted: '= ' + p.rho + ' × 9.8 × ' + p.h + ' × ' + p.Ab, result: '= ' + fmt(p.rho * g * p.h * p.Ab) + ' N' }]; } if (p.mode === 'mano') return [{ symbolic: 'P แก๊ส = P₀ + ρgh', substituted: 'h = ' + fmt(Math.abs(p.Pgas * 1000 / (p.rho * g))) + ' m', result: 'P แก๊ส = ' + fmt(P0 + p.Pgas * 1000) + ' Pa' }]; return [{ symbolic: 'P₀ = ρgh', substituted: 'h = ' + p.Patm + '×10³ / (13600 × 9.8)', result: '= ' + fmt(p.Patm * 1000 / (RHO_HG * g) * 1000) + ' mm' }]; },
+    content: {
+      summary: '<b>ความดัน</b> แรงต่อพื้นที่ P = F/A ความดันสัมบูรณ์ = ความดันบรรยากาศ + ความดันเกจ โดย P₀ ≈ 10⁵ Pa = 1 atm = 760 mmHg และความดันเกจในของเหลว = ρgh <b>ความดันที่ก้นภาชนะ</b> ขึ้นกับความลึกและความหนาแน่นเท่านั้น ไม่ขึ้นกับรูปทรง แรงที่ก้น = P × พื้นที่ก้น <b>ความดันด้านข้างภาชนะ</b> เพิ่มตามความลึก ความดันเฉลี่ยบนผนัง = (บน + ล่าง)/2 <b>แมนอมิเตอร์</b> หลอดรูปตัว U วัดความดันแก๊ส P แก๊ส = P₀ + ρgh <b>บารอมิเตอร์</b> หลอดปรอทคว่ำในอ่าง วัดความดันบรรยากาศ P₀ = ρgh (ปรอทสูง 760 mm)',
+      tryIt: ['ลากจุดตรวจลงลึก 2 เท่า ดูว่าความดันเกจเพิ่ม 2 เท่า', 'เปลี่ยนของเหลวเป็นปรอท ดูว่าความดันเพิ่ม 13.6 เท่าที่ความลึกเท่ากัน', 'โหมดบารอมิเตอร์: ลดความดันบรรยากาศ ดูว่าลำปรอทเตี้ยลง']
+    }
+  });
+})();
+</script>
+</body>
+</html>

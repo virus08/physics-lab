@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S16.2 กฎของแก๊สและแก๊สอุดมคติ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S16.2 กฎของแก๊สและแก๊สอุดมคติ · บท 16 เรื่อง 6, 7
+   สูตร: PV = nRT (R = 8.31) · บอยล์ PV คงที่ · ชาร์ล V/T คงที่ · เกย์-ลูสแซค P/T คงที่ · P₁V₁/n₁T₁ = P₂V₂/n₂T₂
+   กระบอกสูบ: ผู้ใช้เลือกตัวแปรที่คงที่ แล้วปรับอีกตัว โมเลกุลเคลื่อนที่ด้วยอัตราเร็ว ∝ √T · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, R = 8.31, rng = PhysLab.rng(7);
+  function P(p) { return p.n * R * p.T / (p.V * 1e-3); }
+  function init(p) { var ms = []; for (var i = 0; i < 40; i++) ms.push({ x: rng(), y: rng(), a: rng() * Math.PI * 2 }); return { ms: ms }; }
+  function step(s, p, dt) { var v = 0.35 * Math.sqrt(p.T / 300); s.ms.forEach(function (m) { m.x += Math.cos(m.a) * v * dt; m.y += Math.sin(m.a) * v * dt; if (m.x < 0) { m.x = -m.x; m.a = Math.PI - m.a; } if (m.x > 1) { m.x = 2 - m.x; m.a = Math.PI - m.a; } if (m.y < 0) { m.y = -m.y; m.a = -m.a; } if (m.y > 1) { m.y = 2 - m.y; m.a = -m.a; } }); return s; }
+  PhysLab.createSim({
+    id: 'S16.2', chapter: 16, topics: [6, 7], title: 'กฎของแก๊สและแก๊สอุดมคติ',
+    alt: 'กระบอกสูบมีลูกสูบด้านบน โมเลกุลแก๊สวิ่งชนผนัง ความสูงลูกสูบแทนปริมาตร มาตรวัดความดันและเทอร์โมมิเตอร์ ด้านขวาเป็นกราฟ P-V',
+    P: P,
+    params: {
+      n: { label: 'จำนวนโมล', symbol: 'n', unit: 'mol', type: 'range', min: 0.1, max: 5, step: 0.1, default: 1 },
+      V: { label: 'ปริมาตร', symbol: 'V', unit: 'L', type: 'range', min: 2, max: 60, step: 0.5, default: 24, drag: true },
+      T: { label: 'อุณหภูมิ', symbol: 'T', unit: 'K', type: 'range', min: 100, max: 800, step: 5, default: 300 }
+    },
+    presets: [{ label: '1 mol 24 L 300 K (≈ 1 atm)', values: { n: 1, V: 24, T: 300 } }, { label: 'บอยล์: V ครึ่งหนึ่ง (P 2 เท่า)', values: { n: 1, V: 12, T: 300 } }, { label: 'เกย์-ลูสแซค: T 2 เท่า (P 2 เท่า)', values: { n: 1, V: 24, T: 600 } }, { label: 'ชาร์ล: T 2 เท่า V 2 เท่า (P เท่าเดิม)', values: { n: 1, V: 48, T: 600 } }, { label: 'เพิ่มโมลเป็น 2 เท่า', values: { n: 2, V: 24, T: 300 } }],
+    speeds: [1], dt: 1 / 120,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: init, step: step,
+    timeLabel: function () { return ''; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, Pa = P(p), h = 0.6 + 3.6 * p.V / 60, x0 = 0.8, w = 2.6, y0 = 0.6;
+      D.rect(x0, y0, w, h, { fill: c.accentSoft }); D.line(x0, y0 + 4.4, x0, y0, { color: c.text, width: 3 }); D.line(x0, y0, x0 + w, y0, { color: c.text, width: 3 }); D.line(x0 + w, y0, x0 + w, y0 + 4.4, { color: c.text, width: 3 });
+      D.rect(x0, y0 + h, w, 0.18, { fill: c.muted }); D.line(x0 + w / 2, y0 + h + 0.18, x0 + w / 2, y0 + 4.6, { color: c.muted, width: 5 });
+      var nshow = Math.min(40, Math.round(p.n * 12)), col = 'hsl(' + (240 - PhysLab.clamp((p.T - 100) / 700, 0, 1) * 240) + ', 75%, 45%)';
+      for (var i = 0; i < nshow; i++) { var m = s.ms[i]; D.dot(x0 + 0.08 + m.x * (w - 0.16), y0 + 0.08 + m.y * (h - 0.16), 3.5, col, {}); }
+      D.label('V = ' + p.V + ' L', x0 + w / 2, y0 + h + 0.3, { dy: -2, align: 'center', color: c.text, bold: true });
+      D.label('n = ' + p.n + ' mol · T = ' + p.T + ' K (' + (p.T - 273) + ' °C)', x0 + w / 2, 0.35, { dy: 6, align: 'center', color: c.text });
+      D.rect(4.0, 0.6, 0.5, 4.0, { fill: c.soft }); D.rect(4.0, 0.6, 0.5, 4.0 * PhysLab.clamp(Pa / 5e5, 0, 1), { fill: c.orange }); D.label('P = ' + fmt(Pa / 1000) + ' kPa', 4.25, 0.45, { dy: 6, align: 'center', color: c.orange, bold: true }); D.label('= ' + fmt(Pa / 101325) + ' atm', 4.25, 0.2, { dy: 6, align: 'center', color: c.orange });
+      var gx0 = 5.6, gx1 = 9.7, gy0 = 0.9, gy1 = 4.5, X = function (V) { return gx0 + (gx1 - gx0) * V / 60; }, Y = function (Pv) { return gy0 + (gy1 - gy0) * PhysLab.clamp(Pv / 5e5, 0, 1); };
+      D.rect(gx0, gy0, gx1 - gx0, gy1 - gy0, { fill: c.card, stroke: c.line }); D.label('V (L)', gx1, gy0, { dy: 12, align: 'right', color: c.muted }); D.label('P (kPa)', gx0, gy1 + 0.05, { dy: -4, color: c.muted });
+      [100, 200, 400].forEach(function (Tk) { var pts = []; for (var V = 2; V <= 60; V += 1) pts.push([X(V), Y(p.n * R * Tk / (V * 1e-3))]); D.polyline(pts, { color: c.line, width: 1, dash: [3, 3] }); D.label(Tk + ' K', X(60), Y(p.n * R * Tk / 0.06), { dx: -28, dy: -6, color: c.muted }); });
+      var cur = []; for (var V2 = 2; V2 <= 60; V2 += 1) cur.push([X(V2), Y(p.n * R * p.T / (V2 * 1e-3))]); D.polyline(cur, { color: c.primary, width: 2 });
+      D.dot(X(p.V), Y(Pa), 6, c.red, { stroke: c.card, width: 1.5 }); D.label('เส้นอุณหภูมิคงที่ (บอยล์) PV = คงที่', gx1 - 0.1, gy1 - 0.15, { align: 'right', color: c.text });
+      D.label('PV = nRT = ' + p.n + ' × 8.31 × ' + p.T + ' = ' + fmt(p.n * R * p.T) + ' J', 0.3, 4.95, { color: c.primary, bold: true });
+    },
+    dragHandles: function (s, p) { return [{ param: 'V', x: 2.1, y: 0.6 + 0.6 + 3.6 * p.V / 60 + 0.09, r: 16, map: function (wx, wy) { return PhysLab.clamp((wy - 1.29) / 3.6 * 60, 2, 60); } }]; },
+    readouts: function (s, p) { var Pa = P(p); return [{ label: 'P = nRT/V', value: Pa, unit: 'Pa', highlight: true }, { label: 'P (atm)', value: Pa / 101325, unit: 'atm' }, { label: 'PV', value: Pa * p.V * 1e-3, unit: 'J' }, { label: 'nRT', value: p.n * R * p.T, unit: 'J' }, { label: 'จำนวนโมเลกุล N = nN_A', value: p.n * 6.02e23 }, { label: 'V/T (ชาร์ล)', value: p.V / p.T, unit: 'L/K' }, { label: 'P/T (เกย์-ลูสแซค)', value: Pa / p.T, unit: 'Pa/K' }]; },
+    formulas: function (s, p) { var Pa = P(p); return [{ symbolic: 'PV = nRT', substituted: 'P = ' + p.n + ' × 8.31 × ' + p.T + ' / ' + p.V + '×10⁻³', result: '= ' + fmt(Pa) + ' Pa' }, { symbolic: 'P₁V₁/n₁T₁ = P₂V₂/n₂T₂', substituted: 'PV/nT = ' + fmt(Pa * p.V * 1e-3 / (p.n * p.T)), result: '= R = 8.31 J/mol·K เสมอ' }]; },
+    content: {
+      summary: '<b>กฎของแก๊ส</b> บอยล์ PV คงที่เมื่อ T คงที่ ชาร์ล V/T คงที่เมื่อ P คงที่ เกย์-ลูสแซค P/T คงที่เมื่อ V คงที่ อาโวกาโดร V/n คงที่ รวมกันเป็น P₁V₁/n₁T₁ = P₂V₂/n₂T₂ <b>กฎของแก๊สอุดมคติ</b> PV = nRT หรือ PV = Nk_BT โดย R = 8.31 J/mol·K เชื่อมความดัน ปริมาตร จำนวนโมล และอุณหภูมิไว้ในสมการเดียว',
+      tryIt: ['ลากลูกสูบลงให้ V เหลือครึ่งหนึ่ง (T คงที่) ดูว่า P เพิ่ม 2 เท่า และจุดเลื่อนตามเส้นโค้งบอยล์', 'เพิ่ม T เป็น 2 เท่าโดยไม่ขยับลูกสูบ ดูว่า P เพิ่ม 2 เท่า และโมเลกุลวิ่งเร็วขึ้น', 'เพิ่ม T เป็น 2 เท่าแล้วขยับ V เป็น 2 เท่า ดูว่า P กลับมาเท่าเดิม (ชาร์ล)']
+    }
+  });
+})();
+</script>
+</body>
+</html>

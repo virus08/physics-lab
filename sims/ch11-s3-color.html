@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S11.3 แสงสีและการดูดกลืน · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S11.3 แสงสีและการดูดกลืน · บท 11 เรื่อง 10, 11
+   หลัก: แม่สีของแสง แดง เขียว น้ำเงิน ผสมแบบบวก · วัตถุสะท้อนเฉพาะองค์ประกอบสีของมัน ดูดกลืนที่เหลือ
+   แบบจำลองนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var NAMES = { '000': 'ดำ (ไม่มีแสง)', '100': 'แดง', '010': 'เขียว', '001': 'น้ำเงิน', '110': 'เหลือง', '101': 'ม่วงแดง', '011': 'ฟ้าน้ำทะเล', '111': 'ขาว' };
+  var OBJ = { red: [1, 0, 0], green: [0, 1, 0], blue: [0, 0, 1], yellow: [1, 1, 0], magenta: [1, 0, 1], cyan: [0, 1, 1], white: [1, 1, 1], black: [0, 0, 0] };
+  function key(v) { return v.map(function (x) { return x ? '1' : '0'; }).join(''); }
+  function rgb(v) { return 'rgb(' + (v[0] ? 235 : 20) + ',' + (v[1] ? 215 : 20) + ',' + (v[2] ? 235 : 20) + ')'; }
+  function light(p) { return [p.r ? 1 : 0, p.g ? 1 : 0, p.b ? 1 : 0]; }
+  function seen(p) { var l = light(p), o = OBJ[p.obj]; return [l[0] && o[0] ? 1 : 0, l[1] && o[1] ? 1 : 0, l[2] && o[2] ? 1 : 0]; }
+  PhysLab.createSim({
+    id: 'S11.3', chapter: 11, topics: [10, 11], title: 'แสงสีและการดูดกลืน', static: true,
+    alt: 'โหมดผสมแสง: วงกลมแสงแดง เขียว น้ำเงิน ซ้อนกันบนพื้นมืด ส่วนที่ซ้อนเป็นเหลือง ม่วงแดง ฟ้าน้ำทะเล และขาวตรงกลาง โหมดดูดกลืน: ไฟฉายส่องวัตถุสี แล้วตาเห็นสีที่สะท้อนออกมา',
+    seen: seen, light: light,
+    params: {
+      mode: { label: 'เรื่อง', type: 'choice', options: [{ label: 'ผสมแสงสี', value: 'mix' }, { label: 'วัตถุดูดกลืนแสงสี', value: 'absorb' }], default: 'mix' },
+      r: { label: 'แสงแดง', type: 'toggle', default: true },
+      g: { label: 'แสงเขียว', type: 'toggle', default: true },
+      b: { label: 'แสงน้ำเงิน', type: 'toggle', default: true },
+      obj: { label: 'สีวัตถุ (โหมดดูดกลืน)', type: 'choice', options: [{ label: 'แดง', value: 'red' }, { label: 'เขียว', value: 'green' }, { label: 'น้ำเงิน', value: 'blue' }, { label: 'เหลือง', value: 'yellow' }, { label: 'ม่วงแดง', value: 'magenta' }, { label: 'ฟ้าน้ำทะเล', value: 'cyan' }, { label: 'ขาว', value: 'white' }, { label: 'ดำ', value: 'black' }], default: 'yellow' }
+    },
+    presets: [{ label: 'แดง + เขียว = เหลือง', values: { mode: 'mix', r: true, g: true, b: false } }, { label: 'แดง + น้ำเงิน = ม่วงแดง', values: { mode: 'mix', r: true, g: false, b: true } }, { label: 'เขียว + น้ำเงิน = ฟ้าน้ำทะเล', values: { mode: 'mix', r: false, g: true, b: true } }, { label: 'สามสี = ขาว', values: { mode: 'mix', r: true, g: true, b: true } }, { label: 'แสงขาวส่องวัตถุเหลือง', values: { mode: 'absorb', r: true, g: true, b: true, obj: 'yellow' } }, { label: 'แสงน้ำเงินส่องวัตถุเหลือง (เห็นดำ)', values: { mode: 'absorb', r: false, g: false, b: true, obj: 'yellow' } }, { label: 'แสงแดงส่องวัตถุขาว', values: { mode: 'absorb', r: true, g: false, b: false, obj: 'white' } }],
+    world: { xMin: -4, xMax: 4, yMin: -2.6, yMax: 2.6 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, W = D.world;
+      if (p.mode === 'mix') {
+        D.rect(W.xMin, W.yMin, W.xMax - W.xMin, W.yMax - W.yMin, { fill: '#0b0f16' });
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        if (p.r) D.circle(0, 0.75, 1.5, { fill: 'rgb(230,30,30)' }); if (p.g) D.circle(-0.85, -0.6, 1.5, { fill: 'rgb(30,210,30)' }); if (p.b) D.circle(0.85, -0.6, 1.5, { fill: 'rgb(40,60,235)' });
+        ctx.restore();
+        D.label('แดง', 0, 1.85, { align: 'center', color: '#ff8a8a', bold: true }); D.label('เขียว', -1.75, -1.4, { align: 'center', color: '#8dff8d', bold: true }); D.label('น้ำเงิน', 1.75, -1.4, { align: 'center', color: '#9fb0ff', bold: true });
+        var k = key(light(p)); D.label('ผสมแล้วได้: ' + NAMES[k], W.xMin + 0.2, W.yMax - 0.3, { color: '#ffffff', bold: true });
+        if (p.r && p.g) D.label('เหลือง', -0.55, 0.35, { align: 'center', color: '#111' }); if (p.r && p.b) D.label('ม่วงแดง', 0.55, 0.35, { align: 'center', color: '#111' }); if (p.g && p.b) D.label('ฟ้าน้ำทะเล', 0, -1.0, { align: 'center', color: '#111' }); if (p.r && p.g && p.b) D.label('ขาว', 0, -0.15, { align: 'center', color: '#111', bold: true });
+      } else {
+        var l = light(p), o = OBJ[p.obj], sn = seen(p), lc = rgb(l), oc = rgb(o), sc = rgb(sn);
+        D.rect(W.xMin, W.yMin, W.xMax - W.xMin, W.yMax - W.yMin, { fill: '#1a2029' });
+        D.rect(-3.8, -0.4, 0.9, 0.8, { fill: '#555' }); D.rect(-2.9, -0.55, 0.3, 1.1, { fill: '#888' }); D.label('ไฟฉาย', -3.35, -0.5, { dy: 14, align: 'center', color: '#ddd' });
+        D.polyline([[-2.6, 0.55], [-0.9, 1.1], [-0.9, -1.1], [-2.6, -0.55]], { close: true, fill: lc, alpha: 0.35 }); D.arrow(-2.4, 0, 1.3, 0, { color: lc, width: 3 });
+        D.label('แสงที่ฉาย: ' + NAMES[key(l)], -1.75, 1.3, { align: 'center', color: '#fff' });
+        D.circle(0, 0, 0.9, { fill: oc, stroke: '#fff', width: 2 }); D.label('วัตถุสี' + (NAMES[key(o)] || '').split(' ')[0], 0, -1.0, { dy: 14, align: 'center', color: '#fff' });
+        D.arrow(0.95, 0, 1.6, 0.9, { color: sc, width: 3 });
+        D.circle(2.9, 1.1, 0.3, { fill: '#fff', stroke: '#333', width: 2 }); D.dot(2.9, 1.1, 8, '#333', {}); D.label('ตาเห็น: ' + NAMES[key(sn)], 2.9, 1.5, { align: 'center', color: '#fff', bold: true });
+        var abs = []; ['แดง', 'เขียว', 'น้ำเงิน'].forEach(function (nm, i) { if (l[i] && !o[i]) abs.push(nm); });
+        D.label('ดูดกลืนไว้: ' + (abs.length ? abs.join(' ') : 'ไม่มี'), 0, -1.7, { align: 'center', color: '#ffb199' });
+        if (abs.length) D.arrow(0, -0.9, 0, -0.5, { color: '#ffb199', width: 2 });
+      }
+    },
+    readouts: function (s, p) { var l = light(p); if (p.mode === 'mix') return [{ label: 'แสงที่เปิด', value: ['แดง', 'เขียว', 'น้ำเงิน'].filter(function (n, i) { return l[i]; }).join(' + ') || 'ไม่มี' }, { label: 'สีที่ได้', value: NAMES[key(l)], highlight: true }]; var o = OBJ[p.obj], sn = seen(p); return [{ label: 'แสงที่ฉาย', value: NAMES[key(l)] }, { label: 'วัตถุสะท้อนได้', value: NAMES[key(o)] }, { label: 'ตาเห็น', value: NAMES[key(sn)], highlight: true }, { label: 'ดูดกลืน', value: ['แดง', 'เขียว', 'น้ำเงิน'].filter(function (n, i) { return l[i] && !o[i]; }).join(' ') || 'ไม่มี' }]; },
+    formulas: function (s, p) { return p.mode === 'mix' ? [{ symbolic: 'แดง + เขียว = เหลือง · แดง + น้ำเงิน = ม่วงแดง · เขียว + น้ำเงิน = ฟ้าน้ำทะเล', substituted: 'แดง + เขียว + น้ำเงิน', result: '= ขาว' }] : [{ symbolic: 'สีที่เห็น = สีในแสง ∩ สีที่วัตถุสะท้อน', substituted: NAMES[key(light(p))] + ' ∩ ' + NAMES[key(OBJ[p.obj])], result: '= ' + NAMES[key(seen(p))] }]; },
+    content: {
+      summary: '<b>แสงสี</b> แม่สีของแสงคือ แดง เขียว น้ำเงิน ผสมสองสีได้ เหลือง (แดง + เขียว) ม่วงแดง (แดง + น้ำเงิน) ฟ้าน้ำทะเล (เขียว + น้ำเงิน) ผสมสามสีได้ขาว <b>การดูดกลืนแสงสี</b> วัตถุมีสีอะไรเพราะสะท้อนแสงสีนั้นออกมาและดูดกลืนสีอื่นไว้ วัตถุดำดูดกลืนทุกสี วัตถุขาวสะท้อนทุกสี',
+      tryIt: ['ปิดแสงน้ำเงิน ดูว่าตรงกลางกลายเป็นเหลือง', 'โหมดดูดกลืน: ส่องแสงน้ำเงินใส่วัตถุเหลือง ดูว่าเห็นเป็นสีดำ', 'ส่องแสงสีใด ๆ ใส่วัตถุขาว ดูว่าเห็นสีเดียวกับแสงเสมอ']
+    }
+  });
+})();
+</script>
+</body>
+</html>

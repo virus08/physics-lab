@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S10.1 สลิตเดี่ยว · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S10.1 สลิตเดี่ยว · บท 10 เรื่อง 1, 2
+   สูตร: แถบมืดที่ a sinθ = nλ (n = 1, 2, 3, …) · ความเข้ม I = I₀ (sinβ/β)², β = πa sinθ/λ · ตำแหน่งบนฉาก y = L tanθ
+   แบบจำลองนิ่ง (คำนวณจากสูตรโดยตรง) · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, deg = PhysLab.deg, SUB = ['₁', '₂', '₃', '₄', '₅'];
+  function wl2rgb(l) { var r, g, b; if (l < 440) { r = -(l - 440) / 60; g = 0; b = 1; } else if (l < 490) { r = 0; g = (l - 440) / 50; b = 1; } else if (l < 510) { r = 0; g = 1; b = -(l - 510) / 20; } else if (l < 580) { r = (l - 510) / 70; g = 1; b = 0; } else if (l < 645) { r = 1; g = -(l - 645) / 65; b = 0; } else { r = 1; g = 0; b = 0; } var f = l < 420 ? 0.4 + 0.6 * (l - 380) / 40 : l > 700 ? 0.4 + 0.6 * (780 - l) / 80 : 1; return [Math.round(255 * r * f), Math.round(255 * g * f), Math.round(255 * b * f)]; }
+  function dark(p, n) { var s = n * p.lam * 1e-9 / (p.a * 1e-6); return s < 1 ? p.L * Math.tan(Math.asin(s)) * 1000 : NaN; }
+  function calc(p) { var s1 = p.lam * 1e-9 / (p.a * 1e-6), y1 = dark(p, 1); return { s1: s1, th1: s1 < 1 ? deg(Math.asin(s1)) : NaN, y1: y1, width: 2 * y1, nmax: Math.floor(p.a * 1e-6 / (p.lam * 1e-9)), Ymax: isFinite(y1) ? Math.min(Math.max(3.3 * y1, 2), 700) : 700 }; }
+  function I(p, ymm) { var th = Math.atan(ymm / 1000 / p.L), b = Math.PI * p.a * 1e-6 * Math.sin(th) / (p.lam * 1e-9); return Math.abs(b) < 1e-9 ? 1 : Math.pow(Math.sin(b) / b, 2); }
+  PhysLab.createSim({
+    id: 'S10.1', chapter: 10, topics: [1, 2], title: 'สลิตเดี่ยว', static: true,
+    alt: 'แสงสีเดียวผ่านสลิตเดี่ยวทางซ้าย ตกบนฉากทางขวา เห็นแถบกลางสว่างกว้างและแถบข้างจางลง มีกราฟความเข้มและตำแหน่งแถบมืด y₁ y₂ กำกับ',
+    calc: calc, I: I, dark: dark,
+    params: {
+      lam: { label: 'ความยาวคลื่นแสง', symbol: 'λ', unit: 'nm', type: 'range', min: 400, max: 700, step: 10, default: 550 },
+      a: { label: 'ความกว้างสลิต', symbol: 'a', unit: 'µm', type: 'range', min: 5, max: 100, step: 1, default: 40 },
+      L: { label: 'ระยะสลิตถึงฉาก', symbol: 'L', unit: 'm', type: 'range', min: 0.5, max: 3, step: 0.1, default: 1.5 }
+    },
+    presets: [{ label: 'เขียว 550 nm a = 40 µm', values: { lam: 550, a: 40, L: 1.5 } }, { label: 'สลิตแคบลง (แถบกว้างขึ้น)', values: { a: 15 } }, { label: 'สลิตกว้าง 100 µm', values: { a: 100 } }, { label: 'แสงแดง 700 nm', values: { lam: 700 } }, { label: 'แสงม่วง 400 nm', values: { lam: 400 } }],
+    toggles: [{ key: 'rays', label: 'แนวไปแถบมืดที่ 1' }, { key: 'curve', label: 'กราฟความเข้ม' }],
+    world: { xMin: -1.08, xMax: 1.08, yMin: -1.12, yMax: 1.12 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p), rgb = wl2rgb(p.lam), col = 'rgb(' + rgb.join(',') + ')', Y = C.Ymax, sx0 = 0.5, sw = 0.08, N = 200, i;
+      for (i = -2; i <= 2; i++) D.arrow(-1.02, i * 0.3, 0.2, 0, { color: col, width: 2 });
+      D.label('แสง λ = ' + p.lam + ' nm', -1.02, -0.8, { color: col, bold: true });
+      D.rect(-0.78, 0.05, 0.05, 1.0, { fill: c.muted }); D.rect(-0.78, -1.05, 0.05, 1.0, { fill: c.muted });
+      D.label('สลิต a = ' + p.a + ' µm', -0.755, 1.05, { dy: -8, align: 'center' });
+      D.rect(sx0, -1.05, sw, 2.1, { fill: '#0b0f16' });
+      for (i = 0; i < N; i++) { var yw = -1.05 + 2.1 * (i + 0.5) / N, Ii = I(p, yw * Y); ctx.save(); ctx.globalAlpha = Math.min(1, Math.pow(Ii, 0.55)); D.rect(sx0, -1.05 + 2.1 * i / N, sw, 2.1 / N + 0.004, { fill: col }); ctx.restore(); }
+      D.label('ฉาก (L = ' + p.L + ' m)', sx0 + sw / 2, 1.05, { dy: -8, align: 'center' });
+      D.line(-0.755, 0, sx0, 0, { color: c.line, dash: [3, 4], width: 1 });
+      for (var n = 1; n <= 3; n++) { var ymm = dark(p, n); if (!isFinite(ymm)) break; var yw2 = ymm / Y; if (yw2 > 1.02) break; [1, -1].forEach(function (sg) { D.line(sx0 + sw, sg * yw2, sx0 + sw + 0.04, sg * yw2, { color: c.text, width: 1.5 }); D.label((sg < 0 ? '−' : '') + 'y' + SUB[n - 1] + ' = ' + fmt(ymm) + ' mm', sx0 + sw + 0.06, sg * yw2, { color: c.text }); }); }
+      if (D.view.rays && isFinite(C.y1) && C.y1 / Y <= 1.02) { var y1w = C.y1 / Y; D.line(-0.755, 0, sx0, y1w, { color: c.text, dash: [5, 4], width: 1 }); D.line(-0.755, 0, sx0, -y1w, { color: c.text, dash: [5, 4], width: 1 }); var a1 = Math.atan2(-(D.y(y1w) - D.y(0)), D.x(sx0) - D.x(-0.755)); D.angle(-0.755, 0, 70, 0, a1, { label: 'θ₁ = ' + fmt(C.th1) + '°' }); }
+      if (D.view.curve) { var pts = []; for (i = 0; i <= N; i++) { var yw3 = -1.05 + 2.1 * i / N; pts.push([0.66 + 0.36 * I(p, yw3 * Y), yw3]); } D.line(0.66, -1.05, 0.66, 1.05, { color: c.line, width: 1 }); D.polyline(pts, { color: col, width: 2 }); D.label('I', 1.0, 0, { color: c.muted }); }
+      D.label('แถบกลางกว้าง 2y₁ = ' + (isFinite(C.width) ? fmt(C.width) + ' mm' : 'กว้างมาก (a < λ)') + ' · แถบมืดที่ a sinθ = nλ', -1.02, -1.1, { color: c.text });
+    },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'sinθ₁ = λ/a', value: C.s1 }, { label: 'θ₁', value: C.th1, unit: '°', highlight: true }, { label: 'y₁ = L tanθ₁', value: C.y1, unit: 'mm', highlight: true }, { label: 'แถบกลางกว้าง 2y₁', value: C.width, unit: 'mm' }, { label: 'y₂', value: dark(p, 2), unit: 'mm' }, { label: 'จำนวนแถบมืดต่อข้าง', value: C.nmax }]; },
+    formulas: function (s, p) { var C = calc(p); return [{ symbolic: 'a sinθ₁ = λ', substituted: 'sinθ₁ = ' + p.lam + '×10⁻⁹ / ' + p.a + '×10⁻⁶', result: '= ' + fmt(C.s1) + (isFinite(C.th1) ? ' → θ₁ = ' + fmt(C.th1) + '°' : ' > 1 ไม่มีแถบมืด') }, { symbolic: 'y₁ = L tanθ₁', substituted: '= ' + p.L + ' × tan ' + fmt(C.th1) + '°', result: '= ' + fmt(C.y1) + ' mm' }, { symbolic: 'ความกว้างแถบกลาง ≈ 2λL/a', substituted: '= 2 × ' + p.lam + '×10⁻⁹ × ' + p.L + ' / ' + p.a + '×10⁻⁶', result: '= ' + fmt(2 * p.lam * 1e-9 * p.L / (p.a * 1e-6) * 1000) + ' mm' }]; },
+    content: {
+      summary: '<b>แถบสว่างและแถบมืด</b> ตำแหน่งที่คลื่นแสงเสริมกันเห็นเป็นแถบสว่าง (ปฏิบัพ) ตำแหน่งที่หักล้างกันเห็นเป็นแถบมืด (บัพ) <b>สลิตเดี่ยว</b> แสงผ่านช่องเดียว ได้แถบกลางกว้างและสว่างที่สุด แถบข้างค่อยจางลง แถบมืดอยู่ที่ a sinθ = nλ (n = 1, 2, 3, …) ส่วนแถบสว่างไม่มีสูตรง่าย',
+      tryIt: ['ลดความกว้างสลิตลง ดูว่าแถบกลางกว้างขึ้น (ยิ่งช่องแคบ ยิ่งเลี้ยวเบนมาก)', 'เปลี่ยนจากแสงม่วงเป็นแสงแดง ดูว่า y₁ เพิ่มตาม λ', 'เพิ่ม L เป็น 2 เท่า ดูว่า y₁ เพิ่ม 2 เท่าแต่มุม θ₁ เท่าเดิม']
+    }
+  });
+})();
+</script>
+</body>
+</html>

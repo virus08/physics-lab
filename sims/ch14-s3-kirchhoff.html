@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S14.3 กฎของเคอร์ชฮอฟฟ์ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S14.3 กฎของเคอร์ชฮอฟฟ์ · บท 14 เรื่อง 8, 9
+   KCL: Σ I เข้า = Σ I ออก ที่ทุกจุด · KVL: Σ E = Σ IR ในทุกวงปิด · วงจรสองลูป: I₃ = (E₁/R₁ + E₂/R₂)/(1 + R₃/R₁ + R₃/R₂)
+   วงจรนิ่ง แอนิเมชันจุดกระแสตามทิศจริง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt;
+  function calc(p) { var E2 = p.flip ? -p.E2 : p.E2, I3 = (p.E1 / p.R1 + E2 / p.R2) / (1 + p.R3 / p.R1 + p.R3 / p.R2), I1 = (p.E1 - I3 * p.R3) / p.R1, I2 = (E2 - I3 * p.R3) / p.R2; return { E2: E2, I1: I1, I2: I2, I3: I3, V1: I1 * p.R1, V2: I2 * p.R2, V3: I3 * p.R3, kvl1: p.E1 - I1 * p.R1 - I3 * p.R3, kvl2: E2 - I2 * p.R2 - I3 * p.R3 }; }
+  PhysLab.createSim({
+    id: 'S14.3', chapter: 14, topics: [8, 9], title: 'กฎของเคอร์ชฮอฟฟ์',
+    alt: 'วงจรสองลูป มีแบตเตอรี่สองก้อนที่สายซ้ายและขวา ตัวต้านทานสามตัว จุด A ด้านบนเป็นจุดรวมกระแส ลูกศรแสดงทิศและขนาดกระแส I₁ I₂ I₃',
+    calc: calc,
+    params: {
+      E1: { label: 'E₁ (สายซ้าย ขั้วบวกขึ้น)', symbol: 'E₁', unit: 'V', type: 'range', min: 0, max: 24, step: 0.5, default: 12 },
+      E2: { label: 'E₂ (สายขวา)', symbol: 'E₂', unit: 'V', type: 'range', min: 0, max: 24, step: 0.5, default: 6 },
+      flip: { label: 'กลับขั้ว E₂', type: 'toggle', default: false },
+      R1: { label: 'R₁ (สายซ้าย)', symbol: 'R₁', unit: 'Ω', type: 'range', min: 0.5, max: 20, step: 0.5, default: 4 },
+      R2: { label: 'R₂ (สายขวา)', symbol: 'R₂', unit: 'Ω', type: 'range', min: 0.5, max: 20, step: 0.5, default: 2 },
+      R3: { label: 'R₃ (สายกลาง)', symbol: 'R₃', unit: 'Ω', type: 'range', min: 0.5, max: 20, step: 0.5, default: 6 }
+    },
+    presets: [{ label: 'E₁ 12 V E₂ 6 V', values: { E1: 12, E2: 6, flip: false, R1: 4, R2: 2, R3: 6 } }, { label: 'กลับขั้ว E₂ (กระแสสายขวากลับทิศ)', values: { flip: true } }, { label: 'E₂ = 0 (แบตเดียว)', values: { E2: 0, flip: false } }, { label: 'แบตเท่ากัน R เท่ากัน (สมมาตร)', values: { E1: 12, E2: 12, flip: false, R1: 4, R2: 4, R3: 6 } }],
+    toggles: [{ key: 'flow', label: 'จุดแสดงกระแส' }],
+    speeds: [1], dt: 1 / 120,
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return { ph: 0 }; }, step: function (s, p, dt) { s.ph += dt; return s; },
+    timeLabel: function () { return ''; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, C = calc(p);
+      function batt(x, y, up) { D.line(x - 0.3, y + (up ? 0.15 : -0.15), x + 0.3, y + (up ? 0.15 : -0.15), { color: c.text, width: 3 }); D.line(x - 0.15, y - (up ? 0.15 : -0.15), x + 0.15, y - (up ? 0.15 : -0.15), { color: c.text, width: 3 }); D.label('+', x + 0.45, y + (up ? 0.2 : -0.2), { color: c.red, bold: true }); }
+      function res(x, y, name, V) { D.rect(x - 0.2, y - 0.45, 0.4, 0.9, { fill: c.card, stroke: c.text }); D.label(name, x + 0.3, y + 0.12, { color: c.text, bold: true }); D.label('V = ' + fmt(Math.abs(V)) + ' V', x + 0.3, y - 0.18, { color: c.muted }); }
+      D.line(2, 4.5, 8, 4.5, { color: c.text, width: 2.5 }); D.line(2, 0.7, 8, 0.7, { color: c.text, width: 2.5 });
+      [2, 5, 8].forEach(function (x) { D.line(x, 0.7, x, 4.5, { color: c.text, width: 2.5 }); });
+      batt(2, 1.6, true); batt(8, 1.6, !p.flip); D.label('E₁ = ' + p.E1 + ' V', 0.3, 1.6, { color: c.text }); D.label('E₂ = ' + p.E2 + ' V' + (p.flip ? ' (กลับขั้ว)' : ''), 8.55, 2.35, { color: c.text });
+      res(2, 3.3, 'R₁ = ' + p.R1 + ' Ω', C.V1); res(5, 2.6, 'R₃ = ' + p.R3 + ' Ω', C.V3); res(8, 3.3, 'R₂ = ' + p.R2 + ' Ω', C.V2);
+      D.dot(5, 4.5, 6, c.red, {}); D.label('A', 5, 4.6, { dy: -4, align: 'center', color: c.red, bold: true }); D.dot(5, 0.7, 6, c.red, {}); D.label('B', 5, 0.55, { dy: 10, align: 'center', color: c.red, bold: true });
+      var segs = [[2, 0.7, 2, 4.5, C.I1], [2, 4.5, 5, 4.5, C.I1], [8, 0.7, 8, 4.5, C.I2], [8, 4.5, 5, 4.5, C.I2], [5, 4.5, 5, 0.7, C.I3], [5, 0.7, 2, 0.7, C.I1], [5, 0.7, 8, 0.7, C.I2]];
+      if (D.view.flow) segs.forEach(function (sg) { var I = sg[4], x0 = I >= 0 ? sg[0] : sg[2], y0 = I >= 0 ? sg[1] : sg[3], x1 = I >= 0 ? sg[2] : sg[0], y1 = I >= 0 ? sg[3] : sg[1], L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(2, Math.round(L / 0.45)), sp = L / n, off = (s.ph * PhysLab.clamp(Math.abs(I), 0, 6) * 0.5) % sp; for (var i = 0; i < n; i++) { var d = (i * sp + off) % L, u = d / L; D.dot(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, 4, c.orange, {}); } });
+      D.arrow(2.3, 1.95, 0, 0.5 * Math.sign(C.I1 || 1), { color: c.orange, width: 2, label: 'I₁ = ' + fmt(Math.abs(C.I1)) + ' A', dx: 10 });
+      D.arrow(7.7, 1.95, 0, 0.5 * Math.sign(C.I2 || 1), { color: c.orange, width: 2, label: 'I₂ = ' + fmt(Math.abs(C.I2)) + ' A', dx: -10, align: 'right' });
+      D.arrow(4.7, 3.9, 0, -0.5 * Math.sign(C.I3 || 1), { color: c.orange, width: 2, label: 'I₃ = ' + fmt(Math.abs(C.I3)) + ' A', dx: -10, align: 'right' });
+      D.label('KCL ที่ A: I₁ + I₂ = I₃ → ' + fmt(C.I1) + ' + ' + fmt(C.I2) + ' = ' + fmt(C.I3) + ' A', 0.3, 4.95, { color: c.primary, bold: true });
+      D.label('KVL ลูปซ้าย: E₁ − I₁R₁ − I₃R₃ = ' + fmt(C.kvl1, 2) + ' · ลูปขวา: E₂ − I₂R₂ − I₃R₃ = ' + fmt(C.kvl2, 2), 0.3, 0.25, { color: c.text });
+    },
+    readouts: function (s, p) { var C = calc(p); return [{ label: 'I₁ (สายซ้าย ขึ้น)', value: C.I1, unit: 'A', highlight: true }, { label: 'I₂ (สายขวา ขึ้น)', value: C.I2, unit: 'A', highlight: true }, { label: 'I₃ (สายกลาง ลง)', value: C.I3, unit: 'A', highlight: true }, { label: 'KCL: I₁ + I₂ − I₃', value: C.I1 + C.I2 - C.I3, unit: 'A' }, { label: 'V₁ · V₂ · V₃', value: fmt(C.V1) + ' · ' + fmt(C.V2) + ' · ' + fmt(C.V3), unit: 'V' }, { label: 'กระแสติดลบ หมายถึง', value: 'ไหลสวนทิศลูกศรที่ตั้งไว้' }]; },
+    formulas: function (s, p) { var C = calc(p); return [{ symbolic: 'KCL: I₁ + I₂ = I₃', substituted: fmt(C.I1) + ' + ' + fmt(C.I2), result: '= ' + fmt(C.I3) + ' A' }, { symbolic: 'KVL ลูปซ้าย: E₁ = I₁R₁ + I₃R₃', substituted: p.E1 + ' = ' + fmt(C.I1) + '×' + p.R1 + ' + ' + fmt(C.I3) + '×' + p.R3, result: '= ' + fmt(C.V1 + C.V3) + ' V' }, { symbolic: 'KVL ลูปขวา: E₂ = I₂R₂ + I₃R₃', substituted: C.E2 + ' = ' + fmt(C.I2) + '×' + p.R2 + ' + ' + fmt(C.I3) + '×' + p.R3, result: '= ' + fmt(C.V2 + C.V3) + ' V' }]; },
+    content: {
+      summary: '<b>กฎกระแสของเคอร์ชฮอฟฟ์ (KCL)</b> กระแสที่ไหลเข้าจุดใดเท่ากับกระแสที่ไหลออกจากจุดนั้น ประจุไม่หายไปไหน <b>กฎแรงดันของเคอร์ชฮอฟฟ์ (KVL)</b> ในวงจรปิดใด ๆ แรงดันที่จ่ายรวมเท่ากับแรงดันที่ตกคร่อมรวม ตั้งทิศกระแสสมมติ ถ้าคำตอบติดลบแปลว่ากระแสไหลสวนทิศที่ตั้งไว้',
+      tryIt: ['ปรับ E₂ ให้มากขึ้นจนกระแส I₁ กลับทิศ (ติดลบ) ดูจุดกระแสเปลี่ยนทาง', 'กดกลับขั้ว E₂ แล้วตรวจว่า KCL ยังเป็นจริง', 'ตั้ง E₁ = E₂ และ R₁ = R₂ ดูว่า I₁ = I₂ และ I₃ เป็นสองเท่า']
+    }
+  });
+})();
+</script>
+</body>
+</html>

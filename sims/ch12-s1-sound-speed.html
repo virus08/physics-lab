@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S12.1 อัตราเร็วเสียงและความถี่เสียง · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S12.1 อัตราเร็วเสียงและความถี่เสียง · บท 12 เรื่อง 1, 2
+   สูตร: ในอากาศ v = 331 + 0.6t (°C) · v ∝ √T (K) · ช่วงได้ยิน 20–20,000 Hz · λ = v/f
+   แอนิเมชันคลื่นดลเสียงแข่งกันในตัวกลาง 3 ชนิด · เสียงจริงผ่าน Web Audio เมื่อกดปุ่ม "ฟังเสียง" · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, Audio = PhysLab.Audio, L = 50, audioOn = false;
+  var MEDIA = [{ name: 'เหล็ก (ของแข็ง)', v: 5000, color: '#B42318' }, { name: 'น้ำ (ของเหลว)', v: 1500, color: '#0E6B57' }, { name: 'อากาศ (แก๊ส)', v: null, color: '#1F5FBF' }];
+  function vAir(p) { return 331 + 0.6 * p.T; }
+  function init() { return { x: [0, 0, 0], done: [null, null, null] }; }
+  function step(s, p, dt, t) { MEDIA.forEach(function (m, i) { var v = m.v || vAir(p); if (s.x[i] < L) { s.x[i] += v * dt; if (s.x[i] >= L) { s.x[i] = L; s.done[i] = t + dt; } } }); return s; }
+  PhysLab.createSim({
+    id: 'S12.1', chapter: 12, topics: [1, 2], title: 'อัตราเร็วเสียงและความถี่เสียง', audio: true,
+    alt: 'แถบตัวกลางสามแถบ เหล็ก น้ำ อากาศ คลื่นดลเสียงวิ่งจากซ้ายไปขวาด้วยอัตราเร็วต่างกัน ด้านล่างมีแถบความถี่ 20 ถึง 20,000 Hz พร้อมตัวชี้ความถี่ที่เลือก',
+    vAir: vAir,
+    params: {
+      T: { label: 'อุณหภูมิอากาศ', symbol: 't', unit: '°C', type: 'range', min: -20, max: 50, step: 1, default: 25 },
+      f: { label: 'ความถี่เสียง', symbol: 'f', unit: 'Hz', type: 'range', min: 20, max: 20000, step: 10, default: 440 }
+    },
+    presets: [{ label: 'อากาศ 25 °C', values: { T: 25 } }, { label: 'อากาศ 0 °C', values: { T: 0 } }, { label: 'เสียงทุ้ม 100 Hz', values: { f: 100 } }, { label: 'เสียงกลาง 440 Hz (โน้ต A)', values: { f: 440 } }, { label: 'เสียงแหลม 5000 Hz', values: { f: 5000 } }, { label: 'ใกล้ขีดจำกัดการได้ยิน 15,000 Hz', values: { f: 15000 } }],
+    speeds: [0.001, 0.002, 0.005], defaultSpeed: 0.002, dt: 1 / 2400,
+    world: { xMin: -9, xMax: L + 8, yMin: -18, yMax: 18 },
+    init: init, step: step,
+    timeLabel: function (t) { return 't = ' + fmt(t * 1000, 3) + ' ms'; },
+    done: function (s) { return s.x.every(function (x) { return x >= L; }); },
+    draw: function (ctx, s, p, D) {
+      var c = D.color;
+      D.label('เสียงเดินทาง ' + L + ' m ในตัวกลางต่างกัน (เร็วสุดในของแข็ง ช้าสุดในแก๊ส)', -9, 16.5, { color: c.text, bold: true });
+      MEDIA.forEach(function (m, i) { var y = 11 - i * 6.5, v = m.v || vAir(p); D.rect(0, y - 2.2, L, 4.4, { fill: c.soft }); D.line(0, y - 2.2, 0, y + 2.2, { color: c.muted, width: 2 }); D.line(L, y - 2.2, L, y + 2.2, { color: c.muted, width: 2 }); for (var k = 0; k < 6; k++) { var xx = s.x[i] - k * 0.9; if (xx > 0) { ctx.save(); ctx.globalAlpha = 1 - k * 0.15; D.line(xx, y - 2, xx, y + 2, { color: m.color, width: 3 }); ctx.restore(); } } D.label(m.name, -8.8, y + 1, { color: m.color, bold: true }); D.label('v = ' + fmt(v) + ' m/s', -8.8, y - 1.2, { color: m.color }); D.label(s.done[i] !== null ? 'ถึงใน ' + fmt(s.done[i] * 1000) + ' ms' : fmt(s.x[i]) + ' m', L + 0.6, y, { color: m.color }); });
+      D.label('อากาศ: v = 331 + 0.6t = 331 + 0.6(' + p.T + ') = ' + fmt(vAir(p)) + ' m/s · λ = v/f = ' + fmt(vAir(p) / p.f) + ' m', -9, -9.5, { color: c.primary });
+      var bx0 = -9, bx1 = L + 8, lg = function (f) { return bx0 + (bx1 - bx0) * (Math.log10(f) - 1) / 4; };
+      D.rect(lg(20), -16.6, lg(20000) - lg(20), 2.2, { fill: c.accentSoft }); D.label('Infrasonic', lg(13), -13.2, { align: 'center', color: c.muted }); D.label('ได้ยิน 20–20,000 Hz', lg(630), -13.2, { align: 'center', color: c.primary }); D.label('Ultrasonic', lg(32000), -13.2, { align: 'center', color: c.muted });
+      [20, 100, 1000, 10000, 20000].forEach(function (f) { D.line(lg(f), -16.6, lg(f), -17.2, { color: c.text }); D.label(String(f), lg(f), -17.3, { dy: 10, align: 'center', color: c.muted }); });
+      D.dot(lg(p.f), -15.5, 7, c.orange, { stroke: c.card, width: 2 }); D.label('f = ' + p.f + ' Hz ' + (p.f < 300 ? '(ทุ้ม)' : p.f > 3000 ? '(แหลม)' : '(กลาง)'), lg(p.f), -11.6, { align: 'center', color: c.orange, bold: true });
+    },
+    readouts: function (s, p) { return [{ label: 'v อากาศ = 331 + 0.6t', value: vAir(p), unit: 'm/s', highlight: true }, { label: 'v น้ำ · v เหล็ก', value: '1500 · 5000', unit: 'm/s' }, { label: 'λ ในอากาศ = v/f', value: vAir(p) / p.f, unit: 'm' }, { label: 'T = 1/f', value: 1 / p.f, unit: 's' }, { label: 'ช่วงการได้ยิน', value: p.f < 20 ? 'Infrasonic' : p.f > 20000 ? 'Ultrasonic' : 'ได้ยิน' }, { label: 'เวลาเดินทาง 50 m ในอากาศ', value: L / vAir(p) * 1000, unit: 'ms' }]; },
+    formulas: function (s, p) { return [{ symbolic: 'v = 331 + 0.6t', substituted: '= 331 + 0.6 × ' + p.T, result: '= ' + fmt(vAir(p)) + ' m/s' }, { symbolic: 'v ∝ √T (เคลวิน)', substituted: '√(' + (273 + p.T) + '/273)', result: '≈ ' + fmt(331 * Math.sqrt((273 + p.T) / 273)) + ' m/s' }, { symbolic: 'λ = v/f', substituted: '= ' + fmt(vAir(p)) + ' / ' + p.f, result: '= ' + fmt(vAir(p) / p.f) + ' m' }]; },
+    setup: function (api) { var btn = api.addButton('ฟังเสียง', function () { audioOn = !audioOn; if (audioOn) { Audio.tone('f', { freq: api.params.f, gain: 0.12 }); btn.textContent = 'หยุดเสียง'; } else { Audio.stop('f'); btn.textContent = 'ฟังเสียง'; } }); },
+    onParam: function (k, v, p) { if (audioOn) Audio.set('f', { freq: p.f }); },
+    content: {
+      summary: '<b>อัตราเร็วเสียง</b> เร็วที่สุดในของแข็ง รองลงมาคือของเหลว ช้าสุดในแก๊ส ในอากาศ v = 331 + 0.6t (t เป็น °C) และโดยทั่วไป v แปรผันกับ √T (เคลวิน) <b>ความถี่เสียง</b> ความถี่สูงเสียงแหลม ความถี่ต่ำเสียงทุ้ม คนได้ยินช่วง 20 ถึง 20,000 Hz ต่ำกว่านั้นเรียก Infrasonic สูงกว่านั้นเรียก Ultrasonic',
+      tryIt: ['กดเล่น ดูว่าเสียงในเหล็กถึงปลายก่อนน้ำและอากาศมาก', 'เพิ่มอุณหภูมิอากาศ ดูว่า v เพิ่ม 0.6 m/s ต่อ 1 °C', 'กด "ฟังเสียง" แล้วเลื่อนความถี่จาก 100 ไป 5000 Hz ฟังว่าเสียงแหลมขึ้น']
+    }
+  });
+})();
+</script>
+</body>
+</html>

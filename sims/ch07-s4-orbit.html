@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S7.4 วงโคจรดาวเทียม · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S7.4 วงโคจรดาวเทียม · บท 7 เรื่อง 9, 10
+   สูตร: GMm/r² = mv²/r → v = √(GM/r) · T = 2πr/v · T² = (4π²/GM) r³ (T² ∝ r³)
+   อินทิเกรต RK4 ด้วย dt = 5 s (ENG-02) · โลก M = 5.97×10²⁴ kg, R = 6,370 km · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, G = 6.67e-11, M = 5.97e24, RE = 6.37e6, GM = G * M;
+  function circular(r) { var v = Math.sqrt(GM / r); return { v: v, T: 2 * Math.PI * r / v }; }
+  function deriv(t, y) { var r = Math.hypot(y[0], y[1]), a = -GM / (r * r * r); return [y[2], y[3], a * y[0], a * y[1]]; }
+  function init(p) { var r = p.r * 1000, v = circular(r).v * p.vf; return { y: [r, 0, 0, v], trail: [], rmin: r, rmax: r, crashed: false, laps: 0, lastAng: 0 }; }
+  function step(s, p, dt, t) {
+    if (s.crashed) return s;
+    var y = PhysLab.integrate.rk4(s.y, deriv, t, dt), r = Math.hypot(y[0], y[1]);
+    if (r < RE) { s.crashed = true; return s; }
+    var ang = Math.atan2(y[1], y[0]); if (s.lastAng < 0 && ang >= 0 && t > 10) s.laps++; s.lastAng = ang;
+    s.y = y; s.rmin = Math.min(s.rmin, r); s.rmax = Math.max(s.rmax, r);
+    if (s.trail.length === 0 || Math.hypot(y[0] - s.trail[s.trail.length - 1][0] * 1000, y[1] - s.trail[s.trail.length - 1][1] * 1000) > 150e3) s.trail.push([y[0] / 1000, y[1] / 1000]);
+    if (s.trail.length > 700) s.trail.shift();
+    return s;
+  }
+  PhysLab.createSim({
+    id: 'S7.4', chapter: 7, topics: [9, 10], title: 'วงโคจรดาวเทียม', dt: 5, speeds: [0.25, 0.5, 1, 2], defaultSpeed: 1,
+    alt: 'โลกอยู่กลางภาพ ดาวเทียมโคจรรอบโลกเป็นวงกลมหรือวงรีตามความเร็วที่ตั้ง มีลูกศรความเร็วและแรงโน้มถ่วงชี้เข้าศูนย์กลางโลก',
+    circular: circular,
+    params: {
+      r: { label: 'รัศมีวงโคจรเริ่มต้น (จากศูนย์กลางโลก)', symbol: 'r', unit: 'km', type: 'range', min: 6500, max: 45000, step: 100, default: 7000, drag: true },
+      vf: { label: 'ความเร็วเทียบกับความเร็ววงกลม', symbol: 'v/v วงกลม', type: 'range', min: 0.5, max: 1.4, step: 0.01, default: 1 }
+    },
+    presets: [{ label: 'วงกลม r = 7,000 km', values: { r: 7000, vf: 1 } }, { label: 'ช้าเกินไป (วงรี ตกใกล้โลก)', values: { r: 7000, vf: 0.9 } }, { label: 'เร็วเกินไป (วงรีกว้าง)', values: { r: 7000, vf: 1.2 } }, { label: 'ค้างฟ้า 42,200 km', values: { r: 42200, vf: 1 } }, { label: 'ช้ามากจนตก', values: { r: 7000, vf: 0.6 } }],
+    toggles: [{ key: 'vec', label: 'ลูกศร v และ F' }, { key: 'trail', label: 'รอยวงโคจร' }],
+    world: function (p, s) { var rm = Math.max(p.r, s ? s.rmax / 1000 : p.r, 8000) * 1.15 * (p.vf > 1 ? 1.6 : 1); return { xMin: -rm, xMax: rm, yMin: -rm, yMax: rm }; },
+    init: init, step: step, done: function (s) { return s.crashed; },
+    timeLabel: function (t, s) { return 't = ' + fmt(t / 60, 3) + ' นาที · ' + s.laps + ' รอบ' + (s.crashed ? ' · ตกสู่โลก' : ''); },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, x = s.y[0] / 1000, y = s.y[1] / 1000, vx = s.y[2], vy = s.y[3], r = Math.hypot(x, y), v = Math.hypot(vx, vy), C = circular(p.r * 1000);
+      D.circle(0, 0, RE / 1000, { fill: c.accentSoft, stroke: c.primary, width: 2 }); D.label('โลก', 0, 0, { align: 'center', color: c.text });
+      D.circle(0, 0, p.r, { stroke: c.line, dash: [5, 4], width: 1 });
+      if (D.view.trail) D.trail(s.trail, { color: c.orange, width: 1.5 });
+      D.dot(x, y, 7, c.orange, { stroke: c.card, width: 2 });
+      var kv = D.world.xMax * 0.18 / Math.max(C.v, 1), kf = D.world.xMax * 0.14;
+      if (D.view.vec && !s.crashed) { D.arrow(x, y, vx * kv, vy * kv, { color: c.orange, label: 'v = ' + fmt(v / 1000) + ' km/s', width: 2.5 }); D.arrow(x, y, -x / r * kf, -y / r * kf, { color: c.green, label: 'F = GMm/r²', width: 2.5 }); }
+      D.label('r = ' + fmt(r) + ' km · ความสูง ' + fmt(r - RE / 1000) + ' km', -D.world.xMax * 0.96, D.world.yMax * 0.92, { color: c.text });
+      D.label('วงกลมที่ r นี้ต้อง v = ' + fmt(C.v / 1000) + ' km/s · T = ' + fmt(C.T / 60) + ' นาที', -D.world.xMax * 0.96, D.world.yMax * 0.82, {});
+      if (s.crashed) D.label('ความเร็วน้อยเกินไป ดาวเทียมตกสู่โลก', -D.world.xMax * 0.96, -D.world.yMax * 0.9, { color: c.red });
+    },
+    dragHandles: function (s, p) { return [{ param: 'r', x: p.r, y: 0, r: 14, map: function (wx, wy) { return PhysLab.clamp(Math.hypot(wx, wy), 6500, 45000); } }]; },
+    readouts: function (s, p) { var C = circular(p.r * 1000), r = Math.hypot(s.y[0], s.y[1]), v = Math.hypot(s.y[2], s.y[3]); var Tk = 4 * Math.PI * Math.PI / GM; return [{ label: 'v วงกลม = √(GM/r)', value: C.v, unit: 'm/s', highlight: true }, { label: 'T วงกลม = 2πr/v', value: C.T / 60, unit: 'นาที', highlight: true }, { label: 'v ขณะนี้', value: v, unit: 'm/s' }, { label: 'r ขณะนี้', value: r / 1000, unit: 'km' }, { label: 'r ใกล้สุด · ไกลสุด', value: fmt(s.rmin / 1000) + ' · ' + fmt(s.rmax / 1000), unit: 'km' }, { label: 'T²/r³ (คงที่)', value: C.T * C.T / Math.pow(p.r * 1000, 3), unit: 's²/m³' }, { label: '4π²/GM', value: Tk, unit: 's²/m³' }, { label: 'g ที่ r', value: GM / (p.r * 1000 * p.r * 1000), unit: 'm/s²' }]; },
+    formulas: function (s, p) { var r = p.r * 1000, C = circular(r); return [{ symbolic: 'GMm/r² = mv²/r → v = √(GM/r)', substituted: '= √(' + fmt(GM) + ' / ' + fmt(r) + ')', result: '= ' + fmt(C.v) + ' m/s' }, { symbolic: 'T = 2πr/v', substituted: '= 2π(' + fmt(r) + ')/' + fmt(C.v), result: '= ' + fmt(C.T) + ' s = ' + fmt(C.T / 60) + ' นาที' }, { symbolic: 'T² = (4π²/GM) r³', substituted: 'T²/r³ = ' + fmt(C.T * C.T / (r * r * r)), result: 'เท่ากันทุกวงโคจรรอบโลก' }]; },
+    sample: function (s) { return { r: Math.hypot(s.y[0], s.y[1]) / 1000, v: Math.hypot(s.y[2], s.y[3]) / 1000 }; },
+    graphs: [{ title: 'r-t ระยะจากศูนย์กลางโลก (km)', x: 't', xLabel: 't (s)', series: [{ key: 'r', label: 'r (km)' }], window: 12000, zero: false }, { title: 'v-t (km/s)', x: 't', xLabel: 't (s)', series: [{ key: 'v', label: 'v (km/s)', color: '#E07A1F' }], window: 12000, zero: false }],
+    content: {
+      summary: '<b>ความเร็วในวงโคจร</b> แรงโน้มถ่วงเป็นแรงสู่ศูนย์กลางของดาวเทียม ได้ v = √(GM/R) ยิ่งใกล้ดาวต้องยิ่งเร็ว <b>คาบเวลาในการโคจร</b> จากแรงโน้มถ่วง = mω²R ได้ T² ∝ R³ วงโคจรใหญ่กว่าใช้เวลาต่อรอบนานกว่า',
+      tryIt: ['ลากรัศมีจาก 7,000 เป็น 42,200 km ดูว่าคาบเพิ่มจาก 97 นาทีเป็น 24 ชั่วโมง (ค้างฟ้า) และ T²/r³ คงที่', 'ตั้งความเร็ว 0.9 เท่า ดูว่าวงโคจรกลายเป็นวงรีที่ใกล้โลกขึ้น', 'ตั้ง 1.2 เท่า ดูว่าวงรียาวออกไปไกล และความเร็วลดลงเมื่อไกลโลก']
+    }
+  });
+})();
+</script>
+</body>
+</html>

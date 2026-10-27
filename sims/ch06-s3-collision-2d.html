@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S6.3 การชน 2 มิติ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S6.3 การชน 2 มิติ · บท 6 เรื่อง 6
+   สูตร: โมเมนตัมอนุรักษ์แยกแกน Σpx ก่อน = หลัง และ Σpy ก่อน = หลัง · ชนแบบเฉียงแก้ตามแนวเส้นเชื่อมศูนย์กลาง (แนวฉาก) ด้วยสัมประสิทธิ์ e
+   มวลเท่ากันและยืดหยุ่น: θ₁ + θ₂ = 90° · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, deg = PhysLab.deg, R = 0.4;
+  function resolve(p, s) {
+    var dx = s.x2 - s.x1, dy = s.y2 - s.y1, d = Math.hypot(dx, dy) || 1e-9, nx = dx / d, ny = dy / d;
+    var rvx = s.vx1 - s.vx2, rvy = s.vy1 - s.vy2, vn = rvx * nx + rvy * ny; if (vn <= 0) return false;
+    var j = (1 + p.e) * vn / (1 / p.m1 + 1 / p.m2);
+    s.vx1 -= j * nx / p.m1; s.vy1 -= j * ny / p.m1; s.vx2 += j * nx / p.m2; s.vy2 += j * ny / p.m2;
+    var overlap = 2 * R - d; if (overlap > 0) { s.x1 -= nx * overlap / 2; s.y1 -= ny * overlap / 2; s.x2 += nx * overlap / 2; s.y2 += ny * overlap / 2; }
+    return true;
+  }
+  function init(p) { return { x1: 1, y1: 0, vx1: p.u1, vy1: 0, x2: 6, y2: p.b, vx2: 0, vy2: 0, hit: false, done: false, t1: [], t2: [] }; }
+  function step(s, p, dt) {
+    if (s.done) return s;
+    s.x1 += s.vx1 * dt; s.y1 += s.vy1 * dt; s.x2 += s.vx2 * dt; s.y2 += s.vy2 * dt;
+    if (!s.hit && Math.hypot(s.x2 - s.x1, s.y2 - s.y1) <= 2 * R) { if (resolve(p, s)) s.hit = true; }
+    if (Math.floor(s.x1 * 4) !== Math.floor((s.x1 - s.vx1 * dt) * 4) || Math.floor(s.y1 * 4) !== Math.floor((s.y1 - s.vy1 * dt) * 4)) { s.t1.push([s.x1, s.y1]); s.t2.push([s.x2, s.y2]); }
+    if (s.x1 > 12 || s.x2 > 12 || s.x1 < -1 || Math.abs(s.y1) > 5 || Math.abs(s.y2) > 5) s.done = true;
+    if (!s.hit && s.x1 > s.x2 + 2 * R) s.done = true;
+    return s;
+  }
+  function angles(s) { return { th1: deg(Math.atan2(s.vy1, s.vx1)), th2: deg(Math.atan2(s.vy2, s.vx2)) }; }
+  PhysLab.createSim({
+    id: 'S6.3', chapter: 6, topics: [6], title: 'การชน 2 มิติ',
+    alt: 'ลูกบอลวิ่งเข้าชนลูกที่อยู่นิ่งแบบเฉียงบนโต๊ะ หลังชนทั้งสองกระเด็นทำมุมกับแนวเดิม มีลูกศรความเร็วและมุม',
+    angles: angles,
+    params: {
+      m1: { label: 'มวลลูก 1 (วิ่งมา)', symbol: 'm₁', unit: 'kg', type: 'range', min: 0.5, max: 5, step: 0.5, default: 1 },
+      m2: { label: 'มวลลูก 2 (นิ่ง)', symbol: 'm₂', unit: 'kg', type: 'range', min: 0.5, max: 5, step: 0.5, default: 1 },
+      u1: { label: 'ความเร็วลูก 1', symbol: 'u₁', unit: 'm/s', type: 'range', min: 1, max: 8, step: 0.5, default: 4 },
+      b: { label: 'ระยะเยื้องของการชน', symbol: 'b', unit: 'm', type: 'range', min: -0.75, max: 0.75, step: 0.05, default: 0.4, drag: true },
+      e: { label: 'ชนิดการชน', type: 'choice', options: [{ label: 'ยืดหยุ่น e = 1', value: 1 }, { label: 'ไม่ยืดหยุ่น e = 0.5', value: 0.5 }, { label: 'ติดกัน e = 0', value: 0 }], default: 1 }
+    },
+    presets: [{ label: 'มวลเท่ากัน เยื้อง 0.4 m (รวม 90°)', values: { m1: 1, m2: 1, u1: 4, b: 0.4, e: 1 } }, { label: 'ชนตรง b = 0', values: { b: 0, m1: 1, m2: 1, e: 1 } }, { label: 'ลูกหนักชนลูกเบา', values: { m1: 4, m2: 1, b: 0.3, e: 1 } }, { label: 'ติดกันไป', values: { m1: 1, m2: 1, b: 0.4, e: 0 } }],
+    toggles: [{ key: 'vec', label: 'ลูกศรความเร็ว' }, { key: 'trail', label: 'รอยทาง' }],
+    world: { xMin: -0.5, xMax: 12, yMin: -4, yMax: 4 },
+    init: init, step: step, done: function (s) { return s.done; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, an = angles(s);
+      D.grid(1); D.line(-0.5, 0, 12, 0, { color: c.line, dash: [4, 3], width: 1 });
+      if (D.view.trail) { D.trail(s.t1, { color: c.primary, width: 1.5, alpha: 0.5 }); D.trail(s.t2, { color: c.orange, width: 1.5, alpha: 0.5 }); }
+      D.circle(s.x1, s.y1, R, { fill: c.primary }); D.circle(s.x2, s.y2, R, { fill: c.orange });
+      D.label('m₁', s.x1, s.y1, { align: 'center', color: c.card }); D.label('m₂', s.x2, s.y2, { align: 'center', color: c.card });
+      var k = 0.35;
+      if (D.view.vec) { if (Math.hypot(s.vx1, s.vy1) > 0.05) D.arrow(s.x1, s.y1, s.vx1 * k, s.vy1 * k, { color: c.primary, label: 'v₁ ' + fmt(Math.hypot(s.vx1, s.vy1)), width: 3 }); if (Math.hypot(s.vx2, s.vy2) > 0.05) D.arrow(s.x2, s.y2, s.vx2 * k, s.vy2 * k, { color: c.orange, label: 'v₂ ' + fmt(Math.hypot(s.vx2, s.vy2)), width: 3 }); }
+      if (!s.hit) { D.line(6, 0, 6, p.b, { color: c.muted, width: 1.5 }); D.label('b = ' + p.b + ' m', 6.15, p.b / 2, {}); }
+      if (s.hit) { D.label('θ₁ = ' + fmt(an.th1) + '° · θ₂ = ' + fmt(an.th2) + '° · รวม ' + fmt(Math.abs(an.th1 - an.th2)) + '°', -0.3, 3.7, { color: c.text }); D.label('Σpx = ' + fmt(p.m1 * s.vx1 + p.m2 * s.vx2) + ' · Σpy = ' + fmt(p.m1 * s.vy1 + p.m2 * s.vy2) + ' (ก่อน ' + fmt(p.m1 * p.u1) + ', 0)', -0.3, 3.3, {}); }
+      else D.label('ลาก m₂ ขึ้นลงเพื่อเปลี่ยนระยะเยื้อง', -0.3, 3.7, {});
+    },
+    dragHandles: function (s, p) { return s.hit ? [] : [{ param: 'b', x: 6, y: p.b, r: 16, map: function (wx, wy) { return PhysLab.clamp(wy, -0.75, 0.75); } }]; },
+    readouts: function (s, p) { var an = angles(s); return [{ label: 'Σpx ก่อน · หลัง', value: fmt(p.m1 * p.u1) + ' · ' + fmt(p.m1 * s.vx1 + p.m2 * s.vx2), unit: 'kg·m/s', highlight: true }, { label: 'Σpy ก่อน · หลัง', value: '0 · ' + fmt(p.m1 * s.vy1 + p.m2 * s.vy2), unit: 'kg·m/s', highlight: true }, { label: 'v₁ หลังชน', value: Math.hypot(s.vx1, s.vy1), unit: 'm/s' }, { label: 'v₂ หลังชน', value: Math.hypot(s.vx2, s.vy2), unit: 'm/s' }, { label: 'θ₁', value: s.hit ? an.th1 : 0, unit: '°' }, { label: 'θ₂', value: s.hit ? an.th2 : 0, unit: '°' }, { label: 'θ₁ + θ₂ (ขนาด)', value: s.hit ? Math.abs(an.th1 - an.th2) : 0, unit: '°' }, { label: 'Ek หลัง / ก่อน', value: (0.5 * p.m1 * (s.vx1 * s.vx1 + s.vy1 * s.vy1) + 0.5 * p.m2 * (s.vx2 * s.vx2 + s.vy2 * s.vy2)) / (0.5 * p.m1 * p.u1 * p.u1), sig: 3 }]; },
+    formulas: function (s, p) { return [{ symbolic: 'แกน x: m₁u₁ = m₁v₁cosθ₁ + m₂v₂cosθ₂', substituted: fmt(p.m1 * p.u1) + ' = ' + fmt(p.m1 * s.vx1) + ' + ' + fmt(p.m2 * s.vx2), result: s.hit ? '✓' : 'รอชน' }, { symbolic: 'แกน y: 0 = m₁v₁sinθ₁ + m₂v₂sinθ₂', substituted: '0 = ' + fmt(p.m1 * s.vy1) + ' + ' + fmt(p.m2 * s.vy2), result: s.hit ? '✓' : 'รอชน' }, { symbolic: 'มวลเท่ากัน ยืดหยุ่น: θ₁ + θ₂ = 90°', substituted: '', result: (p.m1 === p.m2 && p.e === 1) ? 'เงื่อนไขครบ' : 'ไม่เข้าเงื่อนไข' }]; },
+    conserved: function (s, p) { return [{ label: 'Σpx', before: p.m1 * p.u1, after: p.m1 * s.vx1 + p.m2 * s.vx2, unit: 'kg·m/s' }]; },
+    content: {
+      summary: '<b>การชน 2 มิติ</b> ชนแล้วกระเด็นเฉียง ให้แยกคิดแกน x และแกน y ทีละแกน โมเมนตัมอนุรักษ์ในแต่ละแกน ถ้ามวลเท่ากันและชนยืดหยุ่น มุมที่กระเด็นออกรวมกันได้ 90°',
+      tryIt: ['ใช้มวลเท่ากันและชนยืดหยุ่น ลองเยื้องหลายค่า ดูว่ามุมรวมเป็น 90° ทุกครั้ง', 'ตั้ง b = 0 ดูว่ากลายเป็นการชน 1 มิติ ลูกแรกหยุด', 'เปลี่ยนเป็นติดกันไป ดูว่าทั้งคู่เคลื่อนไปทางเดียวกันและโมเมนตัมยังอนุรักษ์']
+    }
+  });
+})();
+</script>
+</body>
+</html>

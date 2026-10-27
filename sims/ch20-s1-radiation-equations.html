@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S20.1 ชนิดรังสีและสมการนิวเคลียร์ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S20.1 ชนิดรังสีและสมการนิวเคลียร์ · บท 20 เรื่อง 1, 2, 3
+   หลัก: แอลฟา ⁴₂He (+2, ทะลุน้อย) บีตา ⁰₋₁e (−1) แกมมา γ (0, ทะลุมากสุด ไม่เบนในสนามแม่เหล็ก) · ดุลสมการ "บนเท่าบน ล่างเท่าล่าง" · สัญกรณ์ย่อ X(a, b)Y
+   แบบจำลองนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹', SUB = '₀₁₂₃₄₅₆₇₈₉';
+  function sup(n) { return String(n).split('').map(function (d) { return d === '-' ? '⁻' : SUP[+d]; }).join(''); }
+  function sub(n) { return String(n).split('').map(function (d) { return d === '-' ? '₋' : SUB[+d]; }).join(''); }
+  function nuc(A, Z, sym) { return sup(A) + sub(Z) + sym; }
+  var RX = {
+    u238: { name: 'ยูเรเนียม-238 สลายแอลฟา', X: [238, 92, 'U'], a: null, b: [4, 2, 'He (α)'], Ysym: 'Th', note: 'ทอเรียม-234' },
+    c14: { name: 'คาร์บอน-14 สลายบีตาลบ', X: [14, 6, 'C'], a: null, b: [0, -1, 'e (β⁻) + ν̄'], Ysym: 'N', note: 'ไนโตรเจน-14 (ใช้หาอายุวัตถุโบราณ)' },
+    na22: { name: 'โซเดียม-22 สลายบีตาบวก', X: [22, 11, 'Na'], a: null, b: [0, 1, 'e (β⁺) + ν'], Ysym: 'Ne', note: 'นีออน-22' },
+    co60: { name: 'โคบอลต์-60* ปล่อยแกมมา', X: [60, 27, 'Co*'], a: null, b: [0, 0, 'γ'], Ysym: 'Co', note: 'โคบอลต์-60 (สถานะพื้น)' },
+    n14: { name: 'ไนโตรเจน-14 (α, p) ออกซิเจน-17', X: [14, 7, 'N'], a: [4, 2, 'He (α)'], b: [1, 1, 'H (p)'], Ysym: 'O', note: 'ปฏิกิริยาแรกที่รัทเทอร์ฟอร์ดทำได้ เขียนย่อ ¹⁴N(α, p)¹⁷O' },
+    be9: { name: 'เบริลเลียม-9 (α, n) คาร์บอน-12', X: [9, 4, 'Be'], a: [4, 2, 'He (α)'], b: [1, 0, 'n'], Ysym: 'C', note: 'การค้นพบนิวตรอน เขียนย่อ ⁹Be(α, n)¹²C' }
+  };
+  function solve(k) { var r = RX[k], A = r.X[0] + (r.a ? r.a[0] : 0) - r.b[0], Z = r.X[1] + (r.a ? r.a[1] : 0) - r.b[1]; return { r: r, A: A, Z: Z }; }
+  PhysLab.createSim({
+    id: 'S20.1', chapter: 20, topics: [1, 2, 3], title: 'ชนิดรังสีและสมการนิวเคลียร์', static: true,
+    alt: 'โหมดอำนาจทะลุ: รังสีสามชนิดวิ่งผ่านกระดาษ แผ่นอะลูมิเนียม และตะกั่ว แอลฟาหยุดที่กระดาษ บีตาหยุดที่อะลูมิเนียม แกมมาผ่านได้ไกล และเมื่อเปิดสนามแม่เหล็ก แอลฟากับบีตาเบนคนละทาง โหมดสมการ: แสดงสมการนิวเคลียร์พร้อมผลรวมเลขมวลและเลขอะตอมสองข้าง',
+    solve: solve,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'อำนาจทะลุและการเบน', value: 'pen' }, { label: 'สมการนิวเคลียร์', value: 'eq' }], default: 'pen' },
+      B: { label: 'เปิดสนามแม่เหล็ก (× เข้ากระดาษ)', type: 'toggle', default: false },
+      rx: { label: 'ปฏิกิริยา (โหมดสมการ)', type: 'choice', options: Object.keys(RX).map(function (k) { return { label: RX[k].name, value: k }; }), default: 'u238' }
+    },
+    presets: [{ label: 'อำนาจทะลุ', values: { mode: 'pen', B: false } }, { label: 'เบนในสนามแม่เหล็ก', values: { mode: 'pen', B: true } }, { label: 'U-238 สลายแอลฟา', values: { mode: 'eq', rx: 'u238' } }, { label: 'C-14 สลายบีตา', values: { mode: 'eq', rx: 'c14' } }, { label: 'N-14 (α, p) O-17', values: { mode: 'eq', rx: 'n14' } }],
+    world: { xMin: 0, xMax: 10, yMin: 0, yMax: 5.2 },
+    init: function () { return {}; }, step: function (s) { return s; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      if (p.mode === 'pen') {
+        var rays = [{ n: 'แอลฟา α (⁴₂He, +2)', y: 4.0, col: c.red, stop: 3.0, bend: 0.35 }, { n: 'บีตา β (⁰₋₁e, −1)', y: 2.8, col: c.primary, stop: 5.0, bend: -0.9 }, { n: 'แกมมา γ (คลื่น, 0)', y: 1.6, col: c.green, stop: 9.5, bend: 0 }];
+        D.rect(0.5, 1.1, 0.7, 3.4, { fill: c.muted }); D.label('แหล่งกำเนิด', 0.85, 0.95, { dy: 6, align: 'center', color: c.text });
+        if (!p.B) { D.rect(2.95, 1.0, 0.1, 3.6, { fill: '#D9C9A3' }); D.label('กระดาษ', 3.0, 4.7, { dy: -2, align: 'center', color: c.text }); D.rect(4.9, 1.0, 0.2, 3.6, { fill: '#B8BEC6' }); D.label('อะลูมิเนียม 3 mm', 5.0, 4.7, { dy: -2, align: 'center', color: c.text }); D.rect(7.8, 1.0, 0.4, 3.6, { fill: '#4A4F57' }); D.label('ตะกั่ว 5 cm', 8.0, 4.7, { dy: -2, align: 'center', color: c.text }); }
+        else { for (i = 2; i <= 9; i++) for (var j = 1; j <= 4; j++) { D.line(i - 0.07, j - 0.07, i + 0.07, j + 0.07, { color: c.line, width: 1.5 }); D.line(i - 0.07, j + 0.07, i + 0.07, j - 0.07, { color: c.line, width: 1.5 }); } D.label('สนามแม่เหล็กเข้ากระดาษ (×)', 9.6, 4.75, { align: 'right', color: c.muted }); }
+        rays.forEach(function (r) { var pts = []; if (p.B) { for (i = 0; i <= 60; i++) { var x = 1.2 + 8.0 * i / 60, u = (x - 1.2) / 8; pts.push([x, r.y + r.bend * u * u * 2.2]); } } else { pts = [[1.2, r.y], [r.stop, r.y]]; } D.polyline(pts, { color: r.col, width: 3 }); var e = pts[pts.length - 1]; D.arrow(e[0] - 0.01, e[1], 0.02, 0, { color: r.col, width: 3 }); if (!p.B && r.stop < 9) D.label('หยุด', r.stop + 0.3, r.y, { color: r.col }); if (!p.B && r.n.indexOf('แกมมา') === 0) { ctx.save(); ctx.globalAlpha = 0.35; D.line(8.2, r.y, 9.5, r.y, { color: r.col, width: 3 }); ctx.restore(); D.label('ลดลงแต่ยังทะลุ', 8.3, r.y + 0.22, { color: r.col }); } D.label(r.n, 1.3, r.y + 0.22, { color: r.col, bold: true }); });
+        D.label(p.B ? 'แอลฟา (+) และบีตา (−) เบนคนละทาง บีตาเบนมากกว่าเพราะเบา · แกมมาไม่มีประจุ ไม่เบน' : 'แอลฟาทะลุอากาศได้แค่ 3–5 cm กระดาษกั้นได้ · บีตาทะลุได้ 1–30 m อะลูมิเนียมกั้นได้ · แกมมาต้องใช้ตะกั่วหนา', 0.3, 0.35, { color: c.text, bold: true });
+      } else {
+        var S = solve(p.rx), r = S.r, items = [], y = 3.0;
+        items.push({ txt: nuc(r.X[0], r.X[1], r.X[2]), col: c.text }); if (r.a) { items.push({ txt: '+', col: c.muted }); items.push({ txt: nuc(r.a[0], r.a[1], r.a[2]), col: c.orange }); } items.push({ txt: '→', col: c.muted }); items.push({ txt: nuc(S.A, S.Z, r.Ysym), col: c.primary }); items.push({ txt: '+', col: c.muted }); items.push({ txt: nuc(r.b[0], r.b[1], r.b[2]), col: c.red });
+        var x = 0.6; items.forEach(function (it) { D.label(it.txt, x, y, { color: it.col, bold: true, size: 22 }); x += 0.32 * it.txt.length + 0.3; });
+        D.label(r.name + ' · ' + r.note, 0.6, 4.6, { color: c.text, bold: true });
+        D.label('บนเท่าบน (เลขมวล A): ' + r.X[0] + (r.a ? ' + ' + r.a[0] : '') + ' = ' + S.A + ' + ' + r.b[0] + ' = ' + (S.A + r.b[0]), 0.6, 2.0, { color: c.primary });
+        D.label('ล่างเท่าล่าง (เลขอะตอม Z): ' + r.X[1] + (r.a ? ' + ' + r.a[1] : '') + ' = ' + S.Z + ' + (' + r.b[1] + ') = ' + (S.Z + r.b[1]), 0.6, 1.6, { color: c.primary });
+        D.label('ผลิตภัณฑ์ที่หาได้: A = ' + S.A + ', Z = ' + S.Z + ' → ธาตุ ' + r.Ysym, 0.6, 1.2, { color: c.text });
+        D.label('สัญกรณ์ย่อ: ' + (r.a ? sup(r.X[0]) + r.X[2] + '(' + r.a[2].split(' ')[1].replace(/[()]/g, '') + ', ' + r.b[2].split(' ')[1].replace(/[()]/g, '') + ')' + sup(S.A) + r.Ysym : 'X → Y + ' + r.b[2].split(' ')[1].replace(/[()]/g, '')), 0.6, 0.5, { color: c.muted });
+      }
+    },
+    readouts: function (s, p) { if (p.mode === 'pen') return [{ label: 'แอลฟา', value: 'นิวเคลียส He ประจุ +2 ทะลุอากาศ 3–5 cm' }, { label: 'บีตา', value: 'อิเล็กตรอน ประจุ −1 ทะลุ 1–30 m' }, { label: 'แกมมา', value: 'คลื่นแม่เหล็กไฟฟ้า ไม่มีประจุ ทะลุไกลสุด' }]; var S = solve(p.rx); return [{ label: 'A ผลิตภัณฑ์', value: S.A, highlight: true }, { label: 'Z ผลิตภัณฑ์', value: S.Z, highlight: true }, { label: 'ธาตุ', value: S.r.Ysym }]; },
+    formulas: function (s, p) { if (p.mode === 'pen') return []; var S = solve(p.rx), r = S.r; return [{ symbolic: 'ΣA ซ้าย = ΣA ขวา', substituted: r.X[0] + (r.a ? ' + ' + r.a[0] : '') + ' = A + ' + r.b[0], result: 'A = ' + S.A }, { symbolic: 'ΣZ ซ้าย = ΣZ ขวา', substituted: r.X[1] + (r.a ? ' + ' + r.a[1] : '') + ' = Z + (' + r.b[1] + ')', result: 'Z = ' + S.Z }]; },
+    content: {
+      summary: '<b>ชนิดรังสี</b> แอลฟาคือนิวเคลียสฮีเลียม ประจุ +2 ทะลุอากาศได้แค่ 3 ถึง 5 cm บีตาคืออิเล็กตรอน ประจุ −1 ทะลุได้ 1 ถึง 30 m แกมมาคือคลื่นแม่เหล็กไฟฟ้า ไม่มีประจุ ทะลุได้ไกลที่สุด และไม่เบนในสนามแม่เหล็ก <b>สมการนิวเคลียร์</b> เขียนย่อ X(a, b)Y ดุลสมการด้วยกฎ "บนเท่าบน ล่างเท่าล่าง" คือผลรวมเลขมวลและผลรวมเลขอะตอมสองข้างต้องเท่ากัน <b>อนุภาคและรังสีที่สำคัญ</b> ดูตารางด้านล่าง',
+      tryIt: ['เปิดสนามแม่เหล็ก ดูว่าแอลฟาและบีตาเบนคนละทางและบีตาเบนมากกว่า', 'เลือก C-14 สลายบีตา ดูว่า Z เพิ่ม 1 แต่ A เท่าเดิม', 'เลือก N-14 (α, p) ดูการดุลเมื่อมีอนุภาคยิงเข้าทางซ้ายด้วย'],
+      reference: { title: 'อนุภาคและรังสีที่สำคัญ', columns: ['ชื่อ', 'สัญลักษณ์', 'A', 'Z'], rows: [['แอลฟา', '⁴₂He', '4', '2'], ['บีตา (อิเล็กตรอน)', '⁰₋₁e', '0', '−1'], ['โพซิตรอน', '⁰₁e', '0', '+1'], ['แกมมา', 'γ', '0', '0'], ['นิวตรอน', '¹₀n', '1', '0'], ['โปรตอน', '¹₁H', '1', '1'], ['ดิวเทอรอน', '²₁H', '2', '1'], ['ทริทรอน', '³₁H', '3', '1']] }
+    }
+  });
+})();
+</script>
+</body>
+</html>

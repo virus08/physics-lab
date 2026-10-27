@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S15.3 แรงบนลวดและโมเมนต์ของแรงคู่ควบ · Physics Lab</title>
+<link rel="stylesheet" href="../lib/physlab.css">
+<script src="../lib/physlab.js"></script>
+</head>
+<body>
+<main id="sim"></main>
+<script>
+/* S15.3 แรงบนลวดและโมเมนต์ของแรงคู่ควบ · บท 15 เรื่อง 6, 7, 8
+   สูตร: F = LIB sinθ · ลวดคู่ F/L = μ₀I₁I₂/2πd (ตามกันดูด สวนกันผลัก) · M = BINA cosθ (θ ระหว่างระนาบขดกับ B)
+   โหมดขดลวดเป็นแอนิเมชันหมุน · โหมดอื่นเป็นภาพนิ่ง · แก้ไขล่าสุด 2026-10-27 */
+(function () {
+  var fmt = PhysLab.fmt, rad = PhysLab.rad, deg = PhysLab.deg, mu0 = 4 * Math.PI * 1e-7;
+  function Fwire(p) { return p.L * p.I * p.B * Math.sin(rad(p.th)); }
+  function Fpair(p) { return mu0 * p.I1 * p.I2 / (2 * Math.PI * p.d); }
+  function torque(p, th) { return p.B * p.I * p.N * p.A * 1e-4 * Math.cos(th); }
+  PhysLab.createSim({
+    id: 'S15.3', chapter: 15, topics: [6, 7, 8], title: 'แรงบนลวดและโมเมนต์ของแรงคู่ควบ',
+    alt: 'โหมดลวดเดี่ยว: ลวดมีกระแสวางเอียงในสนาม B แสดงแรงพุ่งเข้าหรือออกจากกระดาษ โหมดลวดคู่: ลวดสองเส้นดูดหรือผลักกันตามทิศกระแส โหมดขดลวด: ขดลวดมองด้านข้างหมุนในสนาม มีแรงคู่ควบที่ปลายสองข้าง',
+    Fwire: Fwire, Fpair: Fpair, torque: torque,
+    params: {
+      mode: { label: 'หัวข้อ', type: 'choice', options: [{ label: 'แรงบนลวด F = LIB sinθ', value: 'wire' }, { label: 'ลวดสองเส้น', value: 'pair' }, { label: 'ขดลวดในสนาม (มอเตอร์)', value: 'coil' }], default: 'wire' },
+      I: { label: 'กระแส', symbol: 'I', unit: 'A', type: 'range', min: -20, max: 20, step: 0.5, default: 5 },
+      B: { label: 'ความเข้มสนาม', symbol: 'B', unit: 'T', type: 'range', min: 0.05, max: 2, step: 0.05, default: 0.5 },
+      L: { label: 'ความยาวลวด (โหมดลวดเดี่ยว)', symbol: 'L', unit: 'm', type: 'range', min: 0.05, max: 1, step: 0.05, default: 0.3 },
+      th: { label: 'มุมระหว่างลวดกับ B', symbol: 'θ', unit: '°', type: 'range', min: 0, max: 90, step: 1, default: 90 },
+      I1: { label: 'I₁ (โหมดลวดคู่, + ขึ้น)', symbol: 'I₁', unit: 'A', type: 'range', min: -20, max: 20, step: 0.5, default: 10 },
+      I2: { label: 'I₂ (+ ขึ้น)', symbol: 'I₂', unit: 'A', type: 'range', min: -20, max: 20, step: 0.5, default: 10 },
+      d: { label: 'ระยะห่างลวด', symbol: 'd', unit: 'm', type: 'range', min: 0.01, max: 0.5, step: 0.01, default: 0.05 },
+      N: { label: 'จำนวนรอบขด (โหมดขดลวด)', symbol: 'N', type: 'range', min: 1, max: 200, step: 1, default: 50 },
+      A: { label: 'พื้นที่ขด', symbol: 'A', unit: 'cm²', type: 'range', min: 1, max: 200, step: 1, default: 50 },
+      th0: { label: 'มุมระนาบขดกับ B (เริ่มต้น)', symbol: 'θ', unit: '°', type: 'range', min: 0, max: 180, step: 1, default: 0 }
+    },
+    presets: [{ label: 'ลวดตั้งฉาก B (แรงมากสุด)', values: { mode: 'wire', I: 5, B: 0.5, L: 0.3, th: 90 } }, { label: 'ลวดขนาน B (ไม่มีแรง)', values: { mode: 'wire', th: 0 } }, { label: 'กลับทิศกระแส (แรงกลับทิศ)', values: { mode: 'wire', I: -5, th: 90 } }, { label: 'ลวดคู่กระแสตามกัน (ดูด)', values: { mode: 'pair', I1: 10, I2: 10 } }, { label: 'ลวดคู่กระแสสวนกัน (ผลัก)', values: { mode: 'pair', I1: 10, I2: -10 } }, { label: 'ขดลวด 50 รอบ', values: { mode: 'coil', N: 50, A: 50, I: 5, B: 0.5, th0: 0 } }],
+    toggles: [{ key: 'spin', label: 'หมุนขดลวด (โหมดขดลวด)' }],
+    speeds: [0.25, 0.5, 1], dt: 1 / 120,
+    world: { xMin: -5, xMax: 5, yMin: -2.6, yMax: 2.6 },
+    init: function (p) { return { th: rad(p.th0) }; }, step: function (s, p, dt) { if (p.mode === 'coil' && (true)) s.th += 1.2 * dt * (p.I >= 0 ? 1 : -1); return s; },
+    timeLabel: function (t, s, p) { return p.mode === 'coil' ? 'θ = ' + fmt(((deg(s.th) % 360) + 360) % 360) + '°' : 'ภาพนิ่ง'; },
+    draw: function (ctx, s, p, D) {
+      var c = D.color, i;
+      if (p.mode === 'wire') {
+        for (i = -2; i <= 2; i++) D.arrow(-4.5, i * 0.9, 9, 0, { color: c.line, width: 1.2 }); D.label('B = ' + p.B + ' T →', 3.6, 2.35, { color: c.muted });
+        var th = rad(p.th), Lw = 2.4, x1 = -Lw * Math.cos(th), y1 = -Lw * Math.sin(th), x2 = Lw * Math.cos(th), y2 = Lw * Math.sin(th), F = Fwire(p);
+        D.line(x1, y1, x2, y2, { color: c.orange, width: 6 }); D.arrow((x1 + x2) / 2 - 0.6 * Math.cos(th) * Math.sign(p.I || 1), (y1 + y2) / 2 - 0.6 * Math.sin(th) * Math.sign(p.I || 1), 1.2 * Math.cos(th) * Math.sign(p.I || 1), 1.2 * Math.sin(th) * Math.sign(p.I || 1), { color: c.card, width: 2 });
+        D.label('ลวดยาว L = ' + p.L + ' m · I = ' + p.I + ' A', x2, y2, { dx: 10, color: c.orange, bg: c.card });
+        if (p.th > 0) D.angle(0, 0, 60, 0, th, { label: 'θ ' + p.th + '°' });
+        var into = (p.I * Math.sin(th)) > 0, r = 0.25 + 0.5 * PhysLab.clamp(Math.abs(F) / 5, 0, 1);
+        if (Math.abs(F) > 1e-9) { D.circle(0, 0, r, { fill: c.card, stroke: c.green, width: 3 }); if (into) { D.line(-r * 0.6, -r * 0.6, r * 0.6, r * 0.6, { color: c.green, width: 3 }); D.line(-r * 0.6, r * 0.6, r * 0.6, -r * 0.6, { color: c.green, width: 3 }); } else D.dot(0, 0, r * 20, c.green, {}); D.label('F = LIB sinθ = ' + fmt(Math.abs(F)) + ' N ' + (into ? 'พุ่งเข้ากระดาษ ⊗' : 'พุ่งออกจากกระดาษ ⊙'), 0, -r - 0.1, { dy: 12, align: 'center', color: c.green, bold: true, bg: c.card }); }
+        else D.label('ลวดขนานกับ B: F = 0', 0, -0.4, { align: 'center', color: c.green, bold: true, bg: c.card });
+        D.label('ทิศแรงจากกฎมือขวา: นิ้วชี้ตาม I นิ้วกลางตาม B นิ้วโป้งคือ F (หรือ F = IL × B)', -4.8, -2.4, { color: c.text, bg: c.card });
+      } else if (p.mode === 'pair') {
+        var F2 = Fpair(p), attract = F2 > 0, dd = 1.6;
+        [[-dd, p.I1], [dd, p.I2]].forEach(function (w, k) { D.line(w[0], -2.2, w[0], 2.2, { color: c.orange, width: 6 }); if (w[1] !== 0) D.arrow(w[0], -0.6 * Math.sign(w[1]), 0, 1.2 * Math.sign(w[1]), { color: c.card, width: 2 }); D.label('I' + (k === 0 ? '₁' : '₂') + ' = ' + w[1] + ' A ' + (w[1] > 0 ? '↑' : w[1] < 0 ? '↓' : ''), w[0], 2.3, { dy: -4, align: 'center', color: c.orange }); var sgn = (k === 0 ? 1 : -1) * (attract ? 1 : -1); if (Math.abs(F2) > 1e-12) D.arrow(w[0] + sgn * 0.08, 0, sgn * (0.5 + 0.8 * PhysLab.clamp(Math.abs(F2) * 1e3, 0, 1)), 0, { color: c.green, width: 3 }); });
+        for (i = 0; i < 3; i++) { var rr = 0.35 + i * 0.3; D.circle(-dd, 0, rr, { stroke: c.line, width: 1, dash: [3, 3] }); D.circle(dd, 0, rr, { stroke: c.line, width: 1, dash: [3, 3] }); }
+        D.line(-dd, -1.9, dd, -1.9, { color: c.text, width: 1 }); D.label('d = ' + p.d + ' m', 0, -1.9, { dy: 12, align: 'center', color: c.text });
+        D.label((p.I1 * p.I2 > 0 ? 'กระแสตามกัน → ดูดกัน' : p.I1 * p.I2 < 0 ? 'กระแสสวนกัน → ผลักกัน' : 'ไม่มีแรง') + ' · F/L = μ₀I₁I₂/2πd = ' + fmt(Math.abs(F2)) + ' N/m', -4.8, 2.4, { color: c.green, bold: true, bg: c.card });
+        D.label('สนามของลวดหนึ่ง (วงประ) ออกแรงต่อกระแสในอีกลวดหนึ่ง', -4.8, -2.4, { color: c.text, bg: c.card });
+      } else {
+        for (i = -2; i <= 2; i++) D.arrow(-4.5, i * 0.9, 9, 0, { color: c.line, width: 1.2 }); D.label('B = ' + p.B + ' T →', 3.6, 2.35, { color: c.muted });
+        var w2 = 1.8, cs = Math.cos(s.th), sn = Math.sin(s.th), ex = w2 * cs, ey = w2 * sn, M = torque(p, s.th), Fs = p.B * p.I * p.N * Math.sqrt(p.A * 1e-4);
+        D.line(-ex, -ey, ex, ey, { color: c.orange, width: 6 }); D.dot(0, 0, 5, c.text, {});
+        var out = p.I >= 0; D.circle(ex, ey, 0.2, { fill: c.card, stroke: c.orange, width: 3 }); D.circle(-ex, -ey, 0.2, { fill: c.card, stroke: c.orange, width: 3 });
+        if (out) { D.dot(ex, ey, 4, c.orange, {}); D.line(-ex - 0.12, -ey - 0.12, -ex + 0.12, -ey + 0.12, { color: c.orange, width: 2.5 }); D.line(-ex - 0.12, -ey + 0.12, -ex + 0.12, -ey - 0.12, { color: c.orange, width: 2.5 }); } else { D.dot(-ex, -ey, 4, c.orange, {}); D.line(ex - 0.12, ey - 0.12, ex + 0.12, ey + 0.12, { color: c.orange, width: 2.5 }); D.line(ex - 0.12, ey + 0.12, ex + 0.12, ey - 0.12, { color: c.orange, width: 2.5 }); }
+        var fl = 0.4 + 0.8 * PhysLab.clamp(Math.abs(Fs) / 3, 0, 1), sg = out ? 1 : -1; D.arrow(ex, ey, 0, sg * fl, { color: c.green, width: 3, label: 'F' }); D.arrow(-ex, -ey, 0, -sg * fl, { color: c.green, width: 3, label: 'F' });
+        D.label('ขดลวดมองด้านข้าง (แกนหมุนตั้งฉากจอ) · N = ' + p.N + ' · A = ' + p.A + ' cm² · I = ' + p.I + ' A', -4.8, 2.4, { color: c.text, bg: c.card });
+        D.label('M = BINA cosθ = ' + fmt(Math.abs(M)) + ' N·m ที่ θ = ' + fmt(((deg(s.th) % 360) + 360) % 360) + '° · แขนโมเมนต์หดเมื่อขดตั้งฉาก B (cosθ → 0)', -4.8, -2.4, { color: c.green, bold: true, bg: c.card });
+      }
+    },
+    readouts: function (s, p) { if (p.mode === 'wire') return [{ label: 'F = LIB sinθ', value: Math.abs(Fwire(p)), unit: 'N', highlight: true }, { label: 'ทิศ', value: Math.abs(Fwire(p)) < 1e-9 ? 'ไม่มีแรง' : (p.I * Math.sin(rad(p.th)) > 0 ? 'เข้ากระดาษ' : 'ออกจากกระดาษ') }, { label: 'F สูงสุด (θ = 90°)', value: Math.abs(p.L * p.I * p.B), unit: 'N' }]; if (p.mode === 'pair') return [{ label: 'F/L = μ₀I₁I₂/2πd', value: Math.abs(Fpair(p)), unit: 'N/m', highlight: true }, { label: 'ชนิด', value: p.I1 * p.I2 > 0 ? 'ดูดกัน' : p.I1 * p.I2 < 0 ? 'ผลักกัน' : 'ไม่มีแรง' }, { label: 'B จากลวด 1 ที่ลวด 2', value: mu0 * Math.abs(p.I1) / (2 * Math.PI * p.d), unit: 'T' }]; return [{ label: 'M = BINA cosθ', value: Math.abs(torque(p, s.th)), unit: 'N·m', highlight: true }, { label: 'M สูงสุด (θ = 0)', value: Math.abs(p.B * p.I * p.N * p.A * 1e-4), unit: 'N·m' }, { label: 'θ ขณะนี้', value: ((deg(s.th) % 360) + 360) % 360, unit: '°' }]; },
+    formulas: function (s, p) { if (p.mode === 'wire') return [{ symbolic: 'F = LIB sinθ', substituted: '= ' + p.L + ' × ' + p.I + ' × ' + p.B + ' × sin' + p.th + '°', result: '= ' + fmt(Fwire(p)) + ' N' }]; if (p.mode === 'pair') return [{ symbolic: 'F/L = μ₀I₁I₂/2πd', substituted: '= 4π×10⁻⁷ × ' + p.I1 + ' × ' + p.I2 + ' / (2π × ' + p.d + ')', result: '= ' + fmt(Fpair(p)) + ' N/m' }]; return [{ symbolic: 'M = BINA cosθ', substituted: '= ' + p.B + ' × ' + p.I + ' × ' + p.N + ' × ' + p.A + '×10⁻⁴ × cos' + fmt(((deg(s.th) % 360) + 360) % 360) + '°', result: '= ' + fmt(torque(p, s.th)) + ' N·m' }]; },
+    sample: function (s, p) { return { M: p.mode === 'coil' ? torque(p, s.th) : 0 }; },
+    graphs: [{ title: 'โมเมนต์ M กับเวลา (โหมดขดลวด)', x: 't', series: [{ key: 'M', label: 'M (N·m)', color: '#0E6B57' }], window: 8 }],
+    content: {
+      summary: '<b>แรงบนลวดที่มีกระแส</b> F = LIB sinθ เป็นหลักการของมอเตอร์ <b>กระแสตามกันและสวนกัน</b> ลวดสองเส้นกระแสทิศเดียวกันดูดกัน ทิศตรงข้ามผลักกัน <b>โมเมนต์ของแรงคู่ควบ</b> ขดลวดมีกระแสในสนามแม่เหล็กจะถูกบิดให้หมุน M = BINA cosθ คือหัวใจของมอเตอร์และมิเตอร์แบบเข็ม',
+      tryIt: ['โหมดลวดเดี่ยว: ลดมุมจาก 90° ไป 0° ดูว่าแรงลดลงจนเป็นศูนย์', 'โหมดลวดคู่: กลับทิศ I₂ ดูว่าลูกศรแรงเปลี่ยนจากดูดเป็นผลัก', 'โหมดขดลวด: กดเล่นแล้วดูกราฟ M เป็นรูป cos ค่าสูงสุดเมื่อระนาบขดขนาน B']
+    }
+  });
+})();
+</script>
+</body>
+</html>
