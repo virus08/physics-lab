@@ -12,7 +12,7 @@
 - ชุดทดสอบ `node --test lab/tests/*.test.mjs` ผ่าน 83 รายการ (ไลบรารี ฟิสิกส์ ความครอบคลุม และ smoke ทุกชุดด้วย Playwright)
 - ตรวจภาพหน้าจอทุกชุดบนเดสก์ท็อปและแก้ป้ายซ้อนทับแล้ว
 - เผยแพร่เป็น Artifact ส่วนตัว https://claude.ai/artifact/WJwmbEAKNb9keHV2u4JHpZ
-- เผยแพร่สาธารณะบน Azure Static Web Apps https://blue-bush-0542be600.1.azurestaticapps.net (ดู 06-runbook.md ข้อ 2.1)
+- เผยแพร่สาธารณะบน Azure Static Web Apps https://phy.fuangmali.info (ดู 06-runbook.md ข้อ 2.1)
 
 ## [0.2.0] - 2026-10-27
 

@@ -16,7 +16,7 @@
 
 - แคนวาสออกแบบหน้าจอ: https://claude.ai/artifact/3VwHxBCwwNSrUqix5qhFDe (หน้าแคตตาล็อก หน้าแบบจำลอง การ์ดออกแบบ 76 ชุด และหน้าจอเต็ม 76 ชุดเรียงตามบท)
 - แบบจำลองที่ใช้งานได้จริง (Artifact ส่วนตัว): https://claude.ai/artifact/WJwmbEAKNb9keHV2u4JHpZ (แคตตาล็อก + 76 ชุด เวอร์ชัน 1.0.0) หรือเปิด `lab/index.html` จากเครื่องโดยตรง
-- เว็บสาธารณะสำหรับนักเรียน: https://blue-bush-0542be600.1.azurestaticapps.net (Azure Static Web Apps)
+- เว็บสาธารณะสำหรับนักเรียน: https://phy.fuangmali.info (Azure Static Web Apps โฮสต์เดิม blue-bush-0542be600.1.azurestaticapps.net)
 - เนื้อหาต้นทาง: `physics-summary-20-chapters-content.md` (สูตรและข้อความ) และ `physics-summary-20-chapters-easy.md` (สรุป 195 เรื่อง ใช้เป็นเลขอ้างอิง)
 
 กติกาการดูแลเอกสาร

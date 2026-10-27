@@ -27,7 +27,7 @@
 
 ### 2.1 Azure Static Web Apps
 
-ทรัพยากร: resource group `physics-lab-rg` (East Asia) · แอป `physics-lab` SKU Free · โฮสต์ `blue-bush-0542be600.1.azurestaticapps.net` · สร้างเมื่อ 2026-10-27 ด้วยบัญชี Azure ของเจ้าของโปรเจกต์
+ทรัพยากร: resource group `physics-lab-rg` (East Asia) · แอป `physics-lab` SKU Free · โฮสต์ `blue-bush-0542be600.1.azurestaticapps.net` · โดเมน `phy.fuangmali.info` (CNAME ที่ Google Cloud DNS ชี้ไปโฮสต์ Azure ใบรับรอง TLS ออกให้อัตโนมัติ) · สร้างเมื่อ 2026-10-27 ด้วยบัญชี Azure ของเจ้าของโปรเจกต์
 
 ขั้นตอนอัปเดตเว็บ (ต้อง `az login` และมี `swa` CLI)
 
